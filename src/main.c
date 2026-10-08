@@ -81,18 +81,26 @@ static int tier0_test(const char *path)
 int main(int argc, char **argv)
 {
 	int i = 1;
-	const char *t0 = NULL;
+	const char *t0 = NULL, *deps = NULL;
 	for (; i < argc && argv[i][0] == '-'; i++) {
 		if (!strcmp(argv[i], "-v")) verbose = 1;
 		else if (!strcmp(argv[i], "-t")) trace_calls = 1;
 		else if (!strcmp(argv[i], "-L") && i + 1 < argc) macho_add_search_dir(argv[++i]);
 		else if (!strcmp(argv[i], "--tier0-test") && i + 1 < argc) t0 = argv[++i];
+		else if (!strcmp(argv[i], "--deps") && i + 1 < argc) deps = argv[++i];
 		else die("unknown option %s", argv[i]);
 	}
 	low_init();
 	cpu_init();
 	thunks_init();
 	if (t0) return tier0_test(t0);
+	if (deps) {	// load the tree, report what is missing, run nothing
+		char *av[1] = { (char *)deps };
+		setup_process(1, av);
+		macho_load(deps);
+		fprintf(stderr, "[mac32] %d unresolved imports\n", unresolved_count);
+		return 0;
+	}
 	if (i >= argc) die("usage: mac32 [-v] [-t] [-L dir] program [args...]");
 
 	setup_process(argc - i, argv + i);
