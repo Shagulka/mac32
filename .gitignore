@@ -1,3 +1,5 @@
 probe/probe
 *.o
 *.dSYM/
+mac32
+build/

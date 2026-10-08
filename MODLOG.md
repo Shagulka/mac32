@@ -50,8 +50,43 @@ What Rosetta accepts (found by trial and by `strings libRosettaRuntime`):
 6. Loading ds/es with 0x23 in 64-bit mode is accepted.
 7. RWX pages made with mprotect are fine; the trampoline writes its own data.
 
+## Step 1 — loader runs libtier0 (DONE 2026-10-08)
+`make && ./mac32 -v -L "<P2>/bin/osx32" --tier0-test "<P2>/bin/osx32/libtier0.dylib"`:
+loads Valve's i386 libtier0 at 0x13c000, runs its 11 static initializers,
+`Plat_FloatTime()` measures a 0.25 s sleep as 0.255 s (double back via st(0)),
+`Msg("%s %d %.2f")` prints through tier0's logging -> our vsnprintf thunk.
+14 imports unresolved (C++ EH/RTTI + `_Rb_tree_*`); none called yet.
+
+Layout of the code (src/):
+- `reserve.s` + linker flags: host is non-PIE at 0x200000000, zero page 0x1000,
+  and a `__RESERVE` zerofill segment (prot ---) covers [0x1000, 0xf0000000) so
+  the kernel keeps the low 4 GB free from exec onward.
+- `lowmem.c`: page blocks + 16-byte-aligned guest malloc inside that range.
+- `tramp.s`: copied to a low page. `t_call32` (64->32, nests; saved host rsp in
+  a pthread TSD slot read via %gs) and `t_hostcall32` (32->64; import stubs are
+  `push idx; jmp t_hostcall32`; the host thunk runs on the guest stack).
+- `invoke.s`: generic SysV call with marshalled register/stack args.
+- `thunks.c` + `libc.c`, `pthread.c`, `cxx.c`, `format.c`: host functions.
+  Signature strings for plain functions; raw thunks where i386 layouts differ
+  (FILE, tm, timeval, timespec, sysctl size_t*, pthread objects, varargs).
+- `macho.c`: classic relocs + indirect symbols + 5-byte `__jump_table` stubs,
+  and LC_DYLD_INFO opcodes; binds everything eagerly; runs LC_ROUTINES and
+  `__mod_init_func`; `dlopen`/`dlsym` from the guest load more images.
+
+More Rosetta / macOS facts:
+8. With `-pagezero_size 0x1000` the kernel places the host's early mallocs in
+   low memory, before main(). A MAP_FIXED reservation in main() wipes them
+   (crash at 0x43000). The `__RESERVE` segment fixes it. The kernel maps that
+   zerofill as 128 MB vm entries, so walk them all when checking.
+9. A host function far from 0x1000 cannot reference a symbol in `__RESERVE`
+   (32-bit RIP-relative out of range) — check it with mach_vm_region instead.
+10. `%gs`-relative TSD reads in 64-bit mode still work after a trip through
+    32-bit mode under Rosetta.
+11. x87 st(0) carries across the mode switch: `fldl` in 64-bit code before
+    `iretq` gives the 32-bit caller its double.
+
 ## Plan
-1. Loader core: parse i386 Mach-O (LC_SEGMENT, LC_DYLD_INFO rebase/bind/lazy-bind,
+1. (done) Loader core: parse i386 Mach-O (LC_SEGMENT, LC_DYLD_INFO rebase/bind/lazy-bind,
    LC_SYMTAB/DYSYMTAB for older indirect symbols), map into low 4 GB, apply
    rebases, run `__mod_init_func`, find exports. Test on a small Portal 2 dylib
    (`libvstdlib.dylib`/`libtier0.dylib`) — see which imports it needs.
