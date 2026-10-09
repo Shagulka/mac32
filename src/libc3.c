@@ -546,7 +546,6 @@ static void audio_off(void)
 }
 static void t_no_component(uint32_t *args, struct hres *r) { (void)args; audio_off(); RET(0); }
 static void t_audio_err(uint32_t *args, struct hres *r) { (void)args; audio_off(); RET(0x77686174); }	// 'what'
-static void t_al_null(uint32_t *args, struct hres *r) { (void)args; audio_off(); RET(0); }
 static void t_noop0(uint32_t *args, struct hres *r) { (void)args; RET(0); }
 static void t_curl_fail(uint32_t *args, struct hres *r) { (void)args; RET(2); }	// CURLE_FAILED_INIT
 static void t_event_timeout(uint32_t *args, struct hres *r) { (void)args; RET(-9875); }	// eventLoopTimedOutErr
@@ -634,17 +633,6 @@ static struct hfn libc3[] = {
 	R("_AudioUnitGetProperty", t_audio_err), R("_AudioUnitSetProperty", t_audio_err),
 	R("_AudioUnitInitialize", t_audio_err), R("_AudioUnitUninitialize", t_audio_err),
 	R("_AudioUnitRender", t_audio_err),
-	// OpenAL (voice chat): no device
-	R("_alcOpenDevice", t_al_null), R("_alcCaptureOpenDevice", t_al_null), R("_alcCreateContext", t_al_null),
-	R("_alcGetCurrentContext", t_al_null), R("_alcGetContextsDevice", t_al_null),
-	R("_alcCloseDevice", t_noop0), R("_alcCaptureCloseDevice", t_noop0), R("_alcDestroyContext", t_noop0),
-	R("_alcMakeContextCurrent", t_noop0), R("_alcSuspendContext", t_noop0), R("_alcGetIntegerv", t_noop0),
-	R("_alcCaptureStart", t_noop0), R("_alcCaptureStop", t_noop0), R("_alcCaptureSamples", t_noop0),
-	R("_alGetError", t_noop0), R("_alGenBuffers", t_noop0), R("_alGenSources", t_noop0),
-	R("_alDeleteBuffers", t_noop0), R("_alDeleteSources", t_noop0), R("_alBufferData", t_noop0),
-	R("_alGetSourcei", t_noop0), R("_alListener3f", t_noop0), R("_alSource3f", t_noop0),
-	R("_alSourcef", t_noop0), R("_alSourcePlay", t_noop0), R("_alSourceStop", t_noop0),
-	R("_alSourceQueueBuffers", t_noop0), R("_alSourceUnqueueBuffers", t_noop0),
 	// curl (server browser / news): not available yet
 	R("_curl_global_init", t_noop0), R("_curl_easy_init", t_noop0), R("_curl_easy_cleanup", t_noop0),
 	R("_curl_easy_setopt", t_curl_fail), R("_curl_easy_perform", t_curl_fail), R("_curl_easy_getinfo", t_curl_fail),
