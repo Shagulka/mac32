@@ -55,6 +55,7 @@ static void crash(int sig, siginfo_t *si, void *ucv)
 	if (where) fprintf(stderr, " (%s+%#x)", where, off);
 	fprintf(stderr, ", fault addr %p, cs %#llx\n", si->si_addr,
 		(unsigned long long)uc->uc_mcontext->__ss.__cs);
+	if ((uintptr_t)si->si_addr < LOW_END) low_describe((g32)(uintptr_t)si->si_addr);
 	fprintf(stderr, "  eax %08llx ebx %08llx ecx %08llx edx %08llx\n",
 		uc->uc_mcontext->__ss.__rax & 0xffffffff, uc->uc_mcontext->__ss.__rbx & 0xffffffff,
 		uc->uc_mcontext->__ss.__rcx & 0xffffffff, uc->uc_mcontext->__ss.__rdx & 0xffffffff);

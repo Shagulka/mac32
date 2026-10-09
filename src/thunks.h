@@ -37,6 +37,7 @@ void thunks_audio_init(void);
 void thunks_sndmgr_init(void);
 void thunks_openal_init(void);
 void thunks_apple2_init(void);
+void thunks_legacy_init(void);
 
 // raw thunk helpers
 #define A(i) (args[i])

@@ -11,7 +11,11 @@
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 
-static g32 page_next = 0x00100000;	// below this: fixed-address executables
+// Old executables are linked at a fixed address from 0x1000 up (OpenTTD's
+// text alone is 9 MB), so our own pages start at EXE_ZONE; the space between
+// the program and EXE_ZONE is handed to the allocator once the program is in.
+#define EXE_ZONE 0x10000000u
+static g32 page_next = EXE_ZONE;
 static os_unfair_lock page_lock = OS_UNFAIR_LOCK_INIT;
 
 // Freed page ranges, sorted by address and merged, so address space is reused.
@@ -170,6 +174,43 @@ g32 low_pages(uint32_t len, int prot)
 	os_unfair_lock_unlock(&page_lock);
 	low_commit(a, total - 0x1000, prot);
 	return a;
+}
+
+// the main program is mapped (hi: its end, 0 if it went into low_pages):
+// the rest of the space below EXE_ZONE becomes free for blocks
+void low_exe_placed(g32 hi)
+{
+	static int done;
+	if (done) return;
+	done = 1;
+	if (hi > EXE_ZONE) die("the program ends at %#x, above %#x where mac32's own memory starts", hi, EXE_ZONE);
+	g32 from = (hi + 0xfffu) & ~0xfffu;
+	if (from < 0x00100000) from = 0x00100000;
+	os_unfair_lock_lock(&page_lock);
+	ext_insert(from, EXE_ZONE - from);
+	os_unfair_lock_unlock(&page_lock);
+}
+
+// for crash reports: what the allocator knows about a guest address
+// (no locks: the process is going down anyway)
+void low_describe(g32 a)
+{
+	for (uint32_t i = 0; i < live_cap; i++)
+		if (live[i].len && a >= live[i].a && a - live[i].a < live[i].len) {
+			fprintf(stderr, "  %#x is in a live block %#x+%#x%s\n", a, live[i].a, live[i].len,
+				a - live[i].a >= live[i].len - 0x1000 ? " (its guard page: overrun)" : "");
+			return;
+		}
+	for (int i = 0; i < nfr; i++)
+		if (a >= fr[i].a && a - fr[i].a < fr[i].len) {
+			fprintf(stderr, "  %#x is in a freed range %#x+%#x (use after free)\n", a, fr[i].a, fr[i].len);
+			return;
+		}
+	g32 below = 0, blen = 0;
+	for (uint32_t i = 0; i < live_cap; i++)
+		if (live[i].len && live[i].a <= a && live[i].a > below) { below = live[i].a; blen = live[i].len; }
+	fprintf(stderr, "  %#x is %s (top %#x; nearest block below: %#x+%#x)\n", a,
+		a >= page_next ? "above every block mac32 made" : "not a mac32 block (program image?)", page_next, below, blen);
 }
 
 // give a low_pages block back; returns 0 if a was not one

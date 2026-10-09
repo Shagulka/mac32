@@ -601,6 +601,52 @@ static int synth_property(struct gclass *gc, id target, const char *sel, const u
 	return 0;
 }
 
+// NSTrackingRectTag is an NSInteger holding a 64-bit value: the guest gets a
+// small number that stands for it
+static NSTrackingRectTag tags[1024];
+static int tracking_rect(id target, const char *sel, const uint32_t *ga, struct hres *r)
+{
+	if (!strcmp(sel, "addTrackingRect:owner:userData:assumeInside:")) {
+		float f[4];
+		memcpy(f, ga, 16);
+		NSTrackingRectTag t = [target addTrackingRect:NSMakeRect(f[0], f[1], f[2], f[3]) owner:objc_unwrap(ga[4])
+						     userData:(void *)(uintptr_t)ga[5] assumeInside:(ga[6] & 0xff) != 0];
+		pthread_mutex_lock(&lk);
+		uint32_t i = 1;
+		while (i < 1024 && tags[i]) i++;
+		if (i == 1024) die("objc: too many tracking rects");
+		tags[i] = t;
+		pthread_mutex_unlock(&lk);
+		r->rax = i;
+		return 1;
+	}
+	if (!strcmp(sel, "getRectsBeingDrawn:count:")) {	// (const NSRect **, NSInteger *)
+		const NSRect *rs = NULL;
+		NSInteger n = 0;
+		[target getRectsBeingDrawn:&rs count:&n];
+		static __thread g32 buf;
+		static __thread uint32_t cap;
+		if ((uint32_t)n > cap) { gfree(buf); cap = (uint32_t)n + 8; buf = gmalloc(cap * 16); }
+		float *f = G2H(buf);
+		for (NSInteger i = 0; i < n; i++) {
+			f[i * 4] = (float)rs[i].origin.x; f[i * 4 + 1] = (float)rs[i].origin.y;
+			f[i * 4 + 2] = (float)rs[i].size.width; f[i * 4 + 3] = (float)rs[i].size.height;
+		}
+		if (ga[0]) U32(ga[0]) = buf;
+		if (ga[1]) U32(ga[1]) = (uint32_t)n;
+		return 1;
+	}
+	if (!strcmp(sel, "removeTrackingRect:")) {
+		uint32_t i = ga[0];
+		if (i && i < 1024 && tags[i]) {
+			[target removeTrackingRect:tags[i]];
+			tags[i] = 0;
+		}
+		return 1;
+	}
+	return 0;
+}
+
 // nil-terminated object lists (arrayWithObjects:, dictionaryWithObjectsAndKeys:
 // ...): NSInvocation cannot carry varargs, so build them from the guest list
 static int variadic_objects(id target, const char *sel, const uint32_t *ga, struct hres *r)
@@ -686,6 +732,7 @@ static void msgsend(uint32_t *a, struct hres *r, int kind)
 	}
 	if (!strcmp(sel, "countByEnumeratingWithState:objects:count:")) { fast_enum(target, ga, r); return; }
 	if (variadic_objects(target, sel, ga, r)) return;
+	if (tracking_rect(target, sel, ga, r)) return;
 	if (!strcmp(sel, "stringWithFormat:")) {	// variadic: NSInvocation cannot carry it
 		NSString *fmt = objc_unwrap(ga[0]);
 		int n;
@@ -936,6 +983,27 @@ static void t_NSLog(uint32_t *args, struct hres *r)
 		free(s);
 	}
 }
+// NSRunAlertPanel(title, msgFormat, default, alternate, other, ...): show it, and log it
+static void t_NSRunAlertPanel(uint32_t *args, struct hres *r)
+{
+	@autoreleasepool {
+		NSString *title = A(0) ? objc_unwrap(A(0)) : @"";
+		NSString *fmt = A(1) ? objc_unwrap(A(1)) : @"";
+		int n;
+		char *c = gvformat_objc(fmt.UTF8String, &args[5], &n, describe_obj);
+		NSString *msg = [NSString stringWithUTF8String:c];
+		free(c);
+		fprintf(stderr, "[mac32] alert: %s: %s\n", title.UTF8String, msg.UTF8String);
+		NSAlert *a = [[NSAlert new] autorelease];
+		a.messageText = title;
+		a.informativeText = msg;
+		NSString *b[3] = { A(2) ? objc_unwrap(A(2)) : @"OK", A(3) ? objc_unwrap(A(3)) : nil, A(4) ? objc_unwrap(A(4)) : nil };
+		for (int i = 0; i < 3; i++) if (b[i]) [a addButtonWithTitle:b[i]];
+		NSModalResponse resp = [a runModal];
+		// NSAlertDefaultReturn 1, NSAlertAlternateReturn 0, NSAlertOtherReturn -1
+		RET(resp == NSAlertFirstButtonReturn ? 1 : resp == NSAlertSecondButtonReturn ? 0 : (uint32_t)-1);
+	}
+}
 static void t_enum_mutation(uint32_t *args, struct hres *r) { (void)args; (void)r; die("objc: collection mutated during enumeration"); }
 static void init_nsapp(g32 a) { nsapp_var = a; U32(a) = objc_wrap(NSApp); }
 static void init_runloopmode(g32 a) { U32(a) = objc_wrap(NSDefaultRunLoopMode); }
@@ -1139,7 +1207,8 @@ static void t_dispatch_get_main_queue(uint32_t *args, struct hres *r) { (void)ar
 
 // ---- AppKit / Foundation constants ------------------------------------------------
 #define NSCONST(sym) static void init_##sym(g32 a) { U32(a) = objc_wrap((id)sym); }
-NSCONST(NSApplicationDidBecomeActiveNotification) NSCONST(NSBackingPropertyOldScaleFactorKey)
+NSCONST(NSApplicationDidBecomeActiveNotification) NSCONST(NSApplicationDidHideNotification)
+NSCONST(NSApplicationDidUnhideNotification) NSCONST(NSApplicationWillUnhideNotification) NSCONST(NSBackingPropertyOldScaleFactorKey)
 NSCONST(NSCurrentLocaleDidChangeNotification) NSCONST(NSDeviceRGBColorSpace)
 NSCONST(NSFilenamesPboardType) NSCONST(NSStringPboardType) NSCONST(NSPasteboardTypeString) NSCONST(NSURLIsAliasFileKey)
 NSCONST(NSWindowDidBecomeKeyNotification) NSCONST(NSWindowDidChangeBackingPropertiesNotification)
@@ -1161,7 +1230,7 @@ static struct hfn objc_fns[] = {
 	R("_objc_msgSend_fpret", t_msgSend_fpret), R("_objc_msgSendSuper", t_msgSendSuper),
 	R("_objc_msgSendSuper_stret", t_msgSendSuper_stret),
 	R("_objc_enumerationMutation", t_enum_mutation),
-	R("_NSClassFromString", t_NSClassFromString), R("_NSLog", t_NSLog),
+	R("_NSClassFromString", t_NSClassFromString), R("_NSRunAlertPanel", t_NSRunAlertPanel), R("_NSLog", t_NSLog),
 	D("_NSApp", 4, init_nsapp), D("_NSDefaultRunLoopMode", 4, init_runloopmode),
 	D("___CFConstantStringClassReference", 32, init_cfconst),
 	R("_objc_retain", t_objc_retain), R("_objc_release", t_objc_release),
@@ -1179,7 +1248,8 @@ static struct hfn objc_fns[] = {
 	R("__Block_copy", t_Block_copy), R("__Block_release", t_Block_release),
 	D("__dispatch_main_q", 128, init_main_q), R("_dispatch_get_main_queue", t_dispatch_get_main_queue),
 	R("_dispatch_async", t_dispatch_async), R("_dispatch_sync", t_dispatch_sync),
-	NSC(NSApplicationDidBecomeActiveNotification), NSC(NSBackingPropertyOldScaleFactorKey),
+	NSC(NSApplicationDidBecomeActiveNotification), NSC(NSApplicationDidHideNotification),
+	NSC(NSApplicationDidUnhideNotification), NSC(NSApplicationWillUnhideNotification), NSC(NSBackingPropertyOldScaleFactorKey),
 	NSC(NSCurrentLocaleDidChangeNotification), NSC(NSDeviceRGBColorSpace),
 	NSC(NSFilenamesPboardType), NSC(NSStringPboardType),
 	R("_sel_registerName", t_sel_registerName), R("_sel_getUid", t_sel_registerName), R("_sel_getName", t_sel_getName), NSC(NSPasteboardTypeString), NSC(NSURLIsAliasFileKey),

@@ -9,6 +9,7 @@
 #include <sched.h>
 #include <errno.h>
 #include <signal.h>
+#include <setjmp.h>
 #include <stdatomic.h>
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
@@ -150,6 +151,8 @@ static void t_condattr_destroy(uint32_t *args, struct hres *r) { (void)args; RET
 // Guest pthread_t is a pointer to this 16-byte guest record.
 struct gthread { uint64_t host; uint32_t retval; g32 fn; };	// fn: start routine, for logs
 static __thread g32 self_rec;
+static __thread jmp_buf *exit_jb;
+static __thread uint32_t exit_value;
 
 static g32 thread_record(pthread_t t)
 {
@@ -172,8 +175,26 @@ static void *thread_main(void *p)
 	if (s.go) dispatch_semaphore_wait(s.go, DISPATCH_TIME_FOREVER);
 	cpu_thread_init(s.stack);
 	self_rec = s.rec;
+	jmp_buf jb;
+	uint64_t tsd = cpu_tsd_get();
+	if (_setjmp(jb)) {		// the guest called pthread_exit
+		exit_jb = NULL;
+		cpu_tsd_set(tsd);
+		return (void *)(uintptr_t)exit_value;
+	}
+	exit_jb = &jb;
 	uint32_t rv = (uint32_t)gcall(s.fn, 1, s.arg);
+	exit_jb = NULL;
 	return (void *)(uintptr_t)rv;
+}
+
+// pthread_exit from guest code: leave the guest frames by jumping back to
+// thread_main (a host pthread_exit from inside a 32-bit call wedges Rosetta)
+static void t_pthread_exit(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	if (exit_jb) { exit_value = A(0); _longjmp(*exit_jb, 1); }
+	exit(0);	// the main thread: the program is done
 }
 
 // attr: [sig][stacksize][detach][...]
@@ -364,6 +385,7 @@ static void t_setcanceltype(uint32_t *args, struct hres *r)
 }
 
 static struct hfn pth[] = {
+	R("_pthread_exit", t_pthread_exit), R("_pthread_exit$UNIX2003", t_pthread_exit),
 	R("_pthread_cancel", t_cancel), R("_pthread_cancel$UNIX2003", t_cancel),
 	R("_pthread_setcanceltype", t_setcanceltype), R("_pthread_setcanceltype$UNIX2003", t_setcanceltype),
 	R("_pthread_mutex_init", t_mutex_init), R("_pthread_mutex_destroy", t_mutex_destroy),

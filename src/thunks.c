@@ -254,4 +254,5 @@ void thunks_init(void)
 	thunks_sndmgr_init();
 	thunks_openal_init();
 	thunks_apple2_init();
+	thunks_legacy_init();
 }

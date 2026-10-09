@@ -275,3 +275,22 @@ void _ZNSt15_List_node_base6unhookEv(lnode *self)
 	self->next->prev = self->prev;
 }
 int _ZSt18uncaught_exceptionv(void) { return 0; }	// only asked by destructors that log
+void _ZNSt15_List_node_base4swapERS_S0_(lnode *a, lnode *b)
+{
+	lnode ta = *a, tb = *b;
+	if (tb.next == b) { a->next = a->prev = a; }	// b was empty
+	else { *a = tb; a->next->prev = a; a->prev->next = a; }
+	if (ta.next == a) { b->next = b->prev = b; }
+	else { *b = ta; b->next->prev = b; b->prev->next = b; }
+}
+void _ZNSt15_List_node_base8transferEPS_S0_(lnode *self, lnode *first, lnode *last)	// move [first,last) before self
+{
+	if (self == last) return;
+	last->prev->next = self;
+	first->prev->next = last;
+	self->prev->next = first;
+	lnode *tmp = self->prev;
+	self->prev = last->prev;
+	last->prev = first->prev;
+	first->prev = tmp;
+}

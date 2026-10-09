@@ -260,13 +260,13 @@ static int cmp_u32(const void *a, const void *b)
 
 static void fix_classic(struct image *img)
 {
-	g32 relocbase = 0;
-	for (int i = 0; i < img->nseg; i++) {
-		struct segment_command *sg = img->seg[i];
-		if (img->mh->flags & MH_SPLIT_SEGS) {
-			if (sg->initprot & VM_PROT_WRITE) { relocbase = sg->vmaddr; break; }
-		} else if (sg->fileoff == 0 && sg->filesize) { relocbase = sg->vmaddr; break; }
-	}
+	// r_address counts from the first segment (__PAGEZERO at 0 in an
+	// executable, __TEXT in a dylib), or from the first writable one in
+	// split-segment images, as dyld's classic loader does
+	g32 relocbase = img->nseg ? img->seg[0]->vmaddr : 0;
+	if (img->mh->flags & MH_SPLIT_SEGS)
+		for (int i = 0; i < img->nseg; i++)
+			if (img->seg[i]->initprot & VM_PROT_WRITE) { relocbase = img->seg[i]->vmaddr; break; }
 	relocbase += (g32)img->slide;
 
 	struct dysymtab_command *d = img->dst;
@@ -596,6 +596,7 @@ static struct image *load_file(const char *path)
 	if (img->mh->filetype == MH_EXECUTE && !(img->mh->flags & MH_PIE)) {
 		low_commit(img->lo, span, PROT_READ | PROT_WRITE);
 		img->slide = 0;
+		low_exe_placed(img->hi);
 	} else {
 		g32 base = low_pages(span, PROT_READ | PROT_WRITE);
 		img->slide = (int32_t)(base - img->lo);

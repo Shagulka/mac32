@@ -249,6 +249,7 @@ int main(int argc, char **argv)
 
 	setup_process(argc - i, argv + i);
 	struct image *img = macho_load(argv[i]);
+	low_exe_placed(0);	// a position-independent program: nothing is fixed below EXE_ZONE
 	g32 entry = macho_entry(img), mainfn = macho_main(img);
 	if (!entry && !mainfn) die("%s has no entry point", argv[i]);
 	// dyld fills in the crt1 globals an executable defines

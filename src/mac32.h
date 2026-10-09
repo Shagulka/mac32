@@ -20,7 +20,9 @@ extern int verbose;
 void low_init(void);
 void low_commit(g32 addr, uint32_t len, int prot);	// map fixed, zeroed
 g32 low_pages(uint32_t len, int prot);			// page-aligned block
-int low_free(g32 a);					// give a low_pages block back
+int low_free(g32 a);
+void low_exe_placed(g32 hi);
+void low_describe(g32 a);				// crash reports: what is at a				// main program mapped; free the space below EXE_ZONE					// give a low_pages block back
 uint32_t low_block_len(g32 a);				// its length, 0 if a is not one
 g32 gmalloc(uint32_t n);
 g32 gcalloc(uint32_t n, uint32_t sz);
@@ -44,7 +46,9 @@ typedef void (*rawfn)(uint32_t *args, struct hres *r);
 
 void cpu_init(void);
 void cpu_thread_init(uint32_t stack_size);	// give this host thread a guest stack
-uint64_t gcall(g32 fn, int nargs, ...);			// call cdecl guest code, 32-bit args
+uint64_t gcall(g32 fn, int nargs, ...);
+uint64_t cpu_tsd_get(void);				// host stack slot of t_call32; restore it after
+void cpu_tsd_set(uint64_t v);				// a longjmp out of guest code			// call cdecl guest code, 32-bit args
 double gcall_fp(g32 fn, int nargs, ...);		// same, returns st(0)
 uint64_t gcallv(g32 fn, int nargs, const uint32_t *args, double *st0);
 

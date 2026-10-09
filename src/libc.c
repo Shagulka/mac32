@@ -122,6 +122,9 @@ static void t_vfprintf(uint32_t *args, struct hres *r) { out_to(gfile_host(A(0))
 static void to_buf(g32 dst, uint32_t size, const char *fmt, const uint32_t *ap, struct hres *r)
 {
 	int n;
+	static int fmtlog = -1;
+	if (fmtlog < 0) fmtlog = getenv("MAC32_FMTLOG") != NULL;
+	if (fmtlog) fprintf(stderr, "[fmt] \"%s\" args %08x %08x %08x %08x\n", fmt, ap[0], ap[1], ap[2], ap[3]);
 	char *s = gvformat(fmt, ap, &n);
 	if (size) {
 		uint32_t c = (uint32_t)n < size - 1 ? (uint32_t)n : size - 1;
@@ -131,9 +134,25 @@ static void to_buf(g32 dst, uint32_t size, const char *fmt, const uint32_t *ap, 
 	free(s);
 	RET(n);
 }
+static void t_snprintf_dbg(uint32_t *args)
+{
+	static int fmtlog = -1;
+	if (fmtlog < 0) fmtlog = getenv("MAC32_FMTLOG") != NULL;
+	if (!fmtlog) return;
+	g32 off;
+	const char *n = macho_addr_name(args[-1], &off);
+	fprintf(stderr, "[fmt] called from %s+%#x (ret %#x)\n", n ? n : "?", off, args[-1]);
+	const char *pk = getenv("MAC32_PEEK");
+	if (pk) {
+		g32 a = (g32)strtoul(pk, NULL, 16);
+		fprintf(stderr, "[peek] %#x:", a);
+		for (int i = 0; i < 12; i++) fprintf(stderr, " %08x", ((uint32_t *)G2H(a))[i]);
+		fprintf(stderr, " | args %08x %08x %08x\n", args[0], args[2], args[3]);
+	}
+}
 static void t_sprintf(uint32_t *args, struct hres *r) { to_buf(A(0), 0x7fffffff, G2H(A(1)), &args[2], r); }
 static void t_vsprintf(uint32_t *args, struct hres *r) { to_buf(A(0), 0x7fffffff, G2H(A(1)), G2H(A(2)), r); }
-static void t_snprintf(uint32_t *args, struct hres *r) { to_buf(A(0), A(1), G2H(A(2)), &args[3], r); }
+static void t_snprintf(uint32_t *args, struct hres *r) { t_snprintf_dbg(args); to_buf(A(0), A(1), G2H(A(2)), &args[3], r); }
 static void t_vsnprintf(uint32_t *args, struct hres *r) { to_buf(A(0), A(1), G2H(A(2)), G2H(A(3)), r); }
 // fortified forms: (buf, maxlen, flag, bufsize, fmt, ...)
 static void t_snprintf_chk(uint32_t *args, struct hres *r) { to_buf(A(0), A(1), G2H(A(4)), &args[5], r); }
