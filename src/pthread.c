@@ -260,6 +260,36 @@ static void t_key_delete(uint32_t *args, struct hres *r) { RET(pthread_key_delet
 static void t_getspecific(uint32_t *args, struct hres *r) { RET((uint32_t)(uintptr_t)pthread_getspecific(A(0))); }
 static void t_setspecific(uint32_t *args, struct hres *r) { RET(pthread_setspecific(A(0), (void *)(uintptr_t)A(1))); }
 
+// rwlocks: i386 pthread_rwlock_t is 128 bytes; host lock pointer at offset 8,
+// made on first use (PTHREAD_RWLOCK_INITIALIZER is just a signature)
+#define OUR_RW_SIG 0x4d335752
+static pthread_rwlock_t *host_rw(g32 g)
+{
+	uint32_t *w = G2H(g);
+	uint64_t hp;
+	memcpy(&hp, &w[2], 8);
+	if (w[0] == OUR_RW_SIG && hp) return (pthread_rwlock_t *)(uintptr_t)hp;
+	pthread_mutex_lock(&create_lock);
+	memcpy(&hp, &w[2], 8);
+	if (!(w[0] == OUR_RW_SIG && hp)) {
+		pthread_rwlock_t *l = malloc(sizeof *l);
+		pthread_rwlock_init(l, NULL);
+		hp = (uint64_t)(uintptr_t)l;
+		memcpy(&w[2], &hp, 8);
+		atomic_thread_fence(memory_order_release);
+		w[0] = OUR_RW_SIG;
+	}
+	pthread_mutex_unlock(&create_lock);
+	return (pthread_rwlock_t *)(uintptr_t)hp;
+}
+static void t_rw_init(uint32_t *args, struct hres *r) { memset(G2H(A(0)), 0, 16); host_rw(A(0)); RET(0); }
+static void t_rw_rdlock(uint32_t *args, struct hres *r) { RET(pthread_rwlock_rdlock(host_rw(A(0)))); }
+static void t_rw_wrlock(uint32_t *args, struct hres *r) { RET(pthread_rwlock_wrlock(host_rw(A(0)))); }
+static void t_rw_tryrdlock(uint32_t *args, struct hres *r) { RET(pthread_rwlock_tryrdlock(host_rw(A(0)))); }
+static void t_rw_trywrlock(uint32_t *args, struct hres *r) { RET(pthread_rwlock_trywrlock(host_rw(A(0)))); }
+static void t_rw_unlock(uint32_t *args, struct hres *r) { RET(pthread_rwlock_unlock(host_rw(A(0)))); }
+static void t_rw_destroy(uint32_t *args, struct hres *r) { (void)args; RET(0); }
+
 // pthread_once: guest pthread_once_t is {sig, 4 bytes}
 static pthread_mutex_t once_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
 static void t_once(uint32_t *args, struct hres *r)
@@ -301,6 +331,10 @@ static struct hfn pth[] = {
 	R("_pthread_key_create", t_key_create), R("_pthread_key_delete", t_key_delete),
 	R("_pthread_getspecific", t_getspecific), R("_pthread_setspecific", t_setspecific),
 	R("_pthread_once", t_once),
+	R("_pthread_rwlock_init", t_rw_init), R("_pthread_rwlock_destroy", t_rw_destroy),
+	R("_pthread_rwlock_rdlock", t_rw_rdlock), R("_pthread_rwlock_wrlock", t_rw_wrlock),
+	R("_pthread_rwlock_tryrdlock", t_rw_tryrdlock), R("_pthread_rwlock_trywrlock", t_rw_trywrlock),
+	R("_pthread_rwlock_unlock", t_rw_unlock),
 	R("_pthread_yield_np", t_yield), R("_sched_yield", t_yield),
 };
 

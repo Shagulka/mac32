@@ -205,6 +205,37 @@ Not yet checked or not working:
   CGGetLastMouseDelta / NSEvent deltas - untested.
 - in-game web pages (CEF) off; Bink movies off (-novid); performance not measured.
 
+## Step 5 — sound, videos, exceptions (2026-10-08 evening)
+- Sound: the engine's CAudioDeviceAudioQueue runs on an AudioQueue bridge
+  (src/audio.c): host output callback -> guest AudioCallback; each
+  AudioQueueBuffer has a 28-byte i386 twin with guest sample memory, copied to
+  the host buffer on enqueue; property listeners are trampolines. Verified by
+  enqueued peak levels (menu music ~600-1200). Source pauses sound while its
+  window is not the active app (Pause() -> AudioQueueStop), so background test
+  runs are silent; SetFrontProcess now also asks AppKit to activate the app.
+- Bink videos play (intro movie decoded and shown). They needed the Time
+  Manager (TMTask 2-byte packed, tmAddr@6; PrimeTime via dispatch_after) and,
+  for their sound, Sound Manager channels on AudioQueue (src/sndmgr.c:
+  bufferCmd/callBackCmd/quiet/flush/pause/resume/volume; extSH/cmpSH/stdSH;
+  16-bit order picked by waveform smoothness: Bink gives native order).
+- C++ exceptions + RTTI: LLVM 17 libunwind + libc++abi built for i386
+  (guest/cxxrt/build.sh, sparse checkout in ~/Developer/mac32-deps) as
+  guest/libmac32cxx.dylib, loaded at startup. Replaces the placeholder RTTI
+  and __dynamic_cast. libunwind finds unwind info via a host
+  _dyld_find_unwind_sections answered by the loader (__eh_frame and
+  __unwind_info of the guest image). Needed because the engine's MP3 header
+  parser throws/catches in normal play. Self-test: throw/catch int, 10-frame
+  unwind, rethrow, cross and down dynamic_cast all pass.
+- Guest -> host call costs 53 ns (selftest benchmark); not a bottleneck.
+- Mouse: the launcher's mouseDown: reads GetCurrentEventButtonState() and
+  mouseMoved: uses [NSEvent mouseLocation] (global state), so synthetic clicks
+  from automation tools never register; now emulated from NSApp.currentEvent
+  plus pressedMouseButtons. Needs a test with a real mouse.
+- Frame rate in background/locked-screen runs ~15 fps at ~10% CPU (the game is
+  waiting, i.e. throttled while not visible); needs a foreground measurement.
+- run_p2.sh: NOSOUND= / NOVID= / GAMEARGS= / ACTIVATE=<s> / SHOT=<s,...>;
+  MAC32_TRACE=sub1,sub2 filters -t to matching host calls and selectors.
+
 ## Saves backup (before the first level load, 2026-10-08 19:55)
 - `~/.universal-modder/backups/portal2-saves/20261008-195500.zip` (portal2/SAVE)
 - `~/.universal-modder/backups/portal2-cfg/20261008-195500.zip` (portal2/cfg)

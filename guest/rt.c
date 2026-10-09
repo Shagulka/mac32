@@ -245,87 +245,9 @@ unsigned _ZSt20_Rb_tree_black_countPKSt18_Rb_tree_node_baseS1_(const node *n, co
 
 const char _ZSt7nothrow = 0;	// std::nothrow (an empty struct)
 
-// ---- RTTI ----------------------------------------------------------------------
-// type_info objects point at vtable+8. Their vtables only need to be distinct
-// so __dynamic_cast can tell the three class kinds apart.
-typedef struct tinfo { const void *vptr; const char *name; } tinfo;
-typedef struct si_tinfo { tinfo t; const tinfo *base; } si_tinfo;
-typedef struct base_info { const tinfo *type; long offset_flags; } base_info;
-typedef struct vmi_tinfo { tinfo t; unsigned flags, nbases; base_info bases[1]; } vmi_tinfo;
-
-static void tinfo_dtor(void *p) { (void)p; }
-const void *_ZTVN10__cxxabiv117__class_type_infoE[6] = { 0, 0, (void *)tinfo_dtor, (void *)tinfo_dtor, 0, 0 };
-const void *_ZTVN10__cxxabiv120__si_class_type_infoE[6] = { 0, 0, (void *)tinfo_dtor, (void *)tinfo_dtor, 0, 0 };
-const void *_ZTVN10__cxxabiv121__vmi_class_type_infoE[6] = { 0, 0, (void *)tinfo_dtor, (void *)tinfo_dtor, 0, 0 };
-const void *_ZTVN10__cxxabiv123__fundamental_type_infoE[6] = { 0, 0, (void *)tinfo_dtor, (void *)tinfo_dtor, 0, 0 };
-const void *_ZTVN10__cxxabiv119__pointer_type_infoE[6] = { 0, 0, (void *)tinfo_dtor, (void *)tinfo_dtor, 0, 0 };
-const void *_ZTVSt9type_info[6] = { 0, 0, (void *)tinfo_dtor, (void *)tinfo_dtor, 0, 0 };
-
-#define FUND(sym, nm) const tinfo sym = { &_ZTVN10__cxxabiv123__fundamental_type_infoE[2], nm }
-FUND(_ZTIi, "i"); FUND(_ZTIj, "j"); FUND(_ZTIl, "l"); FUND(_ZTIm, "m"); FUND(_ZTIc, "c");
-FUND(_ZTIh, "h"); FUND(_ZTIb, "b"); FUND(_ZTIf, "f"); FUND(_ZTId, "d"); FUND(_ZTIx, "x");
-FUND(_ZTIy, "y"); FUND(_ZTIv, "v"); FUND(_ZTIs, "s"); FUND(_ZTIt, "t");
-static const tinfo char_tinfo = { &_ZTVN10__cxxabiv123__fundamental_type_infoE[2], "c" };
-const struct { tinfo t; unsigned flags; const tinfo *pointee; } _ZTIPKc =
-	{ { &_ZTVN10__cxxabiv119__pointer_type_infoE[2], "PKc" }, 1, &char_tinfo };
-
-#define KIND(t) ((t)->vptr)
-static int same_type(const tinfo *a, const tinfo *b)
-{
-	return a == b || (a->name == b->name) || !strcmp(a->name, b->name);
-}
-
-// Collect every public subobject of type dst inside the object at obj (of type t).
-static void find_all(char *obj, const tinfo *t, const tinfo *dst, char **hits, int *n)
-{
-	if (same_type(t, dst)) {
-		for (int i = 0; i < *n; i++) if (hits[i] == obj) return;	// shared virtual base
-		if (*n < 32) hits[(*n)++] = obj;
-		return;
-	}
-	if (KIND(t) == &_ZTVN10__cxxabiv120__si_class_type_infoE[2]) {
-		find_all(obj, ((const si_tinfo *)t)->base, dst, hits, n);
-	} else if (KIND(t) == &_ZTVN10__cxxabiv121__vmi_class_type_infoE[2]) {
-		const vmi_tinfo *v = (const vmi_tinfo *)t;
-		for (unsigned i = 0; i < v->nbases; i++) {
-			long of = v->bases[i].offset_flags, off = of >> 8;
-			if (!(of & 2)) continue;			// not public
-			if (of & 1) off = *(long *)(*(char **)obj + off);	// virtual: offset from vtable
-			find_all(obj + off, v->bases[i].type, dst, hits, n);
-		}
-	}
-}
-
-void *__dynamic_cast(const void *src, const tinfo *src_type, const tinfo *dst_type, long src2dst)
-{
-	(void)src_type;
-	if (!src) return 0;
-	void **vt = *(void ***)src;
-	const tinfo *whole_type = (const tinfo *)vt[-1];
-	char *whole = (char *)src + (long)vt[-2];
-	if (same_type(whole_type, dst_type)) return whole;
-	char *hits[32];
-	int n = 0;
-	find_all(whole, whole_type, dst_type, hits, &n);
-	if (src2dst >= 0)
-		for (int i = 0; i < n; i++) if (hits[i] == (char *)src - src2dst) return hits[i];
-	return n == 1 ? hits[0] : 0;
-}
-
-// ---- exceptions: not supported yet; say what was thrown and stop ------------
-void *__cxa_allocate_exception(unsigned long n) { return (char *)malloc(n + 64) + 64; }
-void __cxa_free_exception(void *p) { free((char *)p - 64); }
-void __cxa_throw(void *obj, const tinfo *t, void (*dtor)(void *))
-{
-	(void)obj; (void)dtor;
-	mac32_guest_fatal("C++ exception thrown", t ? t->name : "?");
-}
-void *__cxa_begin_catch(void *e) { (void)e; mac32_guest_fatal("__cxa_begin_catch", ""); return 0; }
-void __cxa_end_catch(void) { mac32_guest_fatal("__cxa_end_catch", ""); }
-void __cxa_rethrow(void) { mac32_guest_fatal("__cxa_rethrow", ""); }
-void __cxa_call_unexpected(void *e) { (void)e; mac32_guest_fatal("__cxa_call_unexpected", ""); }
-int __gxx_personality_v0(void) { mac32_guest_fatal("__gxx_personality_v0 (unwinding)", ""); return 0; }
-void _Unwind_Resume(void *e) { (void)e; mac32_guest_fatal("_Unwind_Resume", ""); }
+// ---- RTTI, dynamic_cast, exceptions: libc++abi + libunwind (guest/cxxrt) ----
+// std::__throw_*: libstdc++ would throw its own exception classes (with COW
+// strings inside), which this runtime does not have; stop with the message.
 void _ZSt17__throw_bad_allocv(void) { mac32_guest_fatal("std::bad_alloc", ""); }
 void _ZSt20__throw_length_errorPKc(const char *s) { mac32_guest_fatal("std::length_error", s); }
 void _ZSt20__throw_out_of_rangePKc(const char *s) { mac32_guest_fatal("std::out_of_range", s); }
@@ -333,8 +255,6 @@ void _ZSt24__throw_out_of_range_fmtPKcz(const char *s, ...) { mac32_guest_fatal(
 void _ZSt19__throw_logic_errorPKc(const char *s) { mac32_guest_fatal("std::logic_error", s); }
 void _ZSt21__throw_runtime_errorPKc(const char *s) { mac32_guest_fatal("std::runtime_error", s); }
 void _ZSt16__throw_bad_castv(void) { mac32_guest_fatal("std::bad_cast", ""); }
-void __cxa_bad_typeid(void) { mac32_guest_fatal("std::bad_typeid", ""); }
-void __cxa_bad_cast(void) { mac32_guest_fatal("std::bad_cast", ""); }
 
 // iostream static setup: no streams are wired up yet
 void _ZNSt8ios_base4InitC1Ev(void *self) { (void)self; }

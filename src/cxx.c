@@ -51,7 +51,6 @@ static void t_guard_release(uint32_t *args, struct hres *r)
 }
 static void t_guard_abort(uint32_t *args, struct hres *r) { (void)args; (void)r; pthread_mutex_unlock(&guard_lock); }
 static void t_pure_virtual(uint32_t *args, struct hres *r) { (void)args; (void)r; die("guest called a pure virtual function"); }
-static void t_terminate(uint32_t *args, struct hres *r) { (void)args; (void)r; die("guest called std::terminate"); }
 
 // dyld_func_lookup(name, void **addr): used by old crt1.o/dylib1.o glue
 static void t_dyld_func_lookup(uint32_t *args, struct hres *r)
@@ -95,7 +94,7 @@ static struct hfn cxx[] = {
 	R("___cxa_atexit", t_cxa_atexit), R("_atexit", t_atexit),
 	R("___cxa_guard_acquire", t_guard_acquire), R("___cxa_guard_release", t_guard_release),
 	R("___cxa_guard_abort", t_guard_abort),
-	R("___cxa_pure_virtual", t_pure_virtual), R("__ZSt9terminatev", t_terminate),
+	R("___cxa_pure_virtual", t_pure_virtual),
 	R("dyld_func_lookup", t_dyld_func_lookup),
 	R("__dyld_make_delayed_module_initializer_calls", t_dyld_noop),
 	R("__dyld_mod_term_funcs", t_dyld_noop),

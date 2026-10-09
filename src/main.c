@@ -91,6 +91,8 @@ static void load_runtime(void)
 	*slash = 0;
 	snprintf(rt, sizeof rt, "%s/guest/libmac32rt.dylib", exe);
 	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
+	snprintf(rt, sizeof rt, "%s/guest/libmac32cxx.dylib", exe);	// C++ exceptions + RTTI
+	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
 }
 
 // Enter an LC_UNIXTHREAD executable at "start" with the stack the kernel
@@ -160,6 +162,16 @@ int main(int argc, char **argv)
 		clock_gettime(CLOCK_MONOTONIC, &t1);
 		double guest_ns = ((t1.tv_sec - t0.tv_sec) * 1e9 + (t1.tv_nsec - t0.tv_nsec)) / 1e6;
 		fprintf(stderr, "guest->host call: %.0f ns each; guest->guest call: %.1f ns each\n", host_ns, guest_ns);
+		char ex[PATH_MAX];
+		snprintf(ex, sizeof ex, "%s", selftest);
+		strcpy(strrchr(ex, '/') + 1, "extest.dylib");
+		struct image *xi = macho_load(ex);
+		int e1 = (int)gcall(macho_sym(xi, "_test_throw_int"), 0);
+		int e2 = (int)gcall(macho_sym(xi, "_test_throw_deep"), 0);
+		int e3 = (int)gcall(macho_sym(xi, "_test_rethrow"), 0);
+		int e4 = (int)gcall(macho_sym(xi, "_test_dynamic_cast"), 0);
+		fprintf(stderr, "exceptions: int %d (7), deep %d (42), rethrow %d (5), dynamic_cast %d (1)\n", e1, e2, e3, e4);
+		if (!(e1 == 7 && e2 == 42 && e3 == 5 && e4 == 1)) return 1;
 		return !(f == 6 && n == 13 && d == 104);
 	}
 	if (deps) {	// load the tree, report what is missing, run nothing

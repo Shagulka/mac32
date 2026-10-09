@@ -9,5 +9,5 @@ P2="$HOME/Library/Application Support/Steam/steamapps/common/Portal 2"
 pgrep -x steam_osx >/dev/null || echo "warning: Steam does not seem to be running; the game will refuse to start"
 cd "$P2" || exit 1
 export SteamAppId=620 SteamGameId=620
-exec "$here/Mac32.app/Contents/MacOS/mac32" -L bin/osx32 ./portal2_osx -game portal2 -novid "$@" \
+exec "$here/Mac32.app/Contents/MacOS/mac32" -L bin/osx32 ./portal2_osx -game portal2 "$@" \
 	> "$HOME/Library/Logs/mac32-portal2.log" 2>&1

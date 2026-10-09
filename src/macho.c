@@ -128,6 +128,50 @@ static void index_symbols(struct image *img)
 	}
 }
 
+int macho_section(struct image *img, const char *seg, const char *sect, g32 *addr, uint32_t *size);
+static struct image *image_at(g32 a)
+{
+	for (struct image *img = images; img; img = img->next)
+		if (a >= img->lo + (g32)img->slide && a < img->hi + (g32)img->slide) return img;
+	return NULL;
+}
+
+// _dyld_find_unwind_sections for the guest's libunwind. i386 struct:
+// {mh, dwarf_section, dwarf_section_length, compact_unwind_section, compact_unwind_section_length}
+int macho_find_unwind(g32 addr, g32 out)
+{
+	struct image *img = image_at(addr);
+	if (!img) return 0;
+	uint32_t *o = G2H(out);
+	g32 a;
+	uint32_t sz;
+	memset(o, 0, 20);
+	o[0] = img->lo + (g32)img->slide;
+	if (macho_section(img, "__TEXT", "__eh_frame", &a, &sz)) { o[1] = a; o[2] = sz; }
+	if (macho_section(img, "__TEXT", "__unwind_info", &a, &sz)) { o[3] = a; o[4] = sz; }
+	return o[2] || o[4];
+}
+
+// dladdr: i386 Dl_info {fname, fbase, sname, saddr}
+int macho_dladdr(g32 addr, g32 out)
+{
+	struct image *img = image_at(addr);
+	if (!img) return 0;
+	uint32_t *o = G2H(out);
+	static g32 names[256];
+	static struct image *named[256];
+	int k = 0;
+	while (k < 255 && named[k] && named[k] != img) k++;
+	if (!named[k]) { named[k] = img; names[k] = gstrdup(img->path); }
+	o[0] = names[k];
+	o[1] = img->lo + (g32)img->slide;
+	o[2] = 0; o[3] = 0;
+	uint32_t lo = 0, hi = img->nbya;
+	while (lo < hi) { uint32_t m = (lo + hi) / 2; if (img->bya[m].addr <= addr) lo = m + 1; else hi = m; }
+	if (lo) { o[2] = guest_cstr(img->bya[lo - 1].name + (img->bya[lo - 1].name[0] == '_')); o[3] = img->bya[lo - 1].addr; }
+	return 1;
+}
+
 const char *macho_image_path(g32 a)
 {
 	for (struct image *img = images; img; img = img->next)

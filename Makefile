@@ -35,7 +35,7 @@ APP = Mac32.app
 app: mac32 guest
 	mkdir -p $(APP)/Contents/MacOS/guest
 	cp mac32 $(APP)/Contents/MacOS/mac32
-	cp guest/libmac32rt.dylib $(APP)/Contents/MacOS/guest/
+	cp guest/libmac32rt.dylib guest/libmac32cxx.dylib $(APP)/Contents/MacOS/guest/
 	printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
 	  '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
 	  '<plist version="1.0"><dict>' \

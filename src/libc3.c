@@ -490,6 +490,20 @@ static void t_NSNameOfSymbol(uint32_t *args, struct hres *r)
 	RET(s ? guest_cstr(s + 1) : 0);
 }
 
+// ---- dyld helpers for the guest's libunwind ----------------------------------
+int macho_find_unwind(g32 addr, g32 out);
+int macho_dladdr(g32 addr, g32 out);
+static void t_dyld_find_unwind_sections(uint32_t *args, struct hres *r) { RET(macho_find_unwind(A(0), A(1))); }
+static void t_dladdr(uint32_t *args, struct hres *r) { RET(macho_dladdr(A(0), A(1))); }
+static void t_posix_memalign(uint32_t *args, struct hres *r)
+{
+	g32 p = gmemalign(A(1), A(2));
+	*(g32 *)G2H(A(0)) = p;
+	RET(p ? 0 : 12);	// ENOMEM
+}
+// __cxa_demangle: not provided; status -2 makes callers print the mangled name
+static void t_cxa_demangle(uint32_t *args, struct hres *r) { if (A(3)) *(int32_t *)G2H(A(3)) = -2; RET(0); }
+
 // ---- Multiprocessing Services semaphores --------------------------------------------
 #include <dispatch/dispatch.h>
 static void t_MPCreateSemaphore(uint32_t *args, struct hres *r)
@@ -557,6 +571,9 @@ static struct hfn libc3[] = {
 	R("_swprintf", t_swprintf), R("_vswprintf", t_vswprintf), R("_swscanf", t_swscanf),
 	R("_scandir", t_scandir), R("_alphasort", t_alphasort),
 	R("_scandir$INODE64", t_scandir),
+	R("__dyld_find_unwind_sections", t_dyld_find_unwind_sections),
+	R("__dyld_register_func_for_remove_image", t_noop0), R("__dyld_register_func_for_add_image", t_noop0),
+	R("_dladdr", t_dladdr), R("_posix_memalign", t_posix_memalign), R("___cxa_demangle", t_cxa_demangle),
 	R("_NSIsSymbolNameDefined", t_NSIsSymbolNameDefined), R("_NSLookupAndBindSymbol", t_NSLookupAndBindSymbol),
 	R("_NSAddressOfSymbol", t_NSAddressOfSymbol), R("_NSModuleForSymbol", t_NSModuleForSymbol),
 	R("_NSLibraryNameForModule", t_NSLibraryNameForModule), R("_NSNameOfSymbol", t_NSNameOfSymbol),

@@ -1,0 +1,10 @@
+// hand-written for mac32's 32-bit guest build of libc++abi/libunwind
+#ifndef _LIBCPP___CONFIG_SITE
+#define _LIBCPP___CONFIG_SITE
+#define _LIBCPP_ABI_VERSION 1
+#define _LIBCPP_ABI_NAMESPACE __1
+#define _LIBCPP_HAS_THREAD_API_PTHREAD
+#define _LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS
+#define _LIBCPP_ENABLE_ASSERTIONS_DEFAULT 0
+#define _LIBCPP_PSTL_CPU_BACKEND_SERIAL
+#endif
