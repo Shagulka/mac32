@@ -97,7 +97,7 @@ Useful settings:
 
 ## Credits and license
 
-Made by Boris Khesin. Licensed under the
+Made by Boris Khesin, with [Claude](https://claude.com/claude-code) (Anthropic) as a contributor. Licensed under the
 [PolyForm Noncommercial License 1.0.0](LICENSE.md): use, change and share it
 for any noncommercial purpose, and keep the credit notice.
 
