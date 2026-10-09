@@ -126,10 +126,28 @@ static struct layout *layout_for(const struct siface *in)
 	L->in = in;
 	const struct smethod **slot = calloc(PROBE_SLOTS, sizeof *slot);
 	int n = 0, probed = 0, flat = 0;
+	// the game's wrappers describe the version its libsteam_api was built for;
+	// if that library has the accessor of some other version only (Timeline
+	// v001 vs the engine's V004), its layout says nothing about this one
+	int may_probe = 1;
+	{
+		const char *v = in->version + strlen(in->version);
+		while (v > in->version && v[-1] >= '0' && v[-1] <= '9') v--;
+		int want = atoi(v), other = 0, same = 0;
+		char acc[128];
+		for (int k = 1; k < 40 && *v; k++) {
+			snprintf(acc, sizeof acc, "_SteamAPI_%s_v%03d", in->cls + 1, k);
+			if (macho_find_any(acc)) { if (k == want) same = 1; else other = 1; }
+		}
+		if (other && !same) {
+			may_probe = 0;
+			LOG("steam: %s: the game's libsteam_api has another version; SDK order\n", in->version);
+		}
+	}
 	for (int k = 0; k < in->n; k++) {
 		const struct smethod *m = &in->m[k];
 		int idx = m->slot;
-		if (idx < 0 && m->flat) {
+		if (idx < 0 && m->flat && may_probe) {
 			flat++;
 			char name[256];
 			snprintf(name, sizeof name, "_%s", m->flat);
@@ -144,6 +162,20 @@ static struct layout *layout_for(const struct siface *in)
 		if (getenv("MAC32_STEAMDUMP")) fprintf(stderr, "[steamdump] %s %d %s\n", in->version, idx, m->name);
 		if (!slot[idx]) slot[idx] = m;
 		if (idx + 1 > n) n = idx + 1;
+	}
+	// methods the game's library has no wrapper for (SetTimelineGameMode...):
+	// JSON order is vtable order, so put one at its JSON position when that
+	// slot is free and a neighbour sits at its own JSON position too
+	for (int k = 0; probed && k < in->n && k < PROBE_SLOTS; k++) {
+		const struct smethod *m = &in->m[k];
+		int placed = 0;
+		for (int j = 0; j < n && !placed; j++) placed = slot[j] == m;
+		if (placed || slot[k] || m->slot >= 0) continue;
+		if ((k > 0 && slot[k - 1] == &in->m[k - 1]) || (k + 1 < in->n && slot[k + 1] == &in->m[k + 1])) {
+			slot[k] = m;
+			if (k + 1 > n) n = k + 1;
+			if (getenv("MAC32_STEAMDUMP")) fprintf(stderr, "[steamdump] %s %d %s (by order)\n", in->version, k, m->name);
+		}
 	}
 	if (flat && !probed)
 		fprintf(stderr, "[mac32] steam: %s: this libsteam_api has no flat wrappers; layout taken from "

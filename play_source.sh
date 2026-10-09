@@ -16,6 +16,10 @@ game="$steam/steamapps/common/$name"
 exe=$(cd "$game" && ls -1 *_osx 2>/dev/null | head -1)
 [ -n "$exe" ] || { echo "no *_osx launcher in $game (not a Mac Source game?)"; exit 1; }
 mod=${exe%_osx}
+# games that reuse hl2_osx (Portal, Lost Coast, ...): the one other folder with a gameinfo.txt
+others=$(cd "$game" && ls -d */gameinfo.txt 2>/dev/null | sed 's|/gameinfo.txt||' | grep -vx "$mod")
+[ "$(echo "$others" | grep -c .)" = 1 ] && mod=$others
+mod=${MOD:-$mod}			# MOD=<folder> picks one by hand
 [ -d "$game/$mod" ] || mod=""		# GoldSrc (hl_osx): the default game, "valve", needs no -game
 # Steam app id from the manifest whose installdir is this folder
 appid=$(grep -l "\"installdir\"[[:space:]]*\"$name\"" "$steam"/steamapps/appmanifest_*.acf 2>/dev/null | head -1 | sed 's/.*appmanifest_\([0-9]*\)\.acf/\1/')

@@ -20,6 +20,7 @@ struct hfn {
 #define D(n, sz, i) { .name = n, .kind = 'D', .size = sz, .init = i }
 
 void thunk_register(struct hfn *list, size_t n);
+g32 hfn_stub(struct hfn *f);				// a stub for a dynamically made entry
 #define REGISTER(list) thunk_register(list, sizeof list / sizeof list[0])
 
 void thunks_libc_init(void);

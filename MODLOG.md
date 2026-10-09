@@ -338,3 +338,16 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   VLCPlaylist etc.), AppKit sends applicationDidFinishLaunching: to Sparkle's
   SUUpdater, not VLCMain, and openFile: is never called: the app delegate ends
   up wrong. Next step there: trace NSApp setDelegate: during nib loading.
+
+## Step 10: Portal (Nov 2024 Source build) - on hold at the user's request
+- Same vguimatsurface.dylib as Half-Life 2. Its font manager calls a newer
+  IVGuiFontImpl layout than the leftover COSXFont implements, and font
+  creation was compiled out (it stores a NULL font). src/patches.c patches
+  CFontManager::CreateOrFindWin32Font in memory at load; src/srcfont.m is a
+  CoreText font with the layout read from the callers (offsets in its header).
+- Steam: SDK 1.65 JSON added (SteamClient021, SteamUser023, Timeline V004...);
+  SteamClient021 private slots measured; probing only when the game's
+  libsteam_api has the accessor for that exact interface version; opaque
+  void* handles (HServerListRequest) map to handles.
+- termios conversion. Now Portal reaches its frame loop (console, menus load)
+  and stops at shm_open (not bridged yet). HL2 should be at the same point.

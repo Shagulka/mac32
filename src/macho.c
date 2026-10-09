@@ -73,6 +73,20 @@ g32 macho_sym(struct image *img, const char *name)
 	}
 }
 
+const char *macho_path_of(struct image *img) { return img->path; }
+
+// any symbol of the image, local ones too (for patches)
+g32 macho_local_sym(struct image *img, const char *name)
+{
+	if (!img || !img->syms) return 0;
+	for (uint32_t i = 0; i < img->st->nsyms; i++) {
+		struct nlist *s = &img->syms[i];
+		if ((s->n_type & N_STAB) || (s->n_type & N_TYPE) != N_SECT) continue;
+		if (!strcmp(img->strs + s->n_un.n_strx, name)) return s->n_value + (g32)img->slide;
+	}
+	return 0;
+}
+
 static g32 sym_in_tree(struct image *img, const char *name)
 {
 	g32 a = macho_sym(img, name);
@@ -638,6 +652,8 @@ static struct image *load_file(const char *path)
 	if (img->di) fix_dyldinfo(img);
 	else if (img->dst) fix_classic(img);
 	objc_image_loaded(img);
+	extern void apply_guest_patches(struct image *img);
+	apply_guest_patches(img);	// before the text pages turn read-only
 
 	for (int i = 0; i < img->nseg; i++) {
 		struct segment_command *sg = img->seg[i];

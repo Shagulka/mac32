@@ -8,10 +8,13 @@ Arg codes:  o this, B bool, i/u 32-bit, l 64-bit (incl. CSteamID), f, d,
 Return:     v b i u l f d, S const char*, I interface (by version string), X."""
 import json, re, sys
 
-files = ['third_party/steam_api_1.55.json', 'third_party/steam_api_1.53.json']
+# newest first; ISteamClient has no version string in the JSON: the SDK's own
+files = [('third_party/steam_api_1.65.json', 'SteamClient021'),
+         ('third_party/steam_api_1.55.json', 'SteamClient020'),
+         ('third_party/steam_api_1.53.json', 'SteamClient020')]
 ifaces = {}          # version -> (classname, methods)
 typedefs, enums, structs = {}, set(), {}
-for f in files:
+for f, client in files:
     d = json.load(open(f))
     for t in d['typedefs']: typedefs.setdefault(t['typedef'], t['type'])
     for e in d['enums']: enums.add(e['enumname'])
@@ -20,7 +23,7 @@ for f in files:
     for s in d['structs'] + d['callback_structs']:
         structs[s['struct']] = s
     for i in d['interfaces']:
-        v = i.get('version_string') or ('SteamClient020' if i['classname'] == 'ISteamClient' else None)
+        v = i.get('version_string') or (client if i['classname'] == 'ISteamClient' else None)
         if v and v not in ifaces: ifaces[v] = (i['classname'], i['methods'])
 
 INT = {'int', 'signed char', 'short', 'char', 'intptr_t', 'int32', 'int16', 'int8'}
@@ -56,6 +59,7 @@ def arg_code(t):
         if pointee in structs and struct_has_pointer(pointee): return 'X'
         return 'p'
     b = base(raw)
+    if b == 'void *' and raw != b: return 'o'                # opaque handle (HServerListRequest): mapped
     if b.startswith(('Fn', 'F')) and (b.startswith('Fn') or b.startswith('FSteam')) or b.endswith(('Hook_t', 'CallbackPointer')):
         return 'F'
     if b == 'bool': return 'B'
@@ -87,6 +91,13 @@ PRIVATE = {
                        33: ('DEPRECATED_Remove_SteamAPI_CPostAPIResultInProcess', 'v:oF', 0),
                        34: ('Set_SteamAPI_CCheckCallbackRegisteredInProcess', 'v:oF', 0),
                        41: ('DestroyAllInterfaces', 'v:o', 0)},
+    # 021 (SDK 1.58+) dropped GameSearch/AppList/MusicRemote from the public list;
+    # slots measured with MAC32_STEAMDUMP from Portal's 2024 libsteam_api
+    'SteamClient021': {19: ('DEPRECATED_GetISteamGameSearch', 'I:oiip', 3), 20: ('RunFrame', 'v:o', 0),
+                       30: ('DEPRECATED_Set_SteamAPI_CPostAPIResultInProcess', 'v:oF', 0),
+                       31: ('DEPRECATED_Remove_SteamAPI_CPostAPIResultInProcess', 'v:oF', 0),
+                       32: ('Set_SteamAPI_CCheckCallbackRegisteredInProcess', 'v:oF', 0),
+                       39: ('DestroyAllInterfaces', 'v:o', 0)},
     'SteamUtils010': {7: ('GetCSERIPPort', 'b:opp', 0), 14: ('RunFrame', 'v:o', 0)},
     'SteamGameServer014': {0: ('InitGameServer', 'b:ouuuuup', 0)},
 }

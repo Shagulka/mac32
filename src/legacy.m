@@ -21,6 +21,7 @@
 #include <syslog.h>
 #include <signal.h>
 #include <dirent.h>
+#include <termios.h>
 #include <sys/statvfs.h>
 #include <ifaddrs.h>
 #include <netdb.h>
@@ -384,6 +385,35 @@ static void statvfs_out(const struct statvfs *v, g32 g)
 static void t_fstatvfs(uint32_t *args, struct hres *r) { struct statvfs v; int rc = fstatvfs((int)A(0), &v); if (!rc) statvfs_out(&v, A(1)); RET(rc); }
 static void t_statvfs(uint32_t *args, struct hres *r) { struct statvfs v; int rc = statvfs(G2H(A(0)), &v); if (!rc) statvfs_out(&v, A(1)); RET(rc); }
 
+// struct termios (i386): iflag oflag cflag lflag (4 bytes each), cc[20], ispeed, ospeed: 44 bytes
+static void t_tcgetattr(uint32_t *args, struct hres *r)
+{
+	struct termios t;
+	int rc = tcgetattr((int)A(0), &t);
+	if (!rc) {
+		uint8_t *g = G2H(A(1));
+		uint32_t f[4] = { (uint32_t)t.c_iflag, (uint32_t)t.c_oflag, (uint32_t)t.c_cflag, (uint32_t)t.c_lflag };
+		memcpy(g, f, 16);
+		memcpy(g + 16, t.c_cc, 20);
+		uint32_t sp[2] = { (uint32_t)t.c_ispeed, (uint32_t)t.c_ospeed };
+		memcpy(g + 36, sp, 8);
+	}
+	RET(rc);
+}
+static void t_tcsetattr(uint32_t *args, struct hres *r)
+{
+	struct termios t;
+	const uint8_t *g = G2H(A(2));
+	uint32_t f[4], sp[2];
+	memcpy(f, g, 16);
+	memcpy(sp, g + 36, 8);
+	memset(&t, 0, sizeof t);
+	t.c_iflag = f[0]; t.c_oflag = f[1]; t.c_cflag = f[2]; t.c_lflag = f[3];
+	memcpy(t.c_cc, g + 16, 20);
+	t.c_ispeed = sp[0]; t.c_ospeed = sp[1];
+	RET(tcsetattr((int)A(0), (int)A(1), &t));
+}
+
 // ---- Carbon Event Manager with guest handlers ---------------------------------------
 // UPPs are plain function pointers on Mach-O. A guest handler gets a host
 // handler that calls it with (EventHandlerCallRef, EventRef, userData).
@@ -427,6 +457,7 @@ static CFDictionaryRef w_ProcessInformationCopyDictionary(const ProcessSerialNum
 static int w_SetEventParameter(EventRef e, uint32_t name, uint32_t type, uint32_t size, const void *data) { return SetEventParameter(e, name, type, size, data); }
 
 static struct hfn legacy_fns[] = {
+	R("_tcgetattr", t_tcgetattr), R("_tcsetattr", t_tcsetattr),
 	R("_fstatvfs", t_fstatvfs), R("_statvfs", t_statvfs),
 	R("_NewEventHandlerUPP", t_upp_identity), R("_DisposeEventHandlerUPP", t_nothing),
 	R("_InstallEventHandler", t_InstallEventHandler),

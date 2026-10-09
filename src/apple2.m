@@ -77,7 +77,7 @@ static void silent_port(CFMachPortRef p, void *m, CFIndex n, void *i) { (void)p;
 static void t_CGEventTapCreate(uint32_t *args, struct hres *r)
 {
 	(void)args;
-	RET(hobj_wrap(CFMachPortCreate(NULL, silent_port, NULL, NULL)));
+	RET(getenv("MAC32_FAKE_EVENT_TAP") ? hobj_wrap(CFMachPortCreate(NULL, silent_port, NULL, NULL)) : 0);
 }
 static CFRunLoopSourceRef w_CFMachPortCreateRunLoopSource(void *a, CFMachPortRef p, int order) { (void)a; return CFMachPortCreateRunLoopSource(NULL, p, order); }
 static void init_rlmode(g32 a) { U32(a) = hobj_wrap((void *)kCFRunLoopDefaultMode); }
@@ -273,8 +273,9 @@ static struct hfn apple2_fns[] = {
 	D("_kCFRunLoopDefaultMode", 4, init_rlmode), D("_kCFRunLoopCommonModes", 4, init_rlcommon),
 	G("_CFRunLoopRemoveSource", CFRunLoopRemoveSource, "v:ooo"),
 	G("_CFBundleGetInfoDictionary", CFBundleGetInfoDictionary, "o:o"),
-	// a real event tap needs the Accessibility permission: hand out a port
-	// that never fires, so callers that assume success (VLC's media keys) run on
+	// a real event tap needs the Accessibility permission, which mac32 does not
+	// have: return no tap, as macOS does (SDL copes; VLC 1.1's media keys assert).
+	// MAC32_FAKE_EVENT_TAP=1 hands out a port that never fires instead.
 	R("_CGEventTapCreate", t_CGEventTapCreate), R("_CGEventTapEnable", t_nothing),
 	G("_CFMachPortCreateRunLoopSource", w_CFMachPortCreateRunLoopSource, "o:ooi"),
 	G("_CFRunLoopRun", CFRunLoopRun, "v:"),
