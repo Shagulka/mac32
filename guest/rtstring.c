@@ -444,3 +444,72 @@ int WK(7compareEPKw)(const void *s, const unsigned *p)
 	size_t a = R(s)->len, b = clen(p, W);
 	return cmp_len(cmp(D(s), p, a < b ? a : b, W), a, b);
 }
+void WS(C1Ev)(void *s) { D(s) = data_of(EMPTY(W)); }
+void WS(C2Ev)(void *s) { D(s) = data_of(EMPTY(W)); }
+void WS(D2Ev)(void *s) { dispose(R(s), W); }
+void *WS(aSERKS2_)(void *s, const void *o) { return WS(6assignERKS2_)(s, o); }
+void *WS(pLERKS2_)(void *s, const void *o) { return WS(6appendERKS2_)(s, o); }
+void *WS(pLEPKw)(void *s, const unsigned *p) { return WS(6appendEPKwm)(s, p, clen(p, W)); }
+void *WS(pLEw)(void *s, unsigned c) { return WS(6appendEPKwm)(s, &c, 1); }
+void WS(9push_backEw)(void *s, unsigned c) { WS(6appendEPKwm)(s, &c, 1); }
+void WS(6resizeEmw)(void *s, size_t n, unsigned c)
+{
+	size_t len = R(s)->len;
+	if (n > len) {
+		mutate(s, len, 0, n - len, W);
+		fill(D(s) + len * W, n - len, c, W);
+	} else if (n < len) mutate(s, n, len - n, 0, W);
+}
+void WS(6resizeEm)(void *s, size_t n) { WS(6resizeEmw)(s, n, 0); }
+unsigned *WS(ixEm)(void *s, size_t i) { WS(12_M_leak_hardEv)(s); return (unsigned *)(D(s) + i * W); }
+unsigned *WS(5beginEv)(void *s) { WS(12_M_leak_hardEv)(s); return (unsigned *)D(s); }
+unsigned *WS(3endEv)(void *s) { WS(12_M_leak_hardEv)(s); return (unsigned *)(D(s) + R(s)->len * W); }
+// erase(iterator first, iterator last): iterators are plain pointers; returns the new first
+unsigned *WS(5eraseEN9__gnu_cxx17__normal_iteratorIPwS2_EES6_)(void *s, unsigned *first, unsigned *last)
+{
+	size_t pos = (size_t)(first - (unsigned *)D(s)), n = (size_t)(last - first);
+	mutate(s, pos, n, 0, W);
+	return (unsigned *)D(s) + pos;
+}
+void WS(4_Rep26_M_set_length_and_sharableEm)(rep *r, size_t n)
+{
+	if (r == EMPTY(W)) return;
+	r->ref = 0;
+	r->len = n;
+	memset_z(data_of(r) + n * W, W);
+}
+unsigned *WS(4_Rep10_M_refdataEv)(rep *r) { return (unsigned *)data_of(r); }
+rep *WS(12_S_empty_repEv)(void) { return EMPTY(W); }
+void WS(12_Alloc_hiderC1EPwRKS1_)(void *h, unsigned *p, const void *a) { (void)a; D(h) = (char *)p; }
+void WS(13_S_copy_charsEPwN9__gnu_cxx17__normal_iteratorIPKwS2_EES8_)(unsigned *p, const unsigned *k1, const unsigned *k2)
+{
+	memcpy(p, k1, (size_t)(k2 - k1) * W);
+}
+size_t WK(4sizeEv)(const void *s) { return R(s)->len; }
+size_t WK(6lengthEv)(const void *s) { return R(s)->len; }
+size_t WK(4findERKS2_m)(const void *s, const void *o, size_t pos) { return find(s, D(o), pos, R(o)->len, W); }
+size_t WK(5rfindERKS2_m)(const void *s, const void *o, size_t pos)
+{
+	size_t len = R(s)->len, n = R(o)->len;
+	if (n > len) return NPOS;
+	size_t i = len - n < pos ? len - n : pos;
+	for (;; i--) {
+		if (!cmp(D(s) + i * W, D(o), n, W)) return i;
+		if (!i) return NPOS;
+	}
+}
+int WK(7compareERKS2_)(const void *s, const void *o)
+{
+	size_t a = R(s)->len, b = R(o)->len;
+	return cmp_len(cmp(D(s), D(o), a < b ? a : b, W), a, b);
+}
+void *WK(6substrEmm)(void *ret, const void *s, size_t pos, size_t n)
+{
+	size_t len = R(s)->len;
+	if (pos > len) mac32_guest_fatal("std::out_of_range", "wstring::substr");
+	if (n > len - pos) n = len - pos;
+	construct(ret, D(s) + pos * W, n, W);
+	return ret;
+}
+const char *_ZNKSs5beginEv(const void *s) { return D(s); }
+const char *_ZNKSs3endEv(const void *s) { return D(s) + R(s)->len; }

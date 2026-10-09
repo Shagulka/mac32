@@ -369,6 +369,23 @@ static void t_assert_rtn(uint32_t *args, struct hres *r)
 	    (int)A(2), A(3) ? (char *)G2H(A(3)) : "?");
 }
 
+static void t_readdir_r(uint32_t *args, struct hres *r)	// (dir, entry, result *)
+{
+	DIR *d = dirs[*(uint32_t *)G2H(A(0) + 264)];
+	struct dirent *e = readdir(d);
+	if (!e) { *(g32 *)G2H(A(2)) = 0; RET(0); return; }
+	uint8_t *g = G2H(A(1));
+	*(uint32_t *)g = (uint32_t)e->d_ino;
+	*(uint16_t *)(g + 4) = 264;
+	g[6] = e->d_type;
+	g[7] = (uint8_t)(e->d_namlen > 255 ? 255 : e->d_namlen);
+	memcpy(g + 8, e->d_name, g[7]);
+	g[8 + g[7]] = 0;
+	*(g32 *)G2H(A(2)) = A(1);
+	RET(0);
+}
+static void t_rewinddir(uint32_t *args, struct hres *r) { (void)r; rewinddir(dirs[*(uint32_t *)G2H(A(0) + 264)]); }
+
 static struct hfn libc2[] = {
 	R("_sscanf", t_sscanf), R("_vsscanf", t_vsscanf), R("_fscanf", t_fscanf),
 	R("_stat", t_stat), R("_lstat", t_lstat), R("_fstat", t_fstat),
@@ -384,7 +401,7 @@ static struct hfn libc2[] = {
 	G("_fcntl", fcntl, "i:iii"), G("_isatty", isatty, "i:i"), G("_fsync", fsync, "i:i"),
 	G("_umask", umask, "i:i"), G("_symlink", symlink, "i:pp"), G("_readlink", readlink, "i:ppu"),
 	R("_getcwd", t_getcwd), R("_realpath", t_realpath),
-	R("_opendir", t_opendir), R("_readdir", t_readdir), R("_closedir", t_closedir),
+	R("_opendir", t_opendir), R("_readdir", t_readdir), R("_readdir_r", t_readdir_r), R("_rewinddir", t_rewinddir), R("_rewinddir$UNIX2003", t_rewinddir), R("_closedir", t_closedir),
 	R("_opendir$INODE64", t_opendir), R("_closedir$INODE64", t_closedir),
 	G("_fork", fork, "i:"), G("_getppid", getppid, "i:"), G("_setsid", setsid, "i:"),
 	R("_execvp", t_execvp), R("_execv", t_execv), R("_execve", t_execve),

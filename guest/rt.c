@@ -294,3 +294,70 @@ void _ZNSt15_List_node_base8transferEPS_S0_(lnode *self, lnode *first, lnode *la
 	last->prev = first->prev;
 	first->prev = tmp;
 }
+
+// ---- tsearch family (binary search tree; node: key, left, right) ----------------
+typedef struct tnode { const void *key; struct tnode *l, *r; } tnode;
+typedef int (*tcmp)(const void *, const void *);
+void *tsearch(const void *key, void **rootp, tcmp cmp)
+{
+	tnode **p = (tnode **)rootp;
+	if (!p) return 0;
+	while (*p) {
+		int c = cmp(key, (*p)->key);
+		if (!c) return *p;
+		p = c < 0 ? &(*p)->l : &(*p)->r;
+	}
+	tnode *n = malloc(sizeof *n);
+	if (!n) return 0;
+	n->key = key; n->l = n->r = 0;
+	*p = n;
+	return n;
+}
+void *tfind(const void *key, void *const *rootp, tcmp cmp)
+{
+	tnode *n = rootp ? *(tnode *const *)rootp : 0;
+	while (n) {
+		int c = cmp(key, n->key);
+		if (!c) return n;
+		n = c < 0 ? n->l : n->r;
+	}
+	return 0;
+}
+void *tdelete(const void *key, void **rootp, tcmp cmp)	// returns the parent, or the root slot
+{
+	tnode **p = (tnode **)rootp, *parent = 0;
+	if (!p || !*p) return 0;
+	while (*p) {
+		int c = cmp(key, (*p)->key);
+		if (!c) break;
+		parent = *p;
+		p = c < 0 ? &(*p)->l : &(*p)->r;
+	}
+	if (!*p) return 0;
+	tnode *n = *p, *q;
+	if (!n->l) q = n->r;
+	else if (!n->r) q = n->l;
+	else {	// splice the leftmost node of the right subtree into n's place
+		tnode **m = &n->r;
+		while ((*m)->l) m = &(*m)->l;
+		q = *m;
+		*m = q->r;
+		q->l = n->l;
+		q->r = n->r;
+	}
+	free(n);
+	*p = q;
+	return parent ? (void *)parent : (void *)rootp;
+}
+typedef enum { preorder, postorder, endorder, leaf } VISIT;
+static void twalk_at(const tnode *n, void (*f)(const void *, VISIT, int), int depth)
+{
+	if (!n) return;
+	if (!n->l && !n->r) { f(n, leaf, depth); return; }
+	f(n, preorder, depth);
+	twalk_at(n->l, f, depth + 1);
+	f(n, postorder, depth);
+	twalk_at(n->r, f, depth + 1);
+	f(n, endorder, depth);
+}
+void twalk(const void *root, void (*f)(const void *, VISIT, int)) { twalk_at(root, f, 0); }

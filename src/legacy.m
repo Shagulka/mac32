@@ -7,6 +7,20 @@
 #include <pthread.h>
 #include <langinfo.h>
 #include <mach-o/arch.h>
+#include <xlocale.h>
+#include <libgen.h>
+#include <semaphore.h>
+#include <poll.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+#include <sys/uio.h>
+#include <sys/time.h>
+#include <sys/utsname.h>
+#include <sys/resource.h>
+#include <sys/mman.h>
+#include <syslog.h>
+#include <signal.h>
+#include <dirent.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -187,7 +201,261 @@ static void t_CMGetSystemProfile(uint32_t *args, struct hres *r) { if (A(0)) U32
 static void t_zero(uint32_t *args, struct hres *r) { (void)args; RET(0); }
 static CGColorSpaceRef w_CGColorSpaceCreateWithPlatformColorSpace(void *p) { (void)p; return CGColorSpaceCreateDeviceRGB(); }
 
+// ---- more libc for VLC 1.1 ---------------------------------------------------------
+static uint32_t w_geteuid(void) { return geteuid(); }
+static uint32_t w_getgid(void) { return getgid(); }
+static uint32_t w_getegid(void) { return getegid(); }
+static int w_setuid(uint32_t u) { return setuid(u); }
+static g32 w_stpcpy(g32 d, const char *s) { size_t n = strlen(s); memcpy(G2H(d), s, n + 1); return d + (g32)n; }
+// strsep(char **sp, delim): the string and the pointer both live in guest memory
+static void t_strsep(uint32_t *args, struct hres *r)
+{
+	g32 *sp = G2H(A(0));
+	if (!*sp) { RET(0); return; }
+	char *str = G2H(*sp), *tok = str;
+	char *e = strpbrk(str, G2H(A(1)));
+	if (e) { *e = 0; *sp = H2G(e + 1); } else *sp = 0;
+	RET(H2G(tok));
+}
+// locale_t: host handles; LC_GLOBAL_LOCALE is (locale_t)-1 on both sides
+static locale_t loc_in(g32 g) { return g == 0xffffffffu ? LC_GLOBAL_LOCALE : g ? hobj_unwrap(g) : NULL; }
+static g32 loc_out(locale_t l) { return l == LC_GLOBAL_LOCALE ? 0xffffffffu : l ? hobj_wrap(l) : 0; }
+static void t_newlocale(uint32_t *args, struct hres *r) { RET(loc_out(newlocale((int)A(0), A(1) ? G2H(A(1)) : NULL, loc_in(A(2))))); }
+static void t_uselocale(uint32_t *args, struct hres *r) { RET(loc_out(uselocale(loc_in(A(0))))); }
+static void t_freelocale(uint32_t *args, struct hres *r) { (void)r; if (A(0) && A(0) != 0xffffffffu) freelocale(loc_in(A(0))); }
+static void init_cfprefs_app(g32 a) { U32(a) = hobj_wrap((void *)kCFPreferencesCurrentApplication); }
+static void init_in6addr_any(g32 a) { memset(G2H(a), 0, 16); }
+static int w_inet_pton(int af, const char *s, void *d) { return inet_pton(af, s, d); }
+static void t_inet_ntop(uint32_t *args, struct hres *r) { RET(inet_ntop((int)A(0), G2H(A(1)), G2H(A(2)), A(3)) ? A(2) : 0); }
+static uint32_t w_if_nametoindex(const char *n) { return if_nametoindex(n); }
+static int w_socketpair(int d, int t, int p, int *sv) { return socketpair(d, t, p, sv); }
+static int w_sem_init(sem_t *s, int ps, uint32_t v) { return sem_init(s, ps, v); }
+static int w_sem_wait(sem_t *s) { return sem_wait(s); }
+static int w_sem_post(sem_t *s) { return sem_post(s); }
+static int w_sem_destroy(sem_t *s) { return sem_destroy(s); }
+static int w_poll(struct pollfd *f, uint32_t n, int t) { return poll(f, n, t); }
+static void t_setcancelstate(uint32_t *args, struct hres *r)
+{
+	int old = 0;
+	int rc = pthread_setcancelstate((int)A(0), &old);
+	if (A(1)) U32(A(1)) = (uint32_t)old;
+	RET(rc);
+}
+static void t_testcancel(uint32_t *args, struct hres *r) { (void)args; (void)r; pthread_testcancel(); }
+static int32_t w_nrand48(unsigned short *x) { return (int32_t)nrand48(x); }
+static int32_t w_jrand48(unsigned short *x) { return (int32_t)jrand48(x); }
+static double w_erand48(unsigned short *x) { return erand48(x); }
+static void t_div(uint32_t *args, struct hres *r) { div_t d = div((int)A(0), (int)A(1)); r->rax = (uint32_t)d.quot | (uint64_t)(uint32_t)d.rem << 32; }
+static void t_lldiv(uint32_t *args, struct hres *r)	// 16-byte struct: through a hidden pointer
+{
+	long long n, dv;
+	memcpy(&n, &args[1], 8);
+	memcpy(&dv, &args[3], 8);
+	lldiv_t q = lldiv(n, dv);
+	memcpy(G2H(A(0)), &q.quot, 8);
+	memcpy(G2H(A(0) + 8), &q.rem, 8);
+	r->rax = A(0);
+	r->flags |= F_POP4;
+}
+static const char *w_dirname(char *p) { return dirname(p); }
+static const char *w_basename(char *p) { return basename(p); }
+static int w_daemon(int a, int b) { return daemon(a, b); }
+static void t_backtrace(uint32_t *args, struct hres *r) { (void)args; RET(0); }	// no guest unwinder here
+static void t_vsprintf_chk(uint32_t *args, struct hres *r)	// (buf, flag, size, fmt, va)
+{
+	int n;
+	char *c = gvformat(G2H(A(3)), G2H(A(4)), &n);
+	uint32_t lim = A(2) ? A(2) : 0x7fffffff;
+	uint32_t k = (uint32_t)n < lim - 1 ? (uint32_t)n : lim - 1;
+	memcpy(G2H(A(0)), c, k);
+	((char *)G2H(A(0)))[k] = 0;
+	free(c);
+	RET(n);
+}
+static void t_syslog(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	int n;
+	char *c = gvformat(G2H(A(1)), &args[2], &n);
+	fprintf(stderr, "[guest syslog %u] %s\n", A(0), c);
+	free(c);
+}
+static double w_rint(double x) { return rint(x); }
+static int32_t w_lrint(double x) { return (int32_t)lrint(x); }
+static int32_t w_lrintf(float x) { return (int32_t)lrintf(x); }
+static int w_fpclassifyd(double x) { return fpclassify(x); }
+static int w_mlock(void *p, uint32_t n) { return mlock(p, n); }
+static int w_munlock(void *p, uint32_t n) { return munlock(p, n); }
+static int w_mkstemp(char *t) { return mkstemp(t); }
+static void w_swab(const void *a, void *b, int n) { swab(a, b, n); }
+static int w_fchdir(int fd) { return fchdir(fd); }
+static int w_setpriority(int w, uint32_t who, int p) { return setpriority(w, who, p); }
+static int w_putenv(char *s) { return putenv(s); }
+static int w_link(const char *a, const char *b) { return link(a, b); }
+static int w_popcount(uint32_t x) { return __builtin_popcount(x); }
+static int w_uname(struct utsname *u) { return uname(u); }
+static void w_srandomdev(void) { srandomdev(); }
+static void t_atfork(uint32_t *args, struct hres *r) { (void)args; RET(0); }	// no fork in guests yet
+// struct iovec (i386): {base, len} 8 bytes
+static struct iovec *iov_in(g32 g, int n)
+{
+	struct iovec *v = calloc((size_t)(n > 0 ? n : 1), sizeof *v);
+	for (int i = 0; i < n; i++) { v[i].iov_base = G2H(U32(g + 8 * (g32)i)); v[i].iov_len = U32(g + 8 * (g32)i + 4); }
+	return v;
+}
+static void t_writev(uint32_t *args, struct hres *r) { struct iovec *v = iov_in(A(1), (int)A(2)); RET((uint32_t)writev((int)A(0), v, (int)A(2))); free(v); }
+static void t_readv(uint32_t *args, struct hres *r) { struct iovec *v = iov_in(A(1), (int)A(2)); RET((uint32_t)readv((int)A(0), v, (int)A(2))); free(v); }
+// struct msghdr (i386): name, namelen, iov, iovlen, control, controllen, flags
+static void msg_in(g32 g, struct msghdr *m)
+{
+	memset(m, 0, sizeof *m);
+	m->msg_name = U32(g) ? G2H(U32(g)) : NULL;
+	m->msg_namelen = U32(g + 4);
+	m->msg_iovlen = (int)U32(g + 12);
+	m->msg_iov = iov_in(U32(g + 8), m->msg_iovlen);
+	m->msg_control = U32(g + 16) ? G2H(U32(g + 16)) : NULL;
+	m->msg_controllen = U32(g + 20);
+	m->msg_flags = (int)U32(g + 24);
+}
+static void t_sendmsg(uint32_t *args, struct hres *r)
+{
+	struct msghdr m;
+	msg_in(A(1), &m);
+	RET((uint32_t)sendmsg((int)A(0), &m, (int)A(2)));
+	free(m.msg_iov);
+}
+static void t_recvmsg(uint32_t *args, struct hres *r)
+{
+	struct msghdr m;
+	msg_in(A(1), &m);
+	ssize_t n = recvmsg((int)A(0), &m, (int)A(2));
+	U32(A(1) + 4) = m.msg_namelen;
+	U32(A(1) + 20) = m.msg_controllen;
+	U32(A(1) + 24) = (uint32_t)m.msg_flags;
+	free(m.msg_iov);
+	RET((uint32_t)n);
+}
+// struct timeval (i386): {long, int} 8 bytes
+static void t_utimes(uint32_t *args, struct hres *r)
+{
+	struct timeval tv[2], *p = NULL;
+	if (A(1)) {
+		int32_t *g = G2H(A(1));
+		tv[0] = (struct timeval){ g[0], g[1] };
+		tv[1] = (struct timeval){ g[2], g[3] };
+		p = tv;
+	}
+	RET(utimes(G2H(A(0)), p));
+}
+static void t_setitimer(uint32_t *args, struct hres *r)
+{
+	int32_t *g = G2H(A(1));
+	struct itimerval v = { { g[0], g[1] }, { g[2], g[3] } }, o;
+	int rc = setitimer((int)A(0), &v, &o);
+	if (A(2)) { int32_t *q = G2H(A(2)); q[0] = (int32_t)o.it_interval.tv_sec; q[1] = o.it_interval.tv_usec; q[2] = (int32_t)o.it_value.tv_sec; q[3] = o.it_value.tv_usec; }
+	RET(rc);
+}
+// dyld's image list
+static uint32_t w_dyld_image_count(void) { return macho_image_count(); }
+static void t_dyld_get_image_name(uint32_t *args, struct hres *r)
+{
+	const char *n = macho_image_name(A(0));
+	static g32 names[512];
+	if (!n || A(0) >= 512) { RET(0); return; }
+	if (!names[A(0)]) names[A(0)] = gstrdup(n);	// stays valid, like dyld's
+	RET(names[A(0)]);
+}
+static uint32_t w_dyld_get_image_header(uint32_t i) { return macho_image_header(i); }
+static int32_t w_dyld_get_image_vmaddr_slide(uint32_t i) { return macho_image_slide(i); }
+static int w_sigwait(const sigset_t *set, int *sig) { return sigwait(set, sig); }
+static void t_libiconv_set_relocation_prefix(uint32_t *args, struct hres *r) { (void)args; (void)r; }
+static CFArrayRef w_CFLocaleCopyAvailableLocaleIdentifiers(void) { return CFLocaleCopyAvailableLocaleIdentifiers(); }
+static CFArrayRef w_CFBundleCopyLocalizationsForPreferences(CFArrayRef a, CFArrayRef b) { return CFBundleCopyLocalizationsForPreferences(a, b); }
+
+// ---- Carbon Event Manager with guest handlers ---------------------------------------
+// UPPs are plain function pointers on Mach-O. A guest handler gets a host
+// handler that calls it with (EventHandlerCallRef, EventRef, userData).
+struct ghandler { g32 fn, ud; };
+static OSStatus call_guest_handler(EventHandlerCallRef call, EventRef ev, void *p)
+{
+	struct ghandler *h = p;
+	return (OSStatus)gcall(h->fn, 3, hobj_wrap(call), hobj_wrap(ev), h->ud);
+}
+static void t_upp_identity(uint32_t *args, struct hres *r) { RET(A(0)); }
+static void t_InstallEventHandler(uint32_t *args, struct hres *r)
+{
+	struct ghandler *h = malloc(sizeof *h);	// lives as long as the handler
+	h->fn = A(1);
+	h->ud = A(4);
+	EventHandlerRef ref = NULL;
+	OSStatus rc = InstallEventHandler(hobj_unwrap(A(0)), call_guest_handler, A(2), G2H(A(3)), h, A(5) ? &ref : NULL);
+	if (A(5)) U32(A(5)) = hobj_wrap(ref);
+	RET(rc);
+}
+static EventTargetRef w_GetApplicationEventTarget(void) { return GetApplicationEventTarget(); }
+static EventQueueRef w_GetMainEventQueue(void) { return GetMainEventQueue(); }
+static uint32_t w_GetEventClass(EventRef e) { return GetEventClass(e); }
+static uint32_t w_GetEventKind(EventRef e) { return GetEventKind(e); }
+static int w_RemoveEventHandler(EventHandlerRef h) { return RemoveEventHandler(h); }
+static int w_CallNextEventHandler(EventHandlerCallRef c, EventRef e) { return CallNextEventHandler(c, e); }
+// (event, name, desiredType, *actualType, bufferSize, *actualSize (ByteCount), data)
+static void t_GetEventParameter(uint32_t *args, struct hres *r)
+{
+	ByteCount n = 0;
+	EventParamType t = 0;
+	OSStatus rc = GetEventParameter(hobj_unwrap(A(0)), A(1), A(2), A(3) ? &t : NULL, A(4), A(5) ? &n : NULL,
+					A(6) ? G2H(A(6)) : NULL);
+	if (A(3)) U32(A(3)) = t;
+	if (A(5)) U32(A(5)) = (uint32_t)n;
+	RET(rc);
+}
+static int w_GetFrontProcess(ProcessSerialNumber *p) { return GetFrontProcess(p); }
+static int w_SameProcess(const ProcessSerialNumber *a, const ProcessSerialNumber *b, Boolean *res) { return SameProcess(a, b, res); }
+static CFDictionaryRef w_ProcessInformationCopyDictionary(const ProcessSerialNumber *p, uint32_t m) { return ProcessInformationCopyDictionary(p, m); }
+static int w_SetEventParameter(EventRef e, uint32_t name, uint32_t type, uint32_t size, const void *data) { return SetEventParameter(e, name, type, size, data); }
+
 static struct hfn legacy_fns[] = {
+	R("_NewEventHandlerUPP", t_upp_identity), R("_DisposeEventHandlerUPP", t_nothing),
+	R("_InstallEventHandler", t_InstallEventHandler),
+	G("_GetApplicationEventTarget", w_GetApplicationEventTarget, "o:"), G("_GetMainEventQueue", w_GetMainEventQueue, "o:"),
+	G("_GetEventClass", w_GetEventClass, "u:o"), G("_GetEventKind", w_GetEventKind, "u:o"),
+	G("_RemoveEventHandler", w_RemoveEventHandler, "i:o"), G("_CallNextEventHandler", w_CallNextEventHandler, "i:oo"),
+	G("_GetFrontProcess", w_GetFrontProcess, "i:p"), G("_SameProcess", w_SameProcess, "i:ppp"),
+	G("_ProcessInformationCopyDictionary", w_ProcessInformationCopyDictionary, "o:pu"),
+	R("_GetEventParameter", t_GetEventParameter), G("_SetEventParameter", w_SetEventParameter, "i:ouuup"),
+	G("_geteuid", w_geteuid, "u:"), G("_getgid", w_getgid, "u:"), G("_getegid", w_getegid, "u:"), G("_setuid", w_setuid, "i:u"),
+	G("_stpcpy", w_stpcpy, "u:up"), R("_strsep", t_strsep),
+	R("_newlocale", t_newlocale), R("_uselocale", t_uselocale), R("_freelocale", t_freelocale),
+	D("_kCFPreferencesCurrentApplication", 4, init_cfprefs_app), D("_in6addr_any", 16, init_in6addr_any),
+	G("_inet_pton", w_inet_pton, "i:ipp"), R("_inet_ntop", t_inet_ntop), G("_if_nametoindex", w_if_nametoindex, "u:p"),
+	G("_socketpair", w_socketpair, "i:iiip"), G("_socketpair$UNIX2003", w_socketpair, "i:iiip"),
+	G("_sem_init", w_sem_init, "i:piu"), G("_sem_wait", w_sem_wait, "i:p"), G("_sem_wait$UNIX2003", w_sem_wait, "i:p"),
+	G("_sem_post", w_sem_post, "i:p"), G("_sem_destroy", w_sem_destroy, "i:p"),
+	G("_poll", w_poll, "i:pui"), G("_poll$UNIX2003", w_poll, "i:pui"),
+	R("_pthread_setcancelstate", t_setcancelstate), R("_pthread_setcancelstate$UNIX2003", t_setcancelstate),
+	R("_pthread_testcancel", t_testcancel), R("_pthread_testcancel$UNIX2003", t_testcancel),
+	G("_nrand48", w_nrand48, "i:p"), G("_jrand48", w_jrand48, "i:p"), G("_erand48", w_erand48, "d:p"),
+	R("_div", t_div), R("_lldiv", t_lldiv),
+	G("_dirname", w_dirname, "S:p"), G("_basename", w_basename, "S:p"),
+	G("_daemon", w_daemon, "i:ii"), G("_daemon$1050", w_daemon, "i:ii"),
+	R("_backtrace", t_backtrace), R("_backtrace_symbols_fd", t_nothing),
+	R("___vsprintf_chk", t_vsprintf_chk), R("_syslog", t_syslog),
+	G("_rint", w_rint, "d:d"), G("_lrint", w_lrint, "i:d"), G("_lrintf", w_lrintf, "i:f"), G("___fpclassifyd", w_fpclassifyd, "i:d"),
+	G("_mlock", w_mlock, "i:pu"), G("_munlock", w_munlock, "i:pu"), G("_mkstemp", w_mkstemp, "i:p"),
+	G("_swab", w_swab, "v:ppi"), G("_fchdir", w_fchdir, "i:i"), G("_setpriority", w_setpriority, "i:iui"),
+	G("_putenv", w_putenv, "i:p"), G("_putenv$UNIX2003", w_putenv, "i:p"), G("_link", w_link, "i:pp"),
+	G("___popcountsi2", w_popcount, "i:u"), G("_uname", w_uname, "i:p"), G("_srandomdev", w_srandomdev, "v:"),
+	R("_pthread_atfork", t_atfork),
+	R("_writev", t_writev), R("_writev$UNIX2003", t_writev), R("_readv", t_readv), R("_readv$UNIX2003", t_readv),
+	R("_sendmsg", t_sendmsg), R("_sendmsg$UNIX2003", t_sendmsg), R("_recvmsg", t_recvmsg), R("_recvmsg$UNIX2003", t_recvmsg),
+	R("_utimes", t_utimes), R("_setitimer", t_setitimer),
+	G("__dyld_image_count", w_dyld_image_count, "u:"), R("__dyld_get_image_name", t_dyld_get_image_name),
+	G("__dyld_get_image_header", w_dyld_get_image_header, "u:u"),
+	G("__dyld_get_image_vmaddr_slide", w_dyld_get_image_vmaddr_slide, "i:u"),
+	R("_libiconv_set_relocation_prefix", t_libiconv_set_relocation_prefix),
+	G("_sigwait", w_sigwait, "i:pp"), G("_sigwait$UNIX2003", w_sigwait, "i:pp"),
+	G("_CFLocaleCopyAvailableLocaleIdentifiers", w_CFLocaleCopyAvailableLocaleIdentifiers, "o:"),
+	G("_CFBundleCopyLocalizationsForPreferences", w_CFBundleCopyLocalizationsForPreferences, "o:oo"),
 	D("_mach_init_routine", 4, init_zero_ptr), D("__cthread_init_routine", 4, init_zero_ptr),
 	R("__keymgr_get_and_lock_processwide_ptr", t_keymgr_get_and_lock),
 	R("__keymgr_get_and_lock_processwide_ptr_2", t_keymgr_get_and_lock_2),

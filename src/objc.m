@@ -14,6 +14,7 @@
 #import <objc/message.h>
 #import <objc/objc-exception.h>
 #include <pthread.h>
+#include <sys/mman.h>
 #include <ctype.h>
 #include "thunks.h"
 
@@ -144,7 +145,12 @@ static void link_class(struct gclass *gc)
 		gc->host_super = NULL;
 	} else {
 		Class hc = objc_getClass(gc->host_super);
-		if (!hc) die("objc: %s's superclass %s does not exist on this macOS", gc->name, gc->host_super);
+		if (!hc) {	// e.g. QTKit classes, gone since macOS 10.15: the class stays unusable
+			fprintf(stderr, "[mac32] objc: %s's superclass %s does not exist on this macOS; using NSObject\n",
+				gc->name, gc->host_super);
+			gc->host_super = "NSObject";
+			hc = [NSObject class];
+		}
 		U32(gc->cls + C_SUPER) = objc_wrap(hc);
 		U32(gc->meta + C_SUPER) = objc_wrap(object_getClass(hc));
 	}
@@ -227,8 +233,12 @@ void objc_image_loaded(struct image *img)
 				Class hc = objc_getClass(n);
 				if (!hc) LOG("objc: class %s not found\n", n);
 				U32(a + i) = hc ? objc_wrap(hc) : 0;
+				if (getenv("MAC32_CLSREFS")) LOG("cls_ref %#x (%s) -> %#x\n", a + i, n, U32(a + i));
 			}
 		}
+	// MAC32_CLSREFS_RO=1: make __cls_refs read-only, to catch whoever overwrites it
+	if (getenv("MAC32_CLSREFS_RO") && macho_section(img, "__OBJC", "__cls_refs", &a, &sz))
+		mprotect(G2H(a & ~0xfffu), ((a + sz + 0xfff) & ~0xfffu) - (a & ~0xfffu), PROT_READ);
 	pthread_mutex_unlock(&lk);
 }
 
@@ -393,6 +403,21 @@ static g32 objc_wrap(id h)
 	}
 	// an old handle for a freed object at the same address may have the wrong class
 	if (g && gc && U32(g) != gc->cls) g = 0;
+	if (!g && object_isClass(h)) {
+		// a system class: shaped like an i386 class struct, since old
+		// compiled code reads isa, super_class and name straight from it
+		// ([super x] in a category class method loads the class's isa)
+		g = gcalloc(1, 48);
+		map_put(&h2g, key, g);
+		map_put(&g2h, g, key);
+		Class c = (Class)h, sup = class_getSuperclass(c);
+		U32(g + C_ISA) = objc_wrap(object_getClass(c));	// cycles end at handles already mapped
+		U32(g + C_SUPER) = sup ? objc_wrap(sup) : 0;
+		U32(g + C_NAME) = gstrdup(class_getName(c));
+		U32(g + 12) = (uint32_t)class_getVersion(c);
+		U32(g + C_INFO) = class_isMetaClass(c) ? 2 : 1;		// CLS_META / CLS_CLASS
+		U32(g + C_ISIZE) = (uint32_t)class_getInstanceSize(c);
+	}
 	if (!g) {
 		uint32_t size = gc && gc->isize > 8 ? gc->isize : 8;
 		g = gcalloc(1, size);
@@ -681,6 +706,12 @@ static void msgsend(uint32_t *a, struct hres *r, int kind)
 	if (kind == K_SUPER || kind == K_SUPER_STRET) {
 		self = U32(a[0]);
 		supcls = U32(a[0] + 4);
+		if (!supcls) {
+			g32 off;
+			const char *n = macho_addr_name(a[-1 - (kind == K_SUPER_STRET)], &off);
+			die("objc: [super %s] with no superclass (objc_super at %#x = {%#x, 0}), from %s+%#x",
+			    (char *)G2H(a[1]), a[0], self, n ? n : "?", off);
+		}
 	} else {
 		self = a[0];
 	}
@@ -960,6 +991,44 @@ void *guest_main_cfbundle(void)
 	return b;
 }
 
+// ---- system data constants the guest imports by name ----------------------------
+// NSFontAttributeName, kCFAllocatorSystemDefault, ...: a host global holding an
+// object. The guest gets a 4-byte cell with a handle to that object. Values
+// that are not objects (structs, doubles, callback tables) are not guessed.
+#include <dlfcn.h>
+#include <malloc/malloc.h>
+static NSMutableSet *class_set;
+static int is_host_object(void *v)
+{
+	if (!v || ((uintptr_t)v & 7)) return 0;
+	Dl_info di;
+	if (!malloc_zone_from_ptr(v) && !dladdr(v, &di)) return 0;	// heap or inside an image
+	if (!class_set) {
+		unsigned n = 0;
+		Class *cl = objc_copyClassList(&n);
+		class_set = [[NSMutableSet alloc] initWithCapacity:n];
+		for (unsigned i = 0; i < n; i++) [class_set addObject:[NSValue valueWithPointer:(__bridge void *)cl[i]]];
+		free(cl);
+	}
+	uintptr_t isa = *(uintptr_t *)v & 0x00007ffffffffff8ull;	// x86_64 ISA_MASK
+	return [class_set containsObject:[NSValue valueWithPointer:(void *)isa]];
+}
+g32 host_data_object(const char *name)
+{
+	if (name[0] != '_') return 0;
+	void **p = dlsym(RTLD_DEFAULT, name + 1);
+	if (!p) return 0;
+	void *v = *p;
+	pthread_mutex_lock(&lk);
+	int ok = is_host_object(v);
+	pthread_mutex_unlock(&lk);
+	if (!ok) return 0;
+	g32 cell = gcalloc(1, 8);
+	U32(cell) = objc_wrap((__bridge id)v);
+	LOG("data constant %s from the host\n", name);
+	return cell;
+}
+
 // ---- C entry points -------------------------------------------------------------
 static void t_NSClassFromString(uint32_t *args, struct hres *r)
 {
@@ -1003,6 +1072,25 @@ static void t_NSRunAlertPanel(uint32_t *args, struct hres *r)
 		// NSAlertDefaultReturn 1, NSAlertAlternateReturn 0, NSAlertOtherReturn -1
 		RET(resp == NSAlertFirstButtonReturn ? 1 : resp == NSAlertSecondButtonReturn ? 0 : (uint32_t)-1);
 	}
+}
+// synthesized accessors of the 10.5+ runtime: (self, _cmd, offset, value, atomic, copy)
+static void t_objc_setProperty(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	g32 slot = A(0) + A(2), nv = A(3), old = U32(slot);
+	if (nv) {
+		id o = objc_unwrap(nv);
+		if (A(5) & 0xff) nv = objc_wrap([[o copy] autorelease]), o = objc_unwrap(nv);
+		[o retain];
+	}
+	U32(slot) = nv;
+	if (old) [objc_unwrap(old) release];
+}
+static void t_objc_getProperty(uint32_t *args, struct hres *r)	// (self, _cmd, offset, atomic)
+{
+	g32 v = U32(A(0) + A(2));
+	if (v && (A(3) & 0xff)) [[objc_unwrap(v) retain] autorelease];
+	RET(v);
 }
 static void t_enum_mutation(uint32_t *args, struct hres *r) { (void)args; (void)r; die("objc: collection mutated during enumeration"); }
 static void init_nsapp(g32 a) { nsapp_var = a; U32(a) = objc_wrap(NSApp); }
@@ -1230,6 +1318,7 @@ static struct hfn objc_fns[] = {
 	R("_objc_msgSend_fpret", t_msgSend_fpret), R("_objc_msgSendSuper", t_msgSendSuper),
 	R("_objc_msgSendSuper_stret", t_msgSendSuper_stret),
 	R("_objc_enumerationMutation", t_enum_mutation),
+	R("_objc_setProperty", t_objc_setProperty), R("_objc_getProperty", t_objc_getProperty),
 	R("_NSClassFromString", t_NSClassFromString), R("_NSRunAlertPanel", t_NSRunAlertPanel), R("_NSLog", t_NSLog),
 	D("_NSApp", 4, init_nsapp), D("_NSDefaultRunLoopMode", 4, init_runloopmode),
 	D("___CFConstantStringClassReference", 32, init_cfconst),

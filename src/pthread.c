@@ -240,7 +240,9 @@ static void create_thread(uint32_t *args, struct hres *r, int suspended_start)
 		uint32_t *a = G2H(A(1));
 		if (a[0] == ATTR_SIG) { stack = a[1]; detach = (int)a[2]; }
 	}
-	if (stack < (256 << 10)) stack = 256 << 10;
+	// host code (AppKit, the ObjC runtime) runs on this stack too, and it is
+	// deep: sizes chosen for 32-bit code alone overflow (VLC's interface thread)
+	if (stack < (8u << 20)) stack = 8u << 20;
 	s->fn = A(2);
 	s->arg = A(3);
 	s->stack = stack;

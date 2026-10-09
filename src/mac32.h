@@ -71,7 +71,11 @@ void macho_add_search_dir(const char *dir);
 struct image *macho_load(const char *path);
 void macho_run_initializers(struct image *img);
 g32 macho_sym(struct image *img, const char *name);	// exported symbol, 0 if none
-g32 macho_find_any(const char *name);			// search every loaded image
+g32 macho_find_any(const char *name);
+uint32_t macho_image_count(void);			// dyld's image list, main program first
+const char *macho_image_name(uint32_t i);
+g32 macho_image_header(uint32_t i);
+int32_t macho_image_slide(uint32_t i);			// search every loaded image
 g32 macho_entry(struct image *img);
 g32 macho_main(struct image *img);
 void set_guest_bundle(const char *path);

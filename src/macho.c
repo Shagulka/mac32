@@ -232,6 +232,11 @@ static g32 resolve(struct image *img, int ord, const char *name, int weak)
 		a = host_lookup(name);
 		if (a) LOG("%s: not in its guest library; using the host one (needed by %s)\n", name, img->path);
 	}
+	// a system object constant (NSFontAttributeName ...) we have no entry for
+	if (!a) {
+		extern g32 host_data_object(const char *name);
+		a = host_data_object(name);
+	}
 	if (!a && weak) LOG("weak import %s missing (needed by %s): bound to 0\n", name, img->path);
 	if (!a && !weak) {
 		unresolved_count++;
@@ -646,6 +651,34 @@ static struct image *load_file(const char *path)
 }
 
 struct image *macho_load(const char *path) { return load_file(path); }
+
+// dyld's image list: the main program first, then the rest in load order
+static struct image *image_at_index(uint32_t i)
+{
+	struct image *v[512];
+	uint32_t n = 0;
+	for (struct image *m = images; m && n < 512; m = m->next) v[n++] = m;	// newest first
+	if (main_image) {
+		if (i == 0) return main_image;
+		i--;
+	}
+	for (uint32_t k = n; k-- > 0;) {
+		if (v[k] == main_image) continue;
+		if (i-- == 0) return v[k];
+	}
+	return NULL;
+}
+uint32_t macho_image_count(void) { uint32_t n = 0; for (struct image *m = images; m; m = m->next) n++; return n; }
+const char *macho_image_name(uint32_t i) { struct image *m = image_at_index(i); return m ? m->path : NULL; }
+g32 macho_image_header(uint32_t i)
+{
+	struct image *m = image_at_index(i);
+	if (!m) return 0;
+	for (int s = 0; s < m->nseg; s++)
+		if (m->seg[s]->fileoff == 0 && m->seg[s]->filesize) return m->seg[s]->vmaddr + (g32)m->slide;
+	return 0;
+}
+int32_t macho_image_slide(uint32_t i) { struct image *m = image_at_index(i); return m ? m->slide : 0; }
 
 int macho_section(struct image *img, const char *seg, const char *sect, g32 *addr, uint32_t *size)
 {

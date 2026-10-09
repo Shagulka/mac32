@@ -73,6 +73,13 @@ static void t_CFRunLoopAddSource(uint32_t *args, struct hres *r)
 	(void)r;
 	if (A(1)) CFRunLoopAddSource(hobj_unwrap(A(0)), hobj_unwrap(A(1)), hobj_unwrap(A(2)));
 }
+static void silent_port(CFMachPortRef p, void *m, CFIndex n, void *i) { (void)p; (void)m; (void)n; (void)i; }
+static void t_CGEventTapCreate(uint32_t *args, struct hres *r)
+{
+	(void)args;
+	RET(hobj_wrap(CFMachPortCreate(NULL, silent_port, NULL, NULL)));
+}
+static CFRunLoopSourceRef w_CFMachPortCreateRunLoopSource(void *a, CFMachPortRef p, int order) { (void)a; return CFMachPortCreateRunLoopSource(NULL, p, order); }
 static void init_rlmode(g32 a) { U32(a) = hobj_wrap((void *)kCFRunLoopDefaultMode); }
 static void init_rlcommon(g32 a) { U32(a) = hobj_wrap((void *)kCFRunLoopCommonModes); }
 
@@ -266,8 +273,11 @@ static struct hfn apple2_fns[] = {
 	D("_kCFRunLoopDefaultMode", 4, init_rlmode), D("_kCFRunLoopCommonModes", 4, init_rlcommon),
 	G("_CFRunLoopRemoveSource", CFRunLoopRemoveSource, "v:ooo"),
 	G("_CFBundleGetInfoDictionary", CFBundleGetInfoDictionary, "o:o"),
-	// event taps need the Accessibility permission; SDL copes without one
-	R("_CGEventTapCreate", t_zero), R("_CGEventTapEnable", t_nothing),
+	// a real event tap needs the Accessibility permission: hand out a port
+	// that never fires, so callers that assume success (VLC's media keys) run on
+	R("_CGEventTapCreate", t_CGEventTapCreate), R("_CGEventTapEnable", t_nothing),
+	G("_CFMachPortCreateRunLoopSource", w_CFMachPortCreateRunLoopSource, "o:ooi"),
+	G("_CFRunLoopRun", CFRunLoopRun, "v:"),
 	G("_CGSetLocalEventsSuppressionInterval", w_CGSetLocalEventsSuppressionInterval, "i:d"),
 	G("_CGEventSourceKeyState", w_CGEventSourceKeyState, "i:iu"),
 	R("_HideMenuBar", t_HideMenuBar), R("_ShowMenuBar", t_ShowMenuBar), R("_UpdateSystemActivity", t_zero),

@@ -56,6 +56,10 @@ static void crash(int sig, siginfo_t *si, void *ucv)
 	fprintf(stderr, ", fault addr %p, cs %#llx\n", si->si_addr,
 		(unsigned long long)uc->uc_mcontext->__ss.__cs);
 	if ((uintptr_t)si->si_addr < LOW_END) low_describe((g32)(uintptr_t)si->si_addr);
+	if (uc->uc_mcontext->__ss.__rsp < LOW_END) {
+		fprintf(stderr, "  stack pointer: ");
+		low_describe((g32)uc->uc_mcontext->__ss.__rsp);
+	}
 	fprintf(stderr, "  eax %08llx ebx %08llx ecx %08llx edx %08llx\n",
 		uc->uc_mcontext->__ss.__rax & 0xffffffff, uc->uc_mcontext->__ss.__rbx & 0xffffffff,
 		uc->uc_mcontext->__ss.__rcx & 0xffffffff, uc->uc_mcontext->__ss.__rdx & 0xffffffff);
@@ -129,7 +133,7 @@ void cpu_init(void)
 	stubs = low_pages(MAX_STUBS * STUB_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC);
 	LOG("cs32 %#x, trampoline %#x, stubs %#x\n", (sel << 3) | 7, tramp, stubs);
 
-	struct sigaction sa = { .sa_sigaction = crash, .sa_flags = SA_SIGINFO | SA_RESETHAND };
+	struct sigaction sa = { .sa_sigaction = crash, .sa_flags = SA_SIGINFO | SA_RESETHAND | SA_ONSTACK };
 	sigaction(SIGSEGV, &sa, NULL);
 	sigaction(SIGBUS, &sa, NULL);
 	sigaction(SIGILL, &sa, NULL);
@@ -154,8 +158,20 @@ g32 make_stub(uint32_t idx)
 uint64_t cpu_tsd_get(void) { return (uint64_t)(uintptr_t)pthread_getspecific(tsd_key); }
 void cpu_tsd_set(uint64_t v) { pthread_setspecific(tsd_key, (void *)(uintptr_t)v); }
 
+// the crash report needs a stack of its own: the usual reason to crash is
+// having used this thread's stack up
+static void alt_stack(void)
+{
+	static __thread int done;
+	if (done) return;
+	done = 1;
+	stack_t ss = { .ss_sp = malloc(256 << 10), .ss_size = 256 << 10 };
+	sigaltstack(&ss, NULL);
+}
+
 void cpu_thread_init(uint32_t stack_size)
 {
+	alt_stack();
 	g32 base = low_pages(stack_size, PROT_READ | PROT_WRITE);
 	guest_stack_top = base + stack_size - 64;
 	pthread_setspecific(stack_key, (void *)(uintptr_t)base);
