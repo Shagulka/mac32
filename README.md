@@ -99,9 +99,9 @@ Useful settings:
 
 ## Credits and license
 
-Made by Boris Khesin, with [Claude](https://claude.com/claude-code) (Anthropic) as a contributor. Licensed under the
-[PolyForm Noncommercial License 1.0.0](LICENSE.md): use, change and share it
-for any noncommercial purpose, and keep the credit notice.
+Made by Boris Khesin, with [Claude](https://claude.com/claude-code) (Anthropic) as a contributor.
+Licensed under the [GNU General Public License, version 3 or later](COPYING); see
+[NOTICE](NOTICE). Keep the copyright notice when you share or change it.
 
 - Steam interface descriptions in `third_party/` come from
   [Steamworks.NET](https://github.com/rlabrecque/Steamworks.NET) (MIT); see
