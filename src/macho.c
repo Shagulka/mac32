@@ -128,6 +128,13 @@ static void index_symbols(struct image *img)
 	}
 }
 
+const char *macho_image_path(g32 a)
+{
+	for (struct image *img = images; img; img = img->next)
+		if (a >= img->lo + (g32)img->slide && a < img->hi + (g32)img->slide) return img->path;
+	return NULL;
+}
+
 const char *macho_addr_name(g32 a, g32 *off)
 {
 	for (struct image *img = images; img; img = img->next) {

@@ -133,6 +133,87 @@ static void t_CGDisplayCurrentMode(uint32_t *args, struct hres *r)
 
 static void init_zero(g32 a) { *(uint32_t *)G2H(a) = 0; }
 
+// ---- more CoreFoundation ----------------------------------------------------------
+// The guest passes &kCFTypeDictionaryKeyCallBacks etc.: our guest copies of
+// those data symbols stand for the host's structs.
+static g32 g_dkey, g_dval, g_arr;
+static void init_dkey(g32 a) { g_dkey = a; }
+static void init_dval(g32 a) { g_dval = a; }
+static void init_arr(g32 a) { g_arr = a; }
+static const void *cb_dict(g32 g)
+{
+	if (!g) return NULL;
+	if (g == g_dkey) return &kCFTypeDictionaryKeyCallBacks;
+	if (g == g_dval) return &kCFTypeDictionaryValueCallBacks;
+	if (g == g_arr) return &kCFTypeArrayCallBacks;
+	die("CF collection with custom callbacks (%#x) is not supported", g);
+}
+static void init_true(g32 a) { *(uint32_t *)G2H(a) = hobj_wrap((void *)kCFBooleanTrue); }
+static void init_false(g32 a) { *(uint32_t *)G2H(a) = hobj_wrap((void *)kCFBooleanFalse); }
+static void init_null(g32 a) { *(uint32_t *)G2H(a) = hobj_wrap((void *)kCFNull); }
+
+static void t_CFDictionaryCreateMutable(uint32_t *args, struct hres *r)
+{
+	RET(hobj_wrap(CFDictionaryCreateMutable(NULL, (int32_t)A(1), cb_dict(A(2)), cb_dict(A(3)))));
+}
+static void t_CFArrayCreateMutable(uint32_t *args, struct hres *r)
+{
+	RET(hobj_wrap(CFArrayCreateMutable(NULL, (int32_t)A(1), cb_dict(A(2)))));
+}
+// arrays of guest handles -> host arrays of objects
+static const void **unwrap_list(g32 v, int32_t n)
+{
+	const void **h = malloc(sizeof *h * (size_t)(n > 0 ? n : 1));
+	for (int32_t i = 0; i < n; i++) h[i] = hobj_unwrap(((g32 *)G2H(v))[i]);
+	return h;
+}
+static void t_CFArrayCreate(uint32_t *args, struct hres *r)
+{
+	int32_t n = (int32_t)A(2);
+	const void **v = unwrap_list(A(1), n);
+	RET(hobj_wrap((void *)CFArrayCreate(NULL, v, n, cb_dict(A(3)))));
+	free(v);
+}
+static void t_CFDictionaryCreate(uint32_t *args, struct hres *r)
+{
+	int32_t n = (int32_t)A(3);
+	const void **k = unwrap_list(A(1), n), **v = unwrap_list(A(2), n);
+	RET(hobj_wrap((void *)CFDictionaryCreate(NULL, k, v, n, cb_dict(A(4)), cb_dict(A(5)))));
+	free(k); free(v);
+}
+// CFRange {CFIndex loc, len}: two words by value; returned in edx:eax
+static void t_CFStringFind(uint32_t *args, struct hres *r)
+{
+	CFRange rg = CFStringFind(hobj_unwrap(A(0)), hobj_unwrap(A(1)), A(2));
+	r->rax = (uint32_t)rg.location | (uint64_t)(uint32_t)rg.length << 32;
+}
+static void t_CFStringGetBytes(uint32_t *args, struct hres *r)
+{
+	// str, CFRange (2 words), enc, lossByte, isExternal, buf, maxLen, *usedLen
+	CFIndex used = 0;
+	CFIndex n = CFStringGetBytes(hobj_unwrap(A(0)), CFRangeMake((int32_t)A(1), (int32_t)A(2)), A(3),
+				     (UInt8)A(4), A(5) & 0xff, A(6) ? G2H(A(6)) : NULL, (int32_t)A(7), &used);
+	if (A(8)) *(int32_t *)G2H(A(8)) = (int32_t)used;
+	RET(n);
+}
+static int32_t w_CFStringGetMaximumSizeForEncoding(int32_t n, uint32_t e) { return (int32_t)CFStringGetMaximumSizeForEncoding(n, e); }
+static int32_t w_CFDictionaryGetCount(CFDictionaryRef d) { return (int32_t)CFDictionaryGetCount(d); }
+static int w_CFDictionaryContainsKey(CFDictionaryRef d, const void *k) { return CFDictionaryContainsKey(d, k) ? 1 : 0; }
+static int w_CFURLGetFileSystemRepresentation(CFURLRef u, uint32_t res, UInt8 *b, int32_t n) { return CFURLGetFileSystemRepresentation(u, res & 0xff, b, n) ? 1 : 0; }
+static int w_CFPreferencesAppSynchronize(CFStringRef a) { return CFPreferencesAppSynchronize(a) ? 1 : 0; }
+static int32_t w_CFRunLoopRunInMode(CFStringRef m, double s, uint32_t once) { return CFRunLoopRunInMode(m, s, once & 0xff); }
+static CFStringRef w_CFStringCreateWithBytes(CFAllocatorRef a, const UInt8 *b, int32_t n, uint32_t e, uint32_t ext)
+{ return CFStringCreateWithBytes(a, b, n, e, ext & 0xff); }
+static CFStringRef w_CFStringCreateWithCharacters(CFAllocatorRef a, const UniChar *c, int32_t n) { return CFStringCreateWithCharacters(a, c, n); }
+static void w_CFStringGetCharacters(CFStringRef s, int32_t loc, int32_t len, UniChar *b) { CFStringGetCharacters(s, CFRangeMake(loc, len), b); }
+static int32_t w_CFStringCompare(CFStringRef a, CFStringRef b, uint32_t f) { return (int32_t)CFStringCompare(a, b, f); }
+static CFMutableStringRef w_CFStringCreateMutable(CFAllocatorRef a, int32_t n) { return CFStringCreateMutable(a, n); }
+static int32_t w_CFStringGetIntValue(CFStringRef s) { return CFStringGetIntValue(s); }
+static CFCharacterSetRef w_CFCharacterSetGetPredefined(int32_t s) { return CFCharacterSetGetPredefined(s); }
+static int w_CFCharacterSetIsCharacterMember(CFCharacterSetRef s, uint32_t c) { return CFCharacterSetIsCharacterMember(s, (UniChar)c) ? 1 : 0; }
+static int w_CFCharacterSetIsLongCharacterMember(CFCharacterSetRef s, uint32_t c) { return CFCharacterSetIsLongCharacterMember(s, c) ? 1 : 0; }
+static CFDataRef w_CFDataCreate(CFAllocatorRef a, const UInt8 *b, int32_t n) { return CFDataCreate(a, b, n); }
+
 const char *describe_obj(g32 g);
 
 // CFArrayApplyFunction(array, CFRange{loc,len}, applier, context): call the 32-bit applier
@@ -232,6 +313,52 @@ static struct hfn apple[] = {
 	G("_CFURLCreateWithFileSystemPath", CFURLCreateWithFileSystemPath, "o:ooii"),
 	R("_CFUserNotificationDisplayAlert", t_CFUserNotificationDisplayAlert),
 	D("_kCFAllocatorDefault", 4, init_zero),
+	D("_kCFTypeDictionaryKeyCallBacks", 32, init_dkey), D("_kCFTypeDictionaryValueCallBacks", 32, init_dval),
+	D("_kCFTypeArrayCallBacks", 32, init_arr),
+	D("_kCFBooleanTrue", 4, init_true), D("_kCFBooleanFalse", 4, init_false), D("_kCFNull", 4, init_null),
+	R("_CFDictionaryCreateMutable", t_CFDictionaryCreateMutable), R("_CFArrayCreateMutable", t_CFArrayCreateMutable),
+	R("_CFArrayCreate", t_CFArrayCreate), R("_CFDictionaryCreate", t_CFDictionaryCreate),
+	G("_CFDictionarySetValue", CFDictionarySetValue, "v:ooo"), G("_CFDictionaryAddValue", CFDictionaryAddValue, "v:ooo"),
+	G("_CFDictionaryRemoveValue", CFDictionaryRemoveValue, "v:oo"),
+	G("_CFDictionaryGetCount", w_CFDictionaryGetCount, "i:o"),
+	G("_CFDictionaryContainsKey", w_CFDictionaryContainsKey, "i:oo"),
+	G("_CFArrayAppendValue", CFArrayAppendValue, "v:oo"),
+	G("_CFStringCompare", w_CFStringCompare, "i:oou"),
+	G("_CFCharacterSetGetPredefined", w_CFCharacterSetGetPredefined, "o:i"),
+	G("_CFCharacterSetIsCharacterMember", w_CFCharacterSetIsCharacterMember, "i:ou"),
+	G("_CFCharacterSetIsLongCharacterMember", w_CFCharacterSetIsLongCharacterMember, "i:ou"),
+	G("_CFDataCreate", w_CFDataCreate, "o:opi"),
+	R("_CFStringFind", t_CFStringFind), R("_CFStringGetBytes", t_CFStringGetBytes),
+	G("_CFStringCreateWithBytes", w_CFStringCreateWithBytes, "o:opiuu"),
+	G("_CFStringCreateWithCharacters", w_CFStringCreateWithCharacters, "o:opi"),
+	G("_CFStringGetCharacters", w_CFStringGetCharacters, "v:oiip"),
+	G("_CFStringCreateMutable", w_CFStringCreateMutable, "o:oi"),
+	G("_CFStringAppend", CFStringAppend, "v:oo"),
+	G("_CFStringAppendCString", CFStringAppendCString, "v:opu"),
+	G("_CFStringCreateCopy", CFStringCreateCopy, "o:oo"),
+	G("_CFStringGetCStringPtr", CFStringGetCStringPtr, "S:ou"),
+	G("_CFStringGetMaximumSizeForEncoding", w_CFStringGetMaximumSizeForEncoding, "i:iu"),
+	G("_CFStringGetIntValue", w_CFStringGetIntValue, "i:o"),
+	G("_CFStringGetDoubleValue", CFStringGetDoubleValue, "d:o"),
+	G("_CFStringLowercase", CFStringLowercase, "v:oo"), G("_CFStringUppercase", CFStringUppercase, "v:oo"),
+	G("_CFCopyDescription", CFCopyDescription, "o:o"), G("_CFShow", CFShow, "v:o"),
+	G("_CFBundleGetMainBundle", CFBundleGetMainBundle, "o:"),
+	G("_CFBundleGetBundleWithIdentifier", CFBundleGetBundleWithIdentifier, "o:o"),
+	G("_CFBundleGetIdentifier", CFBundleGetIdentifier, "o:o"),
+	G("_CFBundleCopyResourcesDirectoryURL", CFBundleCopyResourcesDirectoryURL, "o:o"),
+	G("_CFBundleCopyBundleURL", CFBundleCopyBundleURL, "o:o"),
+	G("_CFBundleGetValueForInfoDictionaryKey", CFBundleGetValueForInfoDictionaryKey, "o:oo"),
+	G("_CFURLGetFileSystemRepresentation", w_CFURLGetFileSystemRepresentation, "i:oupi"),
+	G("_CFURLCopyFileSystemPath", CFURLCopyFileSystemPath, "o:oi"),
+	G("_CFPreferencesCopyAppValue", CFPreferencesCopyAppValue, "o:oo"),
+	G("_CFPreferencesSetAppValue", CFPreferencesSetAppValue, "v:ooo"),
+	G("_CFPreferencesAppSynchronize", w_CFPreferencesAppSynchronize, "i:o"),
+	G("_CFLocaleCopyCurrent", CFLocaleCopyCurrent, "o:"), G("_CFLocaleGetIdentifier", CFLocaleGetIdentifier, "o:o"),
+	G("_CFLocaleCopyPreferredLanguages", CFLocaleCopyPreferredLanguages, "o:"),
+	G("_CFAbsoluteTimeGetCurrent", CFAbsoluteTimeGetCurrent, "d:"),
+	G("_CFRunLoopGetCurrent", CFRunLoopGetCurrent, "o:"), G("_CFRunLoopGetMain", CFRunLoopGetMain, "o:"),
+	G("_CFRunLoopRunInMode", w_CFRunLoopRunInMode, "i:odu"),
+	G("_CFUUIDCreate", CFUUIDCreate, "o:o"), G("_CFUUIDCreateString", CFUUIDCreateString, "o:oo"),
 	G("_CFEqual", w_CFEqual, "i:oo"),
 	R("_CFStringCreateWithFormat", t_CFStringCreateWithFormat),
 	G("_CFURLCreateWithBytes", w_CFURLCreateWithBytes, "o:opiuo"),

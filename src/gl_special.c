@@ -80,8 +80,11 @@ static g32 keep_string(uint32_t key, const char *s)
 static void t_glGetString(uint32_t *args, struct hres *r) { RET(keep_string(A(0), (const char *)glGetString(A(0)))); }
 
 // ---- mapped buffers ---------------------------------------------------------
+// One shadow per buffer object name, kept between maps and freed when the
+// buffer is deleted. (Mapping state is per context in GL; the game uses one.)
 struct mapping { GLuint buf; void *host; g32 shadow; uint32_t cap, size, off; int explicit_flush, flushed, write; };
-static struct mapping maps[256];
+static struct mapping *maps;
+static uint32_t nmaps, capmaps;
 
 static GLenum binding_of(GLenum target)
 {
@@ -93,19 +96,46 @@ static GLenum binding_of(GLenum target)
 	default: die("glMapBuffer: unknown target %#x", target);
 	}
 }
+static struct mapping *find_buf(GLuint b)
+{
+	for (uint32_t i = 0; i < nmaps; i++) if (maps[i].buf == b) return &maps[i];
+	return NULL;
+}
 static struct mapping *mapping_for(GLenum target, int create)
 {
 	GLint b = 0;
 	glGetIntegerv(binding_of(target), &b);
-	struct mapping *freem = NULL;
-	for (int i = 0; i < 256; i++) {
-		if (maps[i].buf == (GLuint)b && maps[i].shadow) return &maps[i];
-		if (!maps[i].shadow && !freem) freem = &maps[i];
+	struct mapping *m = find_buf((GLuint)b);
+	if (m || !create) return m;
+	if (nmaps == capmaps) {
+		capmaps = capmaps ? capmaps * 2 : 256;
+		maps = realloc(maps, sizeof *maps * capmaps);
 	}
-	if (!create) return NULL;
-	if (!freem) die("too many mapped GL buffers");
-	freem->buf = (GLuint)b;
-	return freem;
+	m = &maps[nmaps++];
+	memset(m, 0, sizeof *m);
+	m->buf = (GLuint)b;
+	return m;
+}
+static void forget_buffers(GLsizei n, const GLuint *names)
+{
+	for (GLsizei i = 0; i < n; i++) {
+		struct mapping *m = find_buf(names[i]);
+		if (!m) continue;
+		gfree(m->shadow);
+		*m = maps[--nmaps];
+	}
+}
+static void t_glDeleteBuffers(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	forget_buffers((GLsizei)A(0), G2H(A(1)));
+	glDeleteBuffers((GLsizei)A(0), G2H(A(1)));
+}
+static void t_glDeleteBuffersARB(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	forget_buffers((GLsizei)A(0), G2H(A(1)));
+	glDeleteBuffersARB((GLsizei)A(0), G2H(A(1)));
 }
 static g32 shadow_map(GLenum target, void *host, uint32_t off, uint32_t size, int read, int write, int explicit_flush)
 {
@@ -169,6 +199,7 @@ static struct hfn gls[] = {
 	R("_glMapBuffer", t_glMapBuffer), R("_glMapBufferARB", t_glMapBuffer),
 	R("_glFlushMappedBufferRangeAPPLE", t_glFlushMappedBufferRangeAPPLE),
 	R("_glUnmapBuffer", t_glUnmapBuffer), R("_glUnmapBufferARB", t_glUnmapBuffer),
+	R("_glDeleteBuffers", t_glDeleteBuffers), R("_glDeleteBuffersARB", t_glDeleteBuffersARB),
 	R("_glGetBufferPointerv", t_glGetBufferPointerv), R("_glGetBufferPointervARB", t_glGetBufferPointerv),
 };
 

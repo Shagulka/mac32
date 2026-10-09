@@ -4,3 +4,5 @@ probe/probe
 mac32
 build/
 guest/*.dylib
+tools/winid
+Mac32.app/

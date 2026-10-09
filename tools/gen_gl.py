@@ -19,7 +19,8 @@ SPECIAL = {'glMapBuffer', 'glMapBufferARB', 'glUnmapBuffer', 'glUnmapBufferARB',
            'glGetVertexAttribPointervARB', 'glGetString', 'glGetStringi',
            'glShaderSource', 'glShaderSourceARB', 'glMultiDrawElements', 'glMultiDrawElementsEXT',
            'glMultiDrawElementsBaseVertex', 'glTransformFeedbackVaryingsEXT', 'glGetAttachedObjectsARB',
-           'glGetPointervEXT', 'glGetTexParameterPointervAPPLE', 'glGetVertexAttribPointervNV'}
+           'glGetPointervEXT', 'glGetTexParameterPointervAPPLE', 'glGetVertexAttribPointervNV',
+           'glDeleteBuffers', 'glDeleteBuffersARB'}
 
 def code(t, ret=False):
     t = t.replace('const', '').strip()

@@ -391,6 +391,82 @@ static void t_cfm_fail(uint32_t *args, struct hres *r) { (void)args; RET(-2804);
 static void t_snd_fail(uint32_t *args, struct hres *r) { (void)args; RET(-201); }	// notEnoughHardwareErr
 static void t_tm_fail(uint32_t *args, struct hres *r) { (void)args; RET(-1); }
 
+// ---- more libc ---------------------------------------------------------------
+static void *w_memcpy_chk(void *d, const void *s, uint32_t n, uint32_t dl) { if (n > dl) die("__memcpy_chk overflow"); return memcpy(d, s, n); }
+static uint32_t w_mbstowcs(wchar_t *d, const char *s, uint32_t n) { return (uint32_t)mbstowcs(d, s, n); }
+static uint32_t w_wcstombs(char *d, const wchar_t *s, uint32_t n) { return (uint32_t)wcstombs(d, s, n); }
+static double w_wcstod(const wchar_t *s, uint32_t endp)
+{
+	wchar_t *e;
+	double v = wcstod(s, &e);
+	if (endp) *(g32 *)G2H(endp) = H2G(e);
+	return v;
+}
+static float w_strtof(const char *s, uint32_t endp)
+{
+	char *e;
+	float v = strtof(s, &e);
+	if (endp) *(g32 *)G2H(endp) = H2G(e);
+	return v;
+}
+static void init_daylight(g32 a) { tzset(); *(int32_t *)G2H(a) = daylight; }
+static void init_timezone(g32 a) { tzset(); *(int32_t *)G2H(a) = (int32_t)timezone; }
+
+// ---- old dyld API (NSSymbol / NSModule): answered from our loader ----------------
+const char *macho_image_path(g32 a);
+static char *with_underscore(const char *n) { static __thread char b[512]; snprintf(b, sizeof b, "%s", n); return b; }
+static void t_NSIsSymbolNameDefined(uint32_t *args, struct hres *r) { RET(macho_find_any(with_underscore(G2H(A(0)))) != 0); }
+// an NSSymbol / NSModule is the symbol's address
+static void t_NSLookupAndBindSymbol(uint32_t *args, struct hres *r) { RET(macho_find_any(with_underscore(G2H(A(0))))); }
+static void t_NSAddressOfSymbol(uint32_t *args, struct hres *r) { RET(A(0)); }
+static void t_NSModuleForSymbol(uint32_t *args, struct hres *r) { RET(A(0)); }
+static void t_NSLibraryNameForModule(uint32_t *args, struct hres *r)
+{
+	const char *p = macho_image_path(A(0));
+	RET(p ? guest_cstr(p) : 0);
+}
+static void t_NSNameOfSymbol(uint32_t *args, struct hres *r)
+{
+	g32 off;
+	const char *n = macho_addr_name(A(0), &off);
+	const char *s = n ? strchr(n, '`') : NULL;
+	RET(s ? guest_cstr(s + 1) : 0);
+}
+
+// ---- Multiprocessing Services semaphores --------------------------------------------
+#include <dispatch/dispatch.h>
+static void t_MPCreateSemaphore(uint32_t *args, struct hres *r)
+{
+	dispatch_semaphore_t s = dispatch_semaphore_create((long)A(1));
+	*(g32 *)G2H(A(2)) = hobj_wrap((void *)s);
+	RET(0);
+}
+static void t_MPDeleteSemaphore(uint32_t *args, struct hres *r) { (void)args; RET(0); }	// kept alive: may still be waited on
+static void t_MPSignalSemaphore(uint32_t *args, struct hres *r) { dispatch_semaphore_signal(hobj_unwrap(A(0))); RET(0); }
+static void t_MPWaitOnSemaphore(uint32_t *args, struct hres *r)
+{
+	// Duration: >0 milliseconds, <0 microseconds, 0x7FFFFFFF forever
+	int32_t d = (int32_t)A(1);
+	dispatch_time_t t = d == 0x7fffffff ? DISPATCH_TIME_FOREVER
+			   : dispatch_time(DISPATCH_TIME_NOW, d >= 0 ? (int64_t)d * 1000000 : -(int64_t)d * 1000);
+	RET(dispatch_semaphore_wait(hobj_unwrap(A(0)), t) ? -29295 : 0);	// kMPTimeoutErr
+}
+static void t_GetCurrentProcess(uint32_t *args, struct hres *r) { uint32_t *p = G2H(A(0)); p[0] = 0; p[1] = 2; RET(0); }	// kCurrentProcess
+static void t_sprintf_chk(uint32_t *args, struct hres *r)
+{
+	// buf, flag, size, fmt, ...
+	int n;
+	char *s = gvformat(G2H(A(3)), &args[4], &n);
+	if ((uint32_t)n >= A(2)) die("__sprintf_chk overflow");
+	memcpy(G2H(A(0)), s, (size_t)n + 1);
+	free(s);
+	RET(n);
+}
+static char *w_strcpy_chk(char *d, const char *s, uint32_t n) { if (strlen(s) >= n) die("__strcpy_chk overflow"); return strcpy(d, s); }
+static char *w_strcat_chk(char *d, const char *s, uint32_t n) { if (strlen(d) + strlen(s) >= n) die("__strcat_chk overflow"); return strcat(d, s); }
+static void *w_memmove_chk(void *d, const void *s, uint32_t n, uint32_t dl) { if (n > dl) die("__memmove_chk overflow"); return memmove(d, s, n); }
+static void *w_memset_chk(void *d, int c, uint32_t n, uint32_t dl) { if (n > dl) die("__memset_chk overflow"); return memset(d, c, n); }
+
 // ---- not bridged yet: report failure the way each API defines it -------------
 static int warned_audio;
 static void audio_off(void)
@@ -424,6 +500,23 @@ static struct hfn libc3[] = {
 	R("_swprintf", t_swprintf), R("_vswprintf", t_vswprintf), R("_swscanf", t_swscanf),
 	R("_scandir", t_scandir), R("_alphasort", t_alphasort),
 	R("_scandir$INODE64", t_scandir),
+	R("_NSIsSymbolNameDefined", t_NSIsSymbolNameDefined), R("_NSLookupAndBindSymbol", t_NSLookupAndBindSymbol),
+	R("_NSAddressOfSymbol", t_NSAddressOfSymbol), R("_NSModuleForSymbol", t_NSModuleForSymbol),
+	R("_NSLibraryNameForModule", t_NSLibraryNameForModule), R("_NSNameOfSymbol", t_NSNameOfSymbol),
+	R("_MPCreateSemaphore", t_MPCreateSemaphore), R("_MPDeleteSemaphore", t_MPDeleteSemaphore),
+	R("_MPSignalSemaphore", t_MPSignalSemaphore), R("_MPWaitOnSemaphore", t_MPWaitOnSemaphore),
+	R("_GetCurrentProcess", t_GetCurrentProcess),
+	R("___sprintf_chk", t_sprintf_chk), G("___strcpy_chk", w_strcpy_chk, "p:ppu"), G("___strcat_chk", w_strcat_chk, "p:ppu"),
+	G("___memmove_chk", w_memmove_chk, "p:ppuu"), G("___memset_chk", w_memset_chk, "p:piuu"),
+	G("_sched_get_priority_max", sched_get_priority_max, "i:i"), G("_sched_get_priority_min", sched_get_priority_min, "i:i"),
+	R("_AudioObjectAddPropertyListener", t_audio_err), R("_AudioObjectRemovePropertyListener", t_audio_err),
+	R("_AudioQueuePause", t_audio_err), R("_AudioQueueSetProperty", t_audio_err),
+	R("_SPBOpenDevice", t_snd_fail), R("_SPBCloseDevice", t_snd_fail), R("_SPBGetDeviceInfo", t_snd_fail),
+	R("_SPBSetDeviceInfo", t_snd_fail), R("_SPBRecord", t_snd_fail), R("_SPBStopRecording", t_snd_fail),
+	G("___memcpy_chk", w_memcpy_chk, "p:ppuu"), G("_mbstowcs", w_mbstowcs, "u:ppu"), G("_wcstombs", w_wcstombs, "u:ppu"),
+	G("_wcscoll", wcscoll, "i:pp"), G("_wmemcmp", wmemcmp, "i:ppu"), G("_wcstod", w_wcstod, "d:pp"),
+	G("_strtof", w_strtof, "f:pp"), G("_truncf", truncf, "f:f"),
+	D("_daylight", 4, init_daylight), D("_timezone", 4, init_timezone),
 	G("_OSAtomicAdd32", a_add32, "i:ip"), G("_OSAtomicAdd32Barrier", a_add32, "i:ip"),
 	G("_OSAtomicIncrement32", a_inc32, "i:p"), G("_OSAtomicIncrement32Barrier", a_inc32, "i:p"),
 	G("_OSAtomicDecrement32", a_dec32, "i:p"), G("_OSAtomicDecrement32Barrier", a_dec32, "i:p"),

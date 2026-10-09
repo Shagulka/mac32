@@ -84,7 +84,8 @@ g32 host_lookup(const char *name)
 			f = hfind(base);
 		}
 	}
-	g32 a = f ? bind_entry(f) : 0;
+	// failure stubs made for an earlier image do not count as provided
+	g32 a = f && f->kind != 'M' ? bind_entry(f) : 0;
 	os_unfair_lock_unlock(&tlock);
 	return a;
 }
@@ -119,9 +120,25 @@ static void call_missing(uint32_t *args, struct hres *r)
 	die("unimplemented: %s", table[cur_idx]->name);
 }
 
-static void call_generic(struct hfn *h, uint32_t *a, struct hres *r)
+void call_sig(void *fn, const char *sig, const char *name, uint32_t *a, struct hres *r);
+static void call_generic(struct hfn *h, uint32_t *a, struct hres *r) { call_sig(h->fn, h->sig, h->name, a, r); }
+
+// a dynamically made entry (e.g. one Steam interface method); returns its stub
+g32 hfn_stub(struct hfn *f)
 {
+	os_unfair_lock_lock(&tlock);
+	g32 a = bind_entry(f);
+	os_unfair_lock_unlock(&tlock);
+	return a;
+}
+
+void call_sig(void *fn, const char *sig, const char *name, uint32_t *a, struct hres *r)
+{
+	struct { const char *name, *sig; } hh = { name, sig }, *h = &hh;
 	uint64_t ints[6] = {0}, stk[32];
+	g32 qslot[4];
+	char *qval[4];
+	int nq = 0;
 	double fps[8] = {0};
 	int ni = 0, nf = 0, ns = 0;
 	const char *s = h->sig;
@@ -133,6 +150,17 @@ static void call_generic(struct hfn *h, uint32_t *a, struct hres *r)
 		case 'i': v = (uint64_t)(int64_t)(int32_t)*a++; break;
 		case 'u': case 'p': v = *a++; break;
 		case 'o': v = (uint64_t)(uintptr_t)hobj_unwrap(*a++); break;
+		case 'B': v = *a++ & 0xff; break;			// bool in a 4-byte slot
+		case 'Q':						// char ** out: host writes its own pointer
+			if (nq == 4) die("%s: too many string out-params", name);
+			qslot[nq] = *a++;
+			qval[nq] = NULL;
+			v = qslot[nq] ? (uint64_t)(uintptr_t)&qval[nq] : 0;
+			nq++;
+			break;
+		case 'F':						// callback: not bridged, pass NULL
+			if (*a) LOG("%s: guest callback %#x not passed to the host\n", name, *a);
+			a++; v = 0; break;
 		case 'l': v = a[0] | (uint64_t)a[1] << 32; a += 2; break;
 		case 'd': memcpy(&v, a, 8); a += 2; fp = 1; break;
 		case 'f': v = 0; memcpy(&v, a, 4); a++; fp = 1; break;
@@ -143,7 +171,9 @@ static void call_generic(struct hfn *h, uint32_t *a, struct hres *r)
 		else stk[ns++] = v;
 	}
 	double x0 = 0;
-	uint64_t rax = host_invoke(h->fn, ints, fps, stk, ns, &x0);
+	uint64_t rax = host_invoke(fn, ints, fps, stk, ns, &x0);
+	for (int i = 0; i < nq; i++)
+		if (qslot[i]) *(g32 *)G2H(qslot[i]) = qval[i] ? gstrdup(qval[i]) : 0;	// guest copy; leaks a little
 	switch (ret) {
 	case 'v': break;
 	case 'i': case 'u': r->rax = (uint32_t)rax; break;
@@ -154,6 +184,7 @@ static void call_generic(struct hfn *h, uint32_t *a, struct hres *r)
 	case 'l': r->rax = rax; break;
 	case 'o': r->rax = hobj_wrap((void *)(uintptr_t)rax); break;
 	case 'b': r->rax = rax & 0xff; break;	// GLboolean / Boolean: junk above the low byte
+	case 'h': r->rax = rax; break;		// raw host pointer, the caller converts it
 	case 'S': r->rax = rax ? guest_cstr((const char *)(uintptr_t)rax) : 0; break;
 	case 'd': r->st0 = x0; r->flags |= F_ST0; break;
 	case 'f': { float f; memcpy(&f, &x0, 4); r->st0 = f; r->flags |= F_ST0; break; }
@@ -183,6 +214,7 @@ void hostcall_dispatch(uint32_t idx, uint32_t *args, struct hres *r)
 	case 'G': call_generic(h, args, r); break;
 	case 'R': ((rawfn)h->fn)(args, r); break;
 	case 'M': cur_idx = idx; call_missing(args, r); break;
+	case 'C': ((void (*)(struct hfn *, uint32_t *, struct hres *))h->fn)(h, args, r); break;
 	default: die("bad host entry %s", h->name);
 	}
 }
@@ -198,4 +230,6 @@ void thunks_init(void)
 	thunks_gl_init();
 	thunks_libc3_init();
 	thunks_ats_init();
+	thunks_steam_init();
+	thunks_zlib_init();
 }

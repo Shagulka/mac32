@@ -333,6 +333,8 @@ void _ZSt24__throw_out_of_range_fmtPKcz(const char *s, ...) { mac32_guest_fatal(
 void _ZSt19__throw_logic_errorPKc(const char *s) { mac32_guest_fatal("std::logic_error", s); }
 void _ZSt21__throw_runtime_errorPKc(const char *s) { mac32_guest_fatal("std::runtime_error", s); }
 void _ZSt16__throw_bad_castv(void) { mac32_guest_fatal("std::bad_cast", ""); }
+void __cxa_bad_typeid(void) { mac32_guest_fatal("std::bad_typeid", ""); }
+void __cxa_bad_cast(void) { mac32_guest_fatal("std::bad_cast", ""); }
 
 // iostream static setup: no streams are wired up yet
 void _ZNSt8ios_base4InitC1Ev(void *self) { (void)self; }

@@ -69,6 +69,26 @@ static g32 slab_cur, slab_end;
 
 static struct hdr *H(g32 p) { return (struct hdr *)G2H(p - 16); }
 
+// MAC32_HEAPCHECK=1: poison freed blocks and verify the poison on reuse, so a
+// write after free shows up with its address instead of a corrupt free list
+static int heapcheck = -1;
+static int checking(void)
+{
+	if (heapcheck < 0) heapcheck = getenv("MAC32_HEAPCHECK") != NULL;
+	return heapcheck;
+}
+static void verify_poison(g32 p, uint32_t size)
+{
+	uint8_t *b = G2H(p);
+	for (uint32_t i = 4; i < size; i++)
+		if (b[i] != 0xdd) {
+			g32 off;
+			const char *who = macho_addr_name(*(g32 *)G2H(p - 8), &off);	// freed-by return address
+			die("heap: block %#x (%u bytes) written after free at +%u (byte %#x); freed from %s+%#x",
+			    p, size, i, b[i], who ? who : "?", off);
+		}
+}
+
 g32 gmalloc(uint32_t n)
 {
 	if (n == 0) n = 1;
@@ -85,6 +105,7 @@ g32 gmalloc(uint32_t n)
 	os_unfair_lock_lock(&heap_lock);
 	g32 p = freelist[cls];
 	if (p) {
+		if (checking()) verify_poison(p, cls * 16);
 		freelist[cls] = *(g32 *)G2H(p);
 	} else {
 		if (slab_cur + bsz > slab_end) {
@@ -117,6 +138,7 @@ void gfree(g32 p)
 	}
 	if (h->cls == 0xfffffffe) return;	// gmemalign block: leaked
 	h->magic = 0;
+	if (checking()) memset(G2H(p), 0xdd, h->size);
 	os_unfair_lock_lock(&heap_lock);
 	*(g32 *)G2H(p) = freelist[h->cls];
 	freelist[h->cls] = p;

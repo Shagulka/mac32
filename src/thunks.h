@@ -5,11 +5,12 @@
 
 struct hfn {
 	const char *name;
-	char kind;		// G generic, R raw, D data, M missing
+	char kind;		// G generic, R raw, D data, M missing, C closure
 	void *fn;
 	const char *sig;
 	uint32_t size;		// D: bytes of guest data
 	void (*init)(g32 addr);	// D: fill the data
+	const void *ctx;	// C: closure data for fn(h, args, r)
 	g32 addr;		// stub or data address once bound
 	uint32_t idx;
 };
@@ -30,6 +31,8 @@ void thunks_apple_init(void);
 void thunks_gl_init(void);
 void thunks_libc3_init(void);
 void thunks_ats_init(void);
+void thunks_steam_init(void);
+void thunks_zlib_init(void);
 
 // raw thunk helpers
 #define A(i) (args[i])

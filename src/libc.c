@@ -334,12 +334,14 @@ static void t_sysctlbyname(uint32_t *args, struct hres *r)
 struct image *macho_dlopen(const char *path);
 g32 macho_dlsym(struct image *img, const char *name);
 static struct image *handles[1024];
-static uint32_t nhandles = 2;	// 1 (handle 16) is SYS_HANDLE
+static uint32_t nhandles = 3;	// 1 and 2 (handles 16, 32): SYS_HANDLE, STEAM_HANDLE
 static char dlerr[512];
 static g32 dlerr_g;
 // handle 16 stands for "the host's system libraries": dlsym on it looks in
 // the host thunk table (e.g. libtogl dlopens OpenGL's libGL.dylib by path)
 #define SYS_HANDLE 16
+#define STEAM_HANDLE 32	// steamclient.dylib -> Steam bridge (steam.c)
+g32 steamclient_sym(const char *name);
 static int is_system_path(const char *p)
 {
 	return p && (!strncmp(p, "/System/", 8) || !strncmp(p, "/usr/lib/", 9));
@@ -348,6 +350,7 @@ static void t_dlopen(uint32_t *args, struct hres *r)
 {
 	const char *p = A(0) ? G2H(A(0)) : NULL;
 	if (is_system_path(p)) { LOG("dlopen(%s): host library\n", p); RET(SYS_HANDLE); return; }
+	if (p && strstr(p, "steamclient.dylib")) { LOG("dlopen(%s): Steam bridge\n", p); RET(STEAM_HANDLE); return; }
 	struct image *img = macho_dlopen(p);
 	if (!img) { snprintf(dlerr, sizeof dlerr, "dlopen(%s): image not found", p ? p : "NULL"); RET(0); return; }
 	for (uint32_t i = 1; i < nhandles; i++) if (handles[i] == img) { RET(i * 16); return; }
@@ -363,6 +366,8 @@ static void t_dlsym(uint32_t *args, struct hres *r)
 		a = macho_find_any(nm);
 	else if (h == SYS_HANDLE)
 		a = host_lookup(nm);
+	else if (h == STEAM_HANDLE)
+		a = steamclient_sym(nm + 1);
 	else {
 		if (!h || h % 16 || h / 16 >= nhandles) {
 			snprintf(dlerr, sizeof dlerr, "dlsym: invalid handle %#x", h);

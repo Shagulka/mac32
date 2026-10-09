@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdatomic.h>
+#include <dispatch/dispatch.h>
+#include <mach/mach.h>
 
 #define OUR_MUTEX_SIG 0x4d334d58	// "XM3M"
 #define OUR_COND_SIG  0x4d334358
@@ -135,11 +137,17 @@ static g32 thread_record(pthread_t t)
 }
 static pthread_t rec_host(g32 g) { return (pthread_t)(uintptr_t)((struct gthread *)G2H(g))->host; }
 
-struct start { g32 fn, arg, rec; uint32_t stack; };
+struct start { g32 fn, arg, rec; uint32_t stack; dispatch_semaphore_t go; };
+
+// threads made by pthread_create_suspended_np wait here until thread_resume
+static pthread_mutex_t susp_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct { mach_port_t port; dispatch_semaphore_t go; } suspended[64];
+
 static void *thread_main(void *p)
 {
 	struct start s = *(struct start *)p;
 	free(p);
+	if (s.go) dispatch_semaphore_wait(s.go, DISPATCH_TIME_FOREVER);
 	cpu_thread_init(s.stack);
 	self_rec = s.rec;
 	uint32_t rv = (uint32_t)gcall(s.fn, 1, s.arg);
@@ -155,9 +163,29 @@ static void t_attr_getstacksize(uint32_t *args, struct hres *r) { *(uint32_t *)G
 static void t_attr_setdetachstate(uint32_t *args, struct hres *r) { ((uint32_t *)G2H(A(0)))[2] = A(1); RET(0); }
 static void t_attr_noop(uint32_t *args, struct hres *r) { (void)args; RET(0); }
 
-static void t_create(uint32_t *args, struct hres *r)
+static void create_thread(uint32_t *args, struct hres *r, int suspended_start);
+static void t_create(uint32_t *args, struct hres *r) { create_thread(args, r, 0); }
+static void t_create_suspended(uint32_t *args, struct hres *r) { create_thread(args, r, 1); }
+static void t_thread_resume(uint32_t *args, struct hres *r)
 {
-	struct start *s = malloc(sizeof *s);
+	pthread_mutex_lock(&susp_lock);
+	for (int i = 0; i < 64; i++)
+		if (suspended[i].go && suspended[i].port == A(0)) {
+			dispatch_semaphore_signal(suspended[i].go);
+			suspended[i].go = NULL;
+			pthread_mutex_unlock(&susp_lock);
+			RET(0);
+			return;
+		}
+	pthread_mutex_unlock(&susp_lock);
+	RET(thread_resume(A(0)));
+}
+static void t_thread_policy_set(uint32_t *args, struct hres *r) { (void)args; RET(0); }	// scheduling hints: ignored
+
+static void create_thread(uint32_t *args, struct hres *r, int suspended_start)
+{
+	struct start *s = calloc(1, sizeof *s);
+	if (suspended_start) s->go = dispatch_semaphore_create(0);
 	uint32_t stack = 512 << 10;
 	int detach = PTHREAD_CREATE_JOINABLE;
 	if (A(1)) {
@@ -176,9 +204,15 @@ static void t_create(uint32_t *args, struct hres *r)
 	g32 rec = s->rec;
 	int rc = pthread_create(&t, &ha, thread_main, s);
 	pthread_attr_destroy(&ha);
-	if (rc) { free(s); RET(rc); return; }
+	if (rc) { RET(rc); return; }	// s is freed by nobody: rare
 	((struct gthread *)G2H(rec))->host = (uint64_t)(uintptr_t)t;
 	*(g32 *)G2H(A(0)) = rec;
+	if (suspended_start) {
+		pthread_mutex_lock(&susp_lock);
+		for (int i = 0; i < 64; i++)
+			if (!suspended[i].go) { suspended[i].port = pthread_mach_thread_np(t); suspended[i].go = s->go; break; }
+		pthread_mutex_unlock(&susp_lock);
+	}
 	RET(0);
 }
 static void t_join(uint32_t *args, struct hres *r)
@@ -259,7 +293,8 @@ static struct hfn pth[] = {
 	R("_pthread_attr_setdetachstate", t_attr_setdetachstate),
 	R("_pthread_attr_setschedparam", t_attr_noop), R("_pthread_attr_setschedpolicy", t_attr_noop),
 	R("_pthread_attr_setscope", t_attr_noop), R("_pthread_attr_setinheritsched", t_attr_noop),
-	R("_pthread_create", t_create), R("_pthread_join", t_join), R("_pthread_detach", t_detach),
+	R("_pthread_create", t_create), R("_pthread_create_suspended_np", t_create_suspended),
+	R("_thread_resume", t_thread_resume), R("_thread_policy_set", t_thread_policy_set), R("_pthread_join", t_join), R("_pthread_detach", t_detach),
 	R("_pthread_self", t_self), R("_pthread_equal", t_equal), R("_pthread_kill", t_kill),
 	R("_pthread_getschedparam", t_getschedparam), R("_pthread_setschedparam", t_setschedparam),
 	R("_pthread_mach_thread_np", t_mach_thread_np), R("_pthread_setname_np", t_setname_np),

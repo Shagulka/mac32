@@ -6,11 +6,27 @@ secs=${1:-30}; shift || true
 P2="$HOME/Library/Application Support/Steam/steamapps/common/Portal 2"
 LOG=${MAC32_LOG:-/tmp/mac32-p2.log}
 cd "$P2" || exit 1
+export SteamAppId=620 SteamGameId=620	# what Steam sets when it launches the game
 set -m					# own process group, so we can stop all of it
-( "$HOME/Developer/mac32/mac32" -v "$@" -L bin/osx32 ./portal2_osx -game portal2 -nosound -novid -windowed -w 1280 -h 720 2>&1 \
+( "$HOME/Developer/mac32/Mac32.app/Contents/MacOS/mac32" -v "$@" -L bin/osx32 ./portal2_osx -game portal2 -nosound -novid -windowed -w 1280 -h 720 2>&1 \
 	| head -c 50000000 > "$LOG" ) &
 pg=$!
-for ((i = 0; i < secs; i++)); do sleep 1; kill -0 $pg 2>/dev/null || break; done
+for ((i = 0; i < secs; i++)); do
+	sleep 1
+	kill -0 $pg 2>/dev/null || break
+	# SHOT=<second>[,<second>...]: capture the game window at those times
+	for t in ${SHOT//,/ }; do
+		if [ "$i" = "$t" ]; then
+			pid=$(pgrep -g $pg -x mac32 | head -1)
+			id=$("$HOME/Developer/mac32/tools/winid" "$pid" 2>/dev/null)
+			if [ -n "$id" ]; then
+				/usr/sbin/screencapture -x -o -l "$id" "${SHOTDIR:-/tmp}/p2-${t}s.png" && echo "screenshot: ${SHOTDIR:-/tmp}/p2-${t}s.png"
+			else
+				echo "screenshot at ${t}s: no window yet"
+			fi
+		fi
+	done
+done
 if kill -0 $pg 2>/dev/null; then
 	echo "(still running after ${secs}s; stopping process group $pg)"
 	kill -TERM -$pg 2>/dev/null; sleep 1; kill -KILL -$pg 2>/dev/null

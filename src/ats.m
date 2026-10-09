@@ -165,10 +165,13 @@ static void t_ATSUCreateTextLayoutWithTextPtr(uint32_t *args, struct hres *r)
 	// text, offset, length, total, nruns, runlengths[], styles[], *layout
 	for (uint32_t i = 1; i < 4096; i++)
 		if (!layouts[i]) {
+			// kATSUFromTextBeginning / kATSUToTextEnd (0xFFFFFFFE/F) are sentinels
+			uint32_t total = A(3), off = A(1) >= 0xfffffff0u ? 0 : A(1);
+			uint32_t len = A(2) >= 0xfffffff0u ? total - off : A(2);
 			struct layout *l = calloc(1, sizeof *l);
-			l->len = A(2);
+			l->len = len;
 			l->text = malloc(sizeof(UniChar) * (l->len + 1));
-			memcpy(l->text, (UniChar *)G2H(A(0)) + A(1), sizeof(UniChar) * l->len);
+			memcpy(l->text, (UniChar *)G2H(A(0)) + off, sizeof(UniChar) * l->len);
 			l->style = A(4) ? S(((g32 *)G2H(A(6)))[0]) : NULL;
 			layouts[i] = l;
 			*(g32 *)G2H(A(7)) = LBASE + i;

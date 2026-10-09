@@ -313,6 +313,22 @@ g32 hobj_wrap(void *h)
 	return g;
 }
 
+// a handle whose first word is chosen by the caller (e.g. a C++ vtable pointer)
+g32 hobj_wrap_block(void *h, uint32_t size, g32 first_word)
+{
+	if (!h) return 0;
+	pthread_mutex_lock(&lk);
+	g32 g = (g32)map_get(&h2g, (uint64_t)(uintptr_t)h);
+	if (!g || U32(g) != first_word) {
+		g = gcalloc(1, size < 8 ? 8 : size);
+		U32(g) = first_word;
+		map_put(&h2g, (uint64_t)(uintptr_t)h, g);
+		map_put(&g2h, g, (uint64_t)(uintptr_t)h);
+	}
+	pthread_mutex_unlock(&lk);
+	return g;
+}
+
 static Class ensure_host_class(struct gclass *gc);
 
 static struct gclass *gclass_of_host(Class c)

@@ -21,6 +21,7 @@
 #include <dirent.h>
 #include <limits.h>
 #include <mach/mach.h>
+#include <servers/bootstrap.h>
 
 // ---- scanf: rewrite the format for 32-bit sizes, pass guest pointers ------
 static char *scan_fmt(const char *f)
@@ -294,7 +295,6 @@ static void w_memset_pattern16(void *b, const void *pat, uint32_t n) { memset_pa
 static void w_memset_pattern4(void *b, const void *pat, uint32_t n) { memset_pattern4(b, pat, n); }
 static void w_memset_pattern8(void *b, const void *pat, uint32_t n) { memset_pattern8(b, pat, n); }
 static void t_ignore0(uint32_t *args, struct hres *r) { (void)args; RET(0); }
-static void t_fail1(uint32_t *args, struct hres *r) { (void)args; RET(-1); }
 static void t_debugger(uint32_t *args, struct hres *r) { (void)args; (void)r; fprintf(stderr, "[mac32] guest called Debugger()\n"); }
 
 // signals: record but do not deliver for now
@@ -394,8 +394,14 @@ static struct hfn libc2[] = {
 	R("_getrlimit", t_getrlimit), R("_setrlimit", t_setrlimit),
 	// Mach / launchd: the game uses these for crash reporting and Steam IPC
 	D("_mach_task_self_", 4, init_task_self), D("_bootstrap_port", 4, init_bootstrap),
-	R("_bootstrap_look_up", t_fail1), R("_mach_msg", t_fail1), R("_mach_port_allocate", t_fail1),
-	R("_mach_port_deallocate", t_ignore0), R("_mach_port_mod_refs", t_ignore0), R("_mach_port_type", t_fail1),
+	// Mach IPC: port names and message headers are 32-bit in every process,
+	// so these pass straight through (libsteam_api finds Steam this way)
+	G("_bootstrap_look_up", bootstrap_look_up, "i:upp"),
+	G("_mach_msg", mach_msg, "i:piuuuuu"),
+	G("_mach_port_allocate", mach_port_allocate, "i:uup"),
+	G("_mach_port_deallocate", mach_port_deallocate, "i:uu"),
+	G("_mach_port_mod_refs", mach_port_mod_refs, "i:uuui"),
+	G("_mach_port_type", mach_port_type, "i:uup"),
 	R("_launch_data_alloc", t_ignore0), R("_launch_data_dict_insert", t_ignore0), R("_launch_data_free", t_ignore0),
 	R("_launch_data_new_string", t_ignore0), R("_launch_msg", t_ignore0),
 	// math
