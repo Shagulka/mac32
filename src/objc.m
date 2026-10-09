@@ -158,6 +158,9 @@ static void link_class(struct gclass *gc)
 }
 
 struct catdef { const char *cls; g32 im, cm; };
+static Class ensure_host_class(struct gclass *gc);
+static Class host_base(struct gclass *gc);
+static void install(Class cls, Class lookup, struct gmeth *m, int n, int meta);
 
 // Categories a guest adds to host classes (SDL's +[NSCursor invisibleCursor]).
 // Guest messages find them here; the host itself does not see them.
@@ -215,8 +218,14 @@ void objc_image_loaded(struct image *img)
 				struct gclass *gc = gclass_named(cn);
 				LOG("objc: category %s on %s\n", (char *)G2H(U32(c)), cn);
 				if (gc) {
+					int ni = gc->nim, nc = gc->ncm;
 					read_methods(U32(c + 8), &gc->im, &gc->nim);
 					read_methods(U32(c + 12), &gc->cm, &gc->ncm);
+					if (gc->host) {	// class already made: give it the new methods too
+						Class base = host_base(gc);
+						install(gc->host, base, gc->im + ni, gc->nim - ni, 0);
+						install(object_getClass(gc->host), base, gc->cm + nc, gc->ncm - nc, 1);
+					}
 				} else {
 					add_host_category(cn, U32(c + 8), U32(c + 12));
 				}
@@ -224,6 +233,8 @@ void objc_image_loaded(struct image *img)
 		}
 	}
 	for (int i = 0; i < ngclasses; i++) link_class(gclasses[i]);
+	// make the host classes now: nib files and NSClassFromString look them up by name
+	for (int i = 0; i < ngclasses; i++) ensure_host_class(gclasses[i]);
 	if (macho_section(img, "__OBJC", "__cls_refs", &a, &sz))
 		for (uint32_t i = 0; i < sz; i += 4) {
 			const char *n = G2H(U32(a + i));
@@ -912,6 +923,12 @@ static char *host_types(const char *g)
 			[s appendString:@"^v"];
 			int depth = 0;
 			p++;
+			do { if (*p == '{' || *p == '(') depth++; else if (*p == '}' || *p == ')') depth--; } while (depth && *++p);
+			continue;
+		}
+		if (*p == '(') {					// a union: NSMethodSignature cannot parse them
+			[s appendString:@"q"];				// (vlc_value_t and friends are 8 bytes)
+			int depth = 0;
 			do { if (*p == '{' || *p == '(') depth++; else if (*p == '}' || *p == ')') depth--; } while (depth && *++p);
 			continue;
 		}

@@ -115,10 +115,33 @@ static void t_cond_destroy(uint32_t *args, struct hres *r)
 }
 // MAC32_JOINLOG: where each thread is waiting, so a stuck join can say why
 static struct { pthread_t t; g32 ret, ebp; } waits[256];
+// MAC32_WAITDUMP=<seconds>: list every thread blocked on a condition, that often
+static void *wait_dump(void *arg)
+{
+	extern void guest_backtrace(g32 ret, g32 ebp);
+	for (;;) {
+		sleep((unsigned)(uintptr_t)arg);
+		fprintf(stderr, "[mac32] ---- threads waiting on a condition ----\n");
+		for (int i = 0; i < 256; i++)
+			if (waits[i].t && waits[i].ret) {
+				fprintf(stderr, "[mac32] thread %p:\n", (void *)waits[i].t);
+				guest_backtrace(waits[i].ret, waits[i].ebp);
+			}
+	}
+	return NULL;
+}
 static void note_wait(uint32_t *args, int on)
 {
 	static int enabled = -1;
-	if (enabled < 0) enabled = getenv("MAC32_JOINLOG") != NULL;
+	if (enabled < 0) {
+		const char *wd = getenv("MAC32_WAITDUMP");
+		enabled = getenv("MAC32_JOINLOG") != NULL || wd != NULL;
+		if (wd && atoi(wd) > 0) {
+			pthread_t t;
+			pthread_create(&t, NULL, wait_dump, (void *)(uintptr_t)atoi(wd));
+			pthread_detach(t);
+		}
+	}
 	if (!enabled) return;
 	pthread_t me = pthread_self();
 	int free_i = -1;

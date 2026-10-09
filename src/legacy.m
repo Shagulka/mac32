@@ -21,6 +21,7 @@
 #include <syslog.h>
 #include <signal.h>
 #include <dirent.h>
+#include <sys/statvfs.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -372,6 +373,17 @@ static void t_libiconv_set_relocation_prefix(uint32_t *args, struct hres *r) { (
 static CFArrayRef w_CFLocaleCopyAvailableLocaleIdentifiers(void) { return CFLocaleCopyAvailableLocaleIdentifiers(); }
 static CFArrayRef w_CFBundleCopyLocalizationsForPreferences(CFArrayRef a, CFArrayRef b) { return CFBundleCopyLocalizationsForPreferences(a, b); }
 
+// struct statvfs (i386): bsize, frsize, blocks, bfree, bavail, files, ffree,
+// favail, fsid, flag, namemax: eleven 32-bit words
+static void statvfs_out(const struct statvfs *v, g32 g)
+{
+	uint32_t w[11] = { (uint32_t)v->f_bsize, (uint32_t)v->f_frsize, v->f_blocks, v->f_bfree, v->f_bavail,
+			   v->f_files, v->f_ffree, v->f_favail, (uint32_t)v->f_fsid, (uint32_t)v->f_flag, (uint32_t)v->f_namemax };
+	memcpy(G2H(g), w, sizeof w);
+}
+static void t_fstatvfs(uint32_t *args, struct hres *r) { struct statvfs v; int rc = fstatvfs((int)A(0), &v); if (!rc) statvfs_out(&v, A(1)); RET(rc); }
+static void t_statvfs(uint32_t *args, struct hres *r) { struct statvfs v; int rc = statvfs(G2H(A(0)), &v); if (!rc) statvfs_out(&v, A(1)); RET(rc); }
+
 // ---- Carbon Event Manager with guest handlers ---------------------------------------
 // UPPs are plain function pointers on Mach-O. A guest handler gets a host
 // handler that calls it with (EventHandlerCallRef, EventRef, userData).
@@ -415,6 +427,7 @@ static CFDictionaryRef w_ProcessInformationCopyDictionary(const ProcessSerialNum
 static int w_SetEventParameter(EventRef e, uint32_t name, uint32_t type, uint32_t size, const void *data) { return SetEventParameter(e, name, type, size, data); }
 
 static struct hfn legacy_fns[] = {
+	R("_fstatvfs", t_fstatvfs), R("_statvfs", t_statvfs),
 	R("_NewEventHandlerUPP", t_upp_identity), R("_DisposeEventHandlerUPP", t_nothing),
 	R("_InstallEventHandler", t_InstallEventHandler),
 	G("_GetApplicationEventTarget", w_GetApplicationEventTarget, "o:"), G("_GetMainEventQueue", w_GetMainEventQueue, "o:"),

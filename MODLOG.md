@@ -331,3 +331,10 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   - host AppKit runs on guest thread stacks: minimum 8 MB
   - crash handler on an alternate stack; crash reports describe addresses
 - Portal 2 rechecked after all of this: logs on, loads a map, quits cleanly.
+- VLC playback (paused at the user's request, 2026-10-09): command-line files
+  never auto-play on the Mac in VLC 1.1 (the Cocoa interface blocks in
+  [NSApp run] before libvlc_playlist_play); files come in as "open documents"
+  Apple Events. With host classes now made at load (so nibs can instantiate
+  VLCPlaylist etc.), AppKit sends applicationDidFinishLaunching: to Sparkle's
+  SUUpdater, not VLCMain, and openFile: is never called: the app delegate ends
+  up wrong. Next step there: trace NSApp setDelegate: during nib loading.
