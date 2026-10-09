@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <limits.h>
+#include <time.h>
 #include <sys/mman.h>
 #include <mach-o/dyld.h>
 
@@ -149,6 +150,16 @@ int main(int argc, char **argv)
 		fprintf(stderr, "test_nested(5) = %d (want 13)\n", n);
 		int d = (int)gcall(macho_sym(img, "_test_deep"), 1, 3);
 		fprintf(stderr, "test_deep(3) = %d (want 104)\n", d);
+		struct timespec t0, t1;
+		clock_gettime(CLOCK_MONOTONIC, &t0);
+		gcall(macho_sym(img, "_test_bench"), 1, 1000000);
+		clock_gettime(CLOCK_MONOTONIC, &t1);
+		double host_ns = ((t1.tv_sec - t0.tv_sec) * 1e9 + (t1.tv_nsec - t0.tv_nsec)) / 1e6;
+		clock_gettime(CLOCK_MONOTONIC, &t0);
+		gcall(macho_sym(img, "_test_bench_guest"), 1, 1000000);
+		clock_gettime(CLOCK_MONOTONIC, &t1);
+		double guest_ns = ((t1.tv_sec - t0.tv_sec) * 1e9 + (t1.tv_nsec - t0.tv_nsec)) / 1e6;
+		fprintf(stderr, "guest->host call: %.0f ns each; guest->guest call: %.1f ns each\n", host_ns, guest_ns);
 		return !(f == 6 && n == 13 && d == 104);
 	}
 	if (deps) {	// load the tree, report what is missing, run nothing

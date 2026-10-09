@@ -389,7 +389,64 @@ static void t_HideCursor(uint32_t *args, struct hres *r) { (void)args; (void)r; 
 static void t_ShowCursor(uint32_t *args, struct hres *r) { (void)args; (void)r; CGDisplayShowCursor(0); }
 static void t_cfm_fail(uint32_t *args, struct hres *r) { (void)args; RET(-2804); }	// cfragNoLibraryErr
 static void t_snd_fail(uint32_t *args, struct hres *r) { (void)args; RET(-201); }	// notEnoughHardwareErr
-static void t_tm_fail(uint32_t *args, struct hres *r) { (void)args; RET(-1); }
+// Time Manager (Bink's timer). TMTask is 2-byte packed: qLink@0 qType@4
+// tmAddr@6 tmCount@10 tmWakeUp@14 tmReserved@18. PrimeTime(task, n) calls
+// tmAddr(task) once after n ms (n > 0) or -n microseconds (n < 0).
+struct tmtask { g32 task; int active; uint64_t gen; };
+static struct tmtask tms[64];
+static pthread_mutex_t tm_lock = PTHREAD_MUTEX_INITIALIZER;
+static dispatch_queue_t tm_queue;
+static struct tmtask *tm_find(g32 task, int create)
+{
+	struct tmtask *f = NULL;
+	for (int i = 0; i < 64; i++) {
+		if (tms[i].task == task) return &tms[i];
+		if (!tms[i].task && !f) f = &tms[i];
+	}
+	if (create && f) { f->task = task; f->active = 0; f->gen = 0; return f; }
+	return NULL;
+}
+static void t_InstallTimeTask(uint32_t *args, struct hres *r)
+{
+	pthread_mutex_lock(&tm_lock);
+	struct tmtask *t = tm_find(A(0), 1);
+	if (t) t->active = 1;
+	pthread_mutex_unlock(&tm_lock);
+	if (!tm_queue) tm_queue = dispatch_queue_create("mac32.timemanager", DISPATCH_QUEUE_SERIAL);
+	RET(t ? 0 : -108);	// memFullErr
+}
+static void t_RemoveTimeTask(uint32_t *args, struct hres *r)
+{
+	pthread_mutex_lock(&tm_lock);
+	struct tmtask *t = tm_find(A(0), 0);
+	if (t) { t->active = 0; t->task = 0; }
+	pthread_mutex_unlock(&tm_lock);
+	RET(0);
+}
+static void t_PrimeTime(uint32_t *args, struct hres *r)
+{
+	g32 task = A(0);
+	int32_t n = (int32_t)A(1);
+	pthread_mutex_lock(&tm_lock);
+	struct tmtask *t = tm_find(task, 0);
+	uint64_t gen = t ? ++t->gen : 0;
+	pthread_mutex_unlock(&tm_lock);
+	if (!t) { RET(-1); return; }
+	int64_t ns = n >= 0 ? (int64_t)n * 1000000 : -(int64_t)n * 1000;
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, ns), tm_queue, ^{
+		pthread_mutex_lock(&tm_lock);
+		struct tmtask *u = tm_find(task, 0);
+		int fire = u && u->active && u->gen == gen;
+		pthread_mutex_unlock(&tm_lock);
+		if (!fire) return;
+		g32 proc;
+		memcpy(&proc, G2H(task + 6), 4);
+		if (proc) gcall(proc, 1, task);
+	});
+	RET(0);
+}
+// UPPs are plain function pointers on Mach-O
+static void t_upp(uint32_t *args, struct hres *r) { RET(A(0)); }
 
 // ---- more libc ---------------------------------------------------------------
 static void *w_memcpy_chk(void *d, const void *s, uint32_t n, uint32_t dl) { if (n > dl) die("__memcpy_chk overflow"); return memcpy(d, s, n); }
@@ -547,8 +604,10 @@ static struct hfn libc3[] = {
 	R("_SndNewChannel", t_snd_fail), R("_SndDisposeChannel", t_snd_fail), R("_SndDoCommand", t_snd_fail),
 	R("_SndDoImmediate", t_snd_fail), R("_SndChannelStatus", t_snd_fail),
 	R("_NewSndCallBackUPP", t_noop0), R("_DisposeSndCallBackUPP", t_noop0),
-	R("_NewTimerUPP", t_noop0), R("_DisposeTimerUPP", t_noop0),
-	R("_InstallTimeTask", t_tm_fail), R("_PrimeTime", t_tm_fail), R("_RemoveTimeTask", t_tm_fail),
+	R("_NewTimerUPP", t_upp), R("_DisposeTimerUPP", t_noop0),
+	R("_InstallTimeTask", t_InstallTimeTask), R("_InstallXTimeTask", t_InstallTimeTask),
+	R("_InsTime", t_InstallTimeTask), R("_InsXTime", t_InstallTimeTask),
+	R("_PrimeTime", t_PrimeTime), R("_RemoveTimeTask", t_RemoveTimeTask), R("_RmvTime", t_RemoveTimeTask),
 	R("_GetPort", t_noop0), R("_SetPort", t_noop0), R("_GetWindowPort", t_noop0), R("_GetWindowPortBounds", t_noop0),
 	R("_LocalToGlobal", t_noop0), R("_GetDeviceList", t_noop0), R("_GetMainDevice", t_noop0), R("_GetNextDevice", t_noop0),
 	R("_clearerr", t_clearerr), R("_tmpfile", t_tmpfile), R("_tmpnam", t_tmpnam), R("_freopen", t_freopen),
