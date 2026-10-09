@@ -286,3 +286,24 @@ Restore: `um backup restore portal2-saves` / `um backup restore portal2-cfg`.
   a million mixed allocations and 2000 threads.
 - Soak test: `-usercon +ip 127.0.0.1 +rcon_password ...` and an RCON script
   that sends `map ...` every 45 s (command-line `wait` aliases do not advance).
+
+## Step 8: Half-Life and Half-Life 2 (2026-10-09)
+- Half-Life 25th anniversary build: all i386, SDL2 2.x with ARC, blocks and
+  properties. Its `libsteam_api` is a 2026 fat build that no longer exports the
+  old `SteamApps()`-style accessors the engine imports, so it could not load on
+  a real 32-bit Mac either; mac32 supplies them from the versioned
+  `SteamAPI_SteamApps_v008()` etc.
+- Valve's i386 SDL2 declares `@property`s with no accessors and no ivars
+  (`SDL_VideoData`, `SDL_WindowData`); mac32 stores them as associated objects.
+- `stat$INODE64` is 108 bytes on i386, not 144: writing 144 smashed the stack.
+- Type strings: keep struct names (an `l`->`i` pass turned `SDL_Window` into
+  `SDI_Window`), pointers to structs become `^v`, NSRange widens to `QQ`.
+- Result: menu, New Game dialog and the first map (`+map c1a0`) work; it ran in
+  the map 20 minutes without errors. Open: an intermittent
+  unrecognized-selector exception on `SDLTranslatorResponder` (the selector
+  pointer is junk). The exception preprocessor now prints the throwing stack.
+- Half-Life 2 (Nov 25 2024 build): Steam and the engine start (SteamClient021
+  borrows SteamClient020's names, slots probed from its own wrappers), then
+  vguimatsurface crashes: `CFontManager::CreateOrFindWin32Font` stores a NULL
+  font and returns NULL. `COSXFont` exists only as template leftovers, so this
+  Mac build has no font code at all. Running it needs a font layer.
