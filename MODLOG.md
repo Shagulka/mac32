@@ -192,6 +192,19 @@ kATSUToTextEnd, ATSLayoutRecord is 2-byte packed (14 bytes), text colour is
 kATSURGBAlphaColorTag (288, 4 floats). Mac32.app bundle (com.khesin.mac32)
 gives the window an app identity for window tools.
 
+## Step 4 — in game (2026-10-08 ~19:58)
+Menu text fixed (colour tag 288, 14-byte ATSLayoutRecord). Keyboard input
+works: Return opened Single Player and Continue Game loaded the user's
+chapter 9 save; the level renders with lighting, models, viewmodel (portal
+gun with PotatOS) and subtitles (docs/in-game-chapter9.jpg).
+Launch: `./play_portal2.sh` (needs Steam running; log in ~/Library/Logs).
+Not yet checked or not working:
+- sound: not bridged (-nosound).
+- mouse clicks sent to the window while it was in the background did not
+  register (keyboard did); untested with the app in front. Mouse look uses
+  CGGetLastMouseDelta / NSEvent deltas - untested.
+- in-game web pages (CEF) off; Bink movies off (-novid); performance not measured.
+
 ## Saves backup (before the first level load, 2026-10-08 19:55)
 - `~/.universal-modder/backups/portal2-saves/20261008-195500.zip` (portal2/SAVE)
 - `~/.universal-modder/backups/portal2-cfg/20261008-195500.zip` (portal2/cfg)
