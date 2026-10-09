@@ -236,6 +236,11 @@ Not yet checked or not working:
 - run_p2.sh: NOSOUND= / NOVID= / GAMEARGS= / ACTIVATE=<s> / SHOT=<s,...>;
   MAC32_TRACE=sub1,sub2 filters -t to matching host calls and selectors.
 
+## Step 6 — confirmed by the user (2026-10-08)
+Boris played it with ./play_portal2.sh: mouse works, frame rate is fine,
+"everything just works". The earlier ~15 fps and dead clicks were only the
+background/locked-screen test setup.
+
 ## Saves backup (before the first level load, 2026-10-08 19:55)
 - `~/.universal-modder/backups/portal2-saves/20261008-195500.zip` (portal2/SAVE)
 - `~/.universal-modder/backups/portal2-cfg/20261008-195500.zip` (portal2/cfg)
