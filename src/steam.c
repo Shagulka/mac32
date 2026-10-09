@@ -263,7 +263,40 @@ static void t_Steam_ReleaseThreadLocalMemory(uint32_t *args, struct hres *r)
 }
 static void t_breakpad(uint32_t *args, struct hres *r) { (void)args; RET(0); }
 
+// ---- the old global accessors -----------------------------------------------
+// Games built with Steamworks 1.47 or older import SteamApps(), SteamUser()...
+// from libsteam_api; newer libraries (Half-Life's is from 2026) export only
+// the versioned SteamAPI_SteamApps_v008() style. Steam only appends methods to
+// these interfaces, so the newest version serves an older caller.
+static g32 call_guest(const char *const *names, int nargs, const uint32_t *args)
+{
+	for (; *names; names++) {
+		g32 f = macho_find_any(*names);
+		if (f) return (g32)gcallv(f, nargs, args, NULL);
+	}
+	return 0;
+}
+#define ACCESSOR(fn, ...) static void fn(uint32_t *args, struct hres *r) { \
+	(void)args; static const char *const n[] = { __VA_ARGS__, NULL }; RET(call_guest(n, 0, NULL)); }
+ACCESSOR(t_SteamApps, "_SteamAPI_SteamApps_v008")
+ACCESSOR(t_SteamUser, "_SteamAPI_SteamUser_v023", "_SteamAPI_SteamUser_v022", "_SteamAPI_SteamUser_v021", "_SteamAPI_SteamUser_v020")
+ACCESSOR(t_SteamFriends, "_SteamAPI_SteamFriends_v017")
+ACCESSOR(t_SteamHTTP, "_SteamAPI_SteamHTTP_v003")
+ACCESSOR(t_SteamUtils, "_SteamAPI_SteamUtils_v010")
+ACCESSOR(t_SteamUserStats, "_SteamAPI_SteamUserStats_v013", "_SteamAPI_SteamUserStats_v012", "_SteamAPI_SteamUserStats_v011")
+ACCESSOR(t_SteamGameServer, "_SteamAPI_SteamGameServer_v015", "_SteamAPI_SteamGameServer_v014", "_SteamAPI_SteamGameServer_v013")
+// old SteamGameServer_Init(ip, steamPort, gamePort, queryPort, mode, version)
+// has the arguments of the new SteamInternal_GameServer_Init
+static void t_SteamGameServer_Init(uint32_t *args, struct hres *r)
+{
+	static const char *const n[] = { "_SteamInternal_GameServer_Init", NULL };
+	RET(call_guest(n, 6, args) & 0xff);
+}
+
 static struct hfn sc[] = {
+	R("_SteamApps", t_SteamApps), R("_SteamUser", t_SteamUser), R("_SteamFriends", t_SteamFriends),
+	R("_SteamHTTP", t_SteamHTTP), R("_SteamUtils", t_SteamUtils), R("_SteamUserStats", t_SteamUserStats),
+	R("_SteamGameServer", t_SteamGameServer), R("_SteamGameServer_Init", t_SteamGameServer_Init),
 	R("_mac32steam_CreateInterface", t_CreateInterface),
 	R("_mac32steam_Steam_BGetCallback", t_Steam_BGetCallback),
 	R("_mac32steam_Steam_FreeLastCallback", t_Steam_FreeLastCallback),

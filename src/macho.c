@@ -226,6 +226,12 @@ static g32 resolve(struct image *img, int ord, const char *name, int weak)
 		else if (img->depsys[ord - 1]) a = host_lookup(name);
 		if (!a) a = macho_find_any(name);	// moved symbols, our runtime libs
 	}
+	// a guest library that lost an export the game still imports (newer
+	// libsteam_api without SteamApps() etc.): our host version stands in
+	if (!a && ord != SELF_LIBRARY_ORDINAL) {
+		a = host_lookup(name);
+		if (a) LOG("%s: not in its guest library; using the host one (needed by %s)\n", name, img->path);
+	}
 	if (!a && weak) LOG("weak import %s missing (needed by %s): bound to 0\n", name, img->path);
 	if (!a && !weak) {
 		unresolved_count++;

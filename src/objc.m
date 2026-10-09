@@ -13,6 +13,7 @@
 #import <objc/runtime.h>
 #import <objc/message.h>
 #include <pthread.h>
+#include <ctype.h>
 #include "thunks.h"
 
 @interface NSInvocation (Private)
@@ -151,6 +152,40 @@ static void link_class(struct gclass *gc)
 
 struct catdef { const char *cls; g32 im, cm; };
 
+// Categories a guest adds to host classes (SDL's +[NSCursor invisibleCursor]).
+// Guest messages find them here; the host itself does not see them.
+struct hcat { Class cls; struct gmeth *im, *cm; int nim, ncm; };
+static struct hcat hcats[128];
+static int nhcats;
+static void add_host_category(const char *cn, g32 im, g32 cm)
+{
+	Class c = objc_getClass(cn);
+	if (!c) { LOG("objc: category on missing class %s ignored\n", cn); return; }
+	struct hcat *h = NULL;
+	for (int i = 0; i < nhcats && !h; i++) if (hcats[i].cls == c) h = &hcats[i];
+	if (!h) {
+		if (nhcats == 128) die("objc: too many categories on host classes");
+		h = &hcats[nhcats++];
+		h->cls = c;
+	}
+	read_methods(im, &h->im, &h->nim);
+	read_methods(cm, &h->cm, &h->ncm);
+	LOG("objc: category on host class %s: %d+%d methods\n", cn, h->nim, h->ncm);
+}
+static g32 host_category_imp(id target, const char *sel)
+{
+	if (!nhcats || !target) return 0;
+	int cm = object_isClass(target);
+	for (Class k = cm ? (Class)target : object_getClass(target); k; k = class_getSuperclass(k))
+		for (int i = 0; i < nhcats; i++) {
+			if (hcats[i].cls != k) continue;
+			struct gmeth *m = cm ? hcats[i].cm : hcats[i].im;
+			int n = cm ? hcats[i].ncm : hcats[i].nim;
+			for (int j = n - 1; j >= 0; j--) if (!strcmp(m[j].sel, sel)) return m[j].imp;
+		}
+	return 0;
+}
+
 int macho_section(struct image *img, const char *seg, const char *sect, g32 *addr, uint32_t *size);
 
 void objc_image_loaded(struct image *img)
@@ -176,7 +211,7 @@ void objc_image_loaded(struct image *img)
 					read_methods(U32(c + 8), &gc->im, &gc->nim);
 					read_methods(U32(c + 12), &gc->cm, &gc->ncm);
 				} else {
-					LOG("objc: category on host class %s not supported yet\n", cn);
+					add_host_category(cn, U32(c + 8), U32(c + 12));
 				}
 			}
 		}
@@ -504,6 +539,83 @@ static void call_host(id target, Class super_cls, SEL hsel, const char *selname,
 static void fast_enum(id target, const uint32_t *ga, struct hres *r);
 const char *describe_obj(g32 g);
 
+// Declared properties with no accessor methods and no ivars (Valve's i386
+// SDL2 was built that way, so it would fail on a real 32-bit Mac too): give
+// them storage on the host object, as @synthesize would have.
+// class ext (cls+44): size, weakIvarLayout, property list {entsize, count, {name, attrs}...}
+static int synth_property(struct gclass *gc, id target, const char *sel, const uint32_t *ga, struct hres *r)
+{
+	size_t sl = strlen(sel);
+	int setter = sl > 4 && !strncmp(sel, "set", 3) && sel[sl - 1] == ':' && !strchr(sel, ':')[1];
+	for (; gc; gc = gc->super) {
+		g32 ext = U32(gc->cls + 44);
+		if (!ext || U32(ext) < 12 || !U32(ext + 8)) continue;
+		g32 pl = U32(ext + 8);
+		uint32_t es = U32(pl), n = U32(pl + 4);
+		for (uint32_t i = 0; i < n; i++) {
+			const char *name = G2H(U32(pl + 8 + i * es)), *at = G2H(U32(pl + 12 + i * es));
+			size_t nl = strlen(name);
+			int match = setter ? sl == nl + 4 && toupper((unsigned char)name[0]) == sel[3] &&
+						 !strncmp(sel + 4, name + 1, nl - 1)
+					   : !strcmp(sel, name);
+			if (!match) continue;
+			if (strstr(at, ",G") || strstr(at, ",S")) return 0;	// custom accessor names: not ours
+			char t = at[1];
+			const void *key = name;		// guest strings never move
+			if (t == '@') {
+				if (setter) {
+					objc_AssociationPolicy pol = strstr(at, ",C") ? OBJC_ASSOCIATION_COPY_NONATOMIC
+								   : strstr(at, ",&") ? OBJC_ASSOCIATION_RETAIN_NONATOMIC
+								   : OBJC_ASSOCIATION_ASSIGN;
+					objc_setAssociatedObject(target, key, ga[0] ? objc_unwrap(ga[0]) : nil, pol);
+				} else {
+					r->rax = objc_wrap(objc_getAssociatedObject(target, key));
+				}
+				return 1;
+			}
+			int wide = t == 'q' || t == 'Q' || t == 'd';
+			if (!strchr("cCsSiIlLfB^*qQd", t)) die("objc: cannot synthesize property %s (%s)", name, at);
+			if (setter) {
+				uint64_t v = ga[0] | (wide ? (uint64_t)ga[1] << 32 : 0);
+				objc_setAssociatedObject(target, key, @(v), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+			} else {
+				uint64_t v = [objc_getAssociatedObject(target, key) unsignedLongLongValue];
+				if (t == 'f') { float f; uint32_t w = (uint32_t)v; memcpy(&f, &w, 4); r->st0 = f; r->flags |= F_ST0; }
+				else if (t == 'd') { double dd; memcpy(&dd, &v, 8); r->st0 = dd; r->flags |= F_ST0; }
+				else r->rax = wide ? v : (uint32_t)v;
+			}
+			return 1;
+		}
+	}
+	return 0;
+}
+
+// nil-terminated object lists (arrayWithObjects:, dictionaryWithObjectsAndKeys:
+// ...): NSInvocation cannot carry varargs, so build them from the guest list
+static int variadic_objects(id target, const char *sel, const uint32_t *ga, struct hres *r)
+{
+	static const char *const sels[] = {
+		"arrayWithObjects:", "initWithObjects:", "setWithObjects:",
+		"dictionaryWithObjectsAndKeys:", "initWithObjectsAndKeys:", NULL };
+	int k = 0;
+	while (sels[k] && strcmp(sels[k], sel)) k++;
+	if (!sels[k]) return 0;
+	NSMutableArray *v = [NSMutableArray array];
+	for (int i = 0; ga[i] && i < 4096; i++) [v addObject:objc_unwrap(ga[i])];
+	id out;
+	if (k >= 3) {
+		NSMutableDictionary *d = [NSMutableDictionary dictionary];
+		for (NSUInteger i = 0; i + 1 < v.count; i += 2) d[v[i + 1]] = v[i];	// object, key
+		out = k == 3 ? [[target class] dictionaryWithDictionary:d] : [target initWithDictionary:d];
+	} else if (k == 2) {
+		out = [target setWithArray:v];
+	} else {
+		out = k == 0 ? [target arrayWithArray:v] : [target initWithArray:v];
+	}
+	r->rax = objc_wrap(out);
+	return 1;
+}
+
 static void msgsend(uint32_t *a, struct hres *r, int kind)
 {
 	g32 sret = 0;
@@ -534,6 +646,8 @@ static void msgsend(uint32_t *a, struct hres *r, int kind)
 		if (!gc) gc = (void *)(uintptr_t)map_get(&gcls_by_addr, U32(self));
 	}
 	g32 imp = gc ? find_imp(gc, sel, classmethod, NULL) : 0;
+	if (!imp && gc && !classmethod && !supcls && synth_property(gc, objc_unwrap(self), sel, ga, r)) return;
+	if (!imp && !gc && !supcls) imp = host_category_imp(objc_unwrap(self), sel);
 	if (imp) {
 		uint32_t v[24];
 		int k = 0;
@@ -560,6 +674,7 @@ static void msgsend(uint32_t *a, struct hres *r, int kind)
 		}
 	}
 	if (!strcmp(sel, "countByEnumeratingWithState:objects:count:")) { fast_enum(target, ga, r); return; }
+	if (variadic_objects(target, sel, ga, r)) return;
 	if (!strcmp(sel, "stringWithFormat:")) {	// variadic: NSInvocation cannot carry it
 		NSString *fmt = objc_unwrap(ga[0]);
 		int n;
@@ -697,11 +812,31 @@ static char *host_types(const char *g)
 {
 	NSMutableString *s = [NSMutableString string];
 	for (const char *p = g; *p; p++) {
-		if (*p >= '0' && *p <= '9') continue;
+		if (*p >= '0' && *p <= '9') continue;			// frame offsets
+		if (*p == '"') {					// @"ClassName"
+			const char *e = strchr(p + 1, '"');
+			if (!e) break;
+			p = e;
+			continue;
+		}
+		if (*p == '^' && (p[1] == '{' || p[1] == '(')) {	// pointer to a struct: its layout does not matter
+			[s appendString:@"^v"];
+			int depth = 0;
+			p++;
+			do { if (*p == '{' || *p == '(') depth++; else if (*p == '}' || *p == ')') depth--; } while (depth && *++p);
+			continue;
+		}
 		if (!strncmp(p, "{_NSRect=", 9)) { [s appendString:@"{CGRect={CGPoint=dd}{CGSize=dd}}"]; p = strstr(p, "}}") + 1; continue; }
 		if (!strncmp(p, "{_NSPoint=ff}", 13)) { [s appendString:@"{CGPoint=dd}"]; p += 12; continue; }
 		if (!strncmp(p, "{_NSSize=ff}", 12)) { [s appendString:@"{CGSize=dd}"]; p += 11; continue; }
-		char c = *p == 'l' ? 'i' : *p == 'L' ? 'I' : *p;
+		if (*p == '{' || *p == '(') {				// struct name stays as it is
+			const char *e = p + 1;
+			while (*e && *e != '=' && *e != '}' && *e != ')') e++;
+			[s appendString:[[[NSString alloc] initWithBytes:p length:(NSUInteger)(e - p) encoding:NSUTF8StringEncoding] autorelease]];
+			p = e - 1;
+			continue;
+		}
+		char c = *p == 'l' ? 'i' : *p == 'L' ? 'I' : *p;	// long was 32-bit
 		[s appendFormat:@"%c", c];
 	}
 	return strdup(s.UTF8String);

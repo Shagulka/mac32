@@ -107,6 +107,9 @@ static void t_CGRectIsNull(uint32_t *args, struct hres *r)
 {
 	RET(CGRectIsNull(CGRectMake(F32(A(0)), F32(A(1)), F32(A(2)), F32(A(3)))));
 }
+static void init_dupmodes(g32 a) { U32(a) = hobj_wrap((void *)kCGDisplayShowDuplicateLowResolutionModes); }
+static uint32_t w_CGDisplayModeGetPixelWidth(CGDisplayModeRef m) { return (uint32_t)CGDisplayModeGetPixelWidth(m); }
+static uint32_t w_CGDisplayModeGetPixelHeight(CGDisplayModeRef m) { return (uint32_t)CGDisplayModeGetPixelHeight(m); }
 static int w_CGShieldingWindowLevel(void) { return CGShieldingWindowLevel(); }
 static void init_utfileurl(g32 a) { U32(a) = hobj_wrap((void *)kUTTypeFileURL); }
 static void init_black(g32 a) { U32(a) = hobj_wrap((void *)kCGColorBlack); }
@@ -150,8 +153,6 @@ static void t_IOServiceAddMatchingNotification(uint32_t *args, struct hres *r)
 	if (A(4)) U32(A(4)) = 0;
 	RET(kIOReturnUnsupported);
 }
-static IONotificationPortRef w_IONotificationPortCreate(uint32_t port) { return IONotificationPortCreate(port); }
-static void w_IONotificationPortDestroy(IONotificationPortRef p) { IONotificationPortDestroy(p); }
 static uint32_t w_IONotificationPortGetMachPort(IONotificationPortRef p) { return IONotificationPortGetMachPort(p); }
 static int w_IOIteratorIsValid(uint32_t i) { return IOIteratorIsValid(i); }
 static int w_IOObjectIsEqualTo(uint32_t a, uint32_t b) { return IOObjectIsEqualTo(a, b); }
@@ -163,8 +164,8 @@ static void t_IOPMAssertionCreateWithDescription(uint32_t *args, struct hres *r)
 	memcpy(&timeout, &args[5], 8);
 	IOPMAssertionID id = 0;
 	IOReturn rc = IOPMAssertionCreateWithDescription(hobj_unwrap(A(0)), hobj_unwrap(A(1)), hobj_unwrap(A(2)),
-							  hobj_unwrap(A(3)), hobj_unwrap(A(4)), timeout, NULL, &id);
-	U32(A(7)) = id;
+							  hobj_unwrap(A(3)), hobj_unwrap(A(4)), timeout, hobj_unwrap(A(7)), &id);
+	if (A(8)) U32(A(8)) = id;	// (type, name, details, reason, bundle, double timeout, timeoutAction, *id)
 	RET(rc);
 }
 static int w_IOPMAssertionRelease(uint32_t id) { return IOPMAssertionRelease(id); }
@@ -257,6 +258,9 @@ static struct hfn apple2_fns[] = {
 	G("_CGDisplaySetDisplayMode", CGDisplaySetDisplayMode, "i:uoo"),
 	G("_CGGetDisplayTransferByTable", CGGetDisplayTransferByTable, "i:uupppp"),
 	G("_CGGetOnlineDisplayList", CGGetOnlineDisplayList, "i:upp"),
+	D("_kCGDisplayShowDuplicateLowResolutionModes", 4, init_dupmodes),
+	G("_CGDisplayModeGetPixelWidth", w_CGDisplayModeGetPixelWidth, "u:o"),
+	G("_CGDisplayModeGetPixelHeight", w_CGDisplayModeGetPixelHeight, "u:o"),
 	R("_CGRectIntersection", t_CGRectIntersection), R("_CGRectIsNull", t_CGRectIsNull),
 	G("_CGShieldingWindowLevel", w_CGShieldingWindowLevel, "i:"),
 	G("_CGColorGetConstantColor", w_CGColorGetConstantColor, "o:o"), D("_kCGColorBlack", 4, init_black),
@@ -274,8 +278,9 @@ static struct hfn apple2_fns[] = {
 	R("_IOHIDManagerScheduleWithRunLoop", t_nothing), R("_IOHIDManagerUnscheduleFromRunLoop", t_nothing),
 	R("_IOHIDManagerOpen", t_zero), R("_IOHIDManagerClose", t_zero), R("_IOHIDManagerCopyDevices", t_zero),
 	R("_IOServiceAddMatchingNotification", t_IOServiceAddMatchingNotification),
-	G("_IONotificationPortCreate", w_IONotificationPortCreate, "o:u"),
-	G("_IONotificationPortDestroy", w_IONotificationPortDestroy, "v:o"),
+	// no notification ports: SDL's HID discovery then stays off (it also
+	// destroys a port twice when matching fails)
+	R("_IONotificationPortCreate", t_zero), R("_IONotificationPortDestroy", t_nothing),
 	G("_IONotificationPortGetMachPort", w_IONotificationPortGetMachPort, "u:o"),
 	R("_IODispatchCalloutFromMessage", t_nothing),
 	G("_IOIteratorIsValid", w_IOIteratorIsValid, "i:u"), G("_IOObjectIsEqualTo", w_IOObjectIsEqualTo, "i:uu"),

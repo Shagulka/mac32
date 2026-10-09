@@ -189,7 +189,16 @@ static void t_error(uint32_t *args, struct hres *r)
 	RET(errno_slot);
 }
 
-static void t_stack_chk_fail(uint32_t *args, struct hres *r) { (void)args; (void)r; die("guest stack smashing detected"); }
+static void t_stack_chk_fail(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	extern void guest_backtrace(g32 ret, g32 ebp);
+	extern void print_recent_calls(void);
+	fprintf(stderr, "[mac32] guest stack smashing detected in:\n");
+	guest_backtrace(args[-1], args[-3]);	// host-call frame: ... ebp, idx, ret, args
+	print_recent_calls();
+	die("guest stack smashing detected");
+}
 static void init_stack_guard(g32 a) { *(uint32_t *)G2H(a) = arc4random() | 0xff; }
 
 static void t_exit(uint32_t *args, struct hres *r);	// in cxx.c via atexit list

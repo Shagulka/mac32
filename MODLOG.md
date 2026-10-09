@@ -270,3 +270,19 @@ Restore: `um backup restore portal2-saves` / `um backup restore portal2-cfg`.
 ## Gotchas
 - macOS has no `timeout` command; run lldb with the Bash tool timeout instead.
 - `lldb --batch -o 'run ldt'` works under Rosetta and gives the fault address.
+
+## Step 7: the game quit after a while (2026-10-09)
+- Symptom: Portal 2 closed by itself after a long session, no crash report.
+  Both saved logs end with `[mac32] fatal: out of low memory (12288 bytes asked)`.
+- Cause: `low_pages` was a bump pointer. Blocks over 2 KB, guest `munmap`,
+  aligned blocks and every thread's 8 MB guest stack were never given back, so
+  the 4 GB space ran out. GCD retires idle worker threads, and each one that
+  ran guest code took a fresh stack.
+- Fix: freed ranges go on a sorted, merged list that `low_pages` reuses first
+  fit; `low_free`/`low_block_len` track live blocks; thread stacks go back from
+  a pthread key destructor; 2-32 KB sizes come from 512 KB slabs. Guest FILE
+  slots (4096) are now reused too; they would have been the next limit.
+- `MAC32_MEMSTATS=<seconds>` logs use. Self-test churns 40 GB of 1 MB blocks,
+  a million mixed allocations and 2000 threads.
+- Soak test: `-usercon +ip 127.0.0.1 +rcon_password ...` and an RCON script
+  that sends `map ...` every 45 s (command-line `wait` aliases do not advance).

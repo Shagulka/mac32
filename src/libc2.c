@@ -109,11 +109,11 @@ static void stat_to_guest(const struct stat *s, g32 g)
 	*(uint32_t *)(p + 68) = s->st_flags;
 	*(uint32_t *)(p + 72) = s->st_gen;
 }
-// $INODE64 layout: 144 bytes
+// $INODE64 layout: 108 bytes on i386 (timespecs are two 32-bit longs)
 static void stat64_to_guest(const struct stat *s, g32 g)
 {
 	uint8_t *p = G2H(g);
-	memset(p, 0, 144);
+	memset(p, 0, 108);
 	*(int32_t *)(p + 0) = s->st_dev;
 	*(uint16_t *)(p + 4) = s->st_mode;
 	*(uint16_t *)(p + 6) = s->st_nlink;
