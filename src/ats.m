@@ -21,7 +21,7 @@
 #define FIX2D(f) ((double)(int32_t)(f) / 65536.0)
 
 // ---- fonts -------------------------------------------------------------------
-static CFStringRef fonts[1024];		// ATSFontRef/ATSUFontID n -> PostScript name
+static CFStringRef fonts[8192];		// ATSFontRef/ATSUFontID n -> PostScript name
 static uint32_t nfonts = 1;
 
 static uint32_t font_id(CTFontRef f)
@@ -29,7 +29,7 @@ static uint32_t font_id(CTFontRef f)
 	CFStringRef ps = CTFontCopyPostScriptName(f);
 	for (uint32_t i = 1; i < nfonts; i++)
 		if (CFEqual(fonts[i], ps)) { CFRelease(ps); return i; }
-	if (nfonts == 1024) die("too many fonts");
+	if (nfonts == 8192) die("too many fonts");
 	fonts[nfonts] = ps;
 	return nfonts++;
 }
@@ -62,6 +62,98 @@ static uint32_t find_font(CFStringRef name)
 }
 static void t_ATSFontFindFromName(uint32_t *args, struct hres *r) { RET(find_font(hobj_unwrap(A(0)))); }
 static void t_ATSFontFindFromPostScriptName(uint32_t *args, struct hres *r) { RET(find_font(hobj_unwrap(A(0)))); }
+
+// ---- font enumeration (GoldSrc lists the system's fonts) -------------------------
+static uint32_t font_id_ps(CFStringRef ps)
+{
+	for (uint32_t i = 1; i < nfonts; i++)
+		if (CFEqual(fonts[i], ps)) return i;
+	if (nfonts == 8192) die("too many fonts");
+	fonts[nfonts] = CFRetain(ps);
+	return nfonts++;
+}
+static int all_listed;
+static void list_all_fonts(void)
+{
+	if (all_listed) return;
+	all_listed = 1;
+	CFArrayRef a = CTFontManagerCopyAvailablePostScriptNames();
+	for (CFIndex i = 0; i < CFArrayGetCount(a); i++) font_id_ps(CFArrayGetValueAtIndex(a, i));
+	CFRelease(a);
+}
+static void t_ATSUFontCount(uint32_t *args, struct hres *r)
+{
+	list_all_fonts();
+	*(uint32_t *)G2H(A(0)) = nfonts - 1;
+	RET(0);
+}
+static void t_ATSUGetFontIDs(uint32_t *args, struct hres *r)
+{
+	list_all_fonts();
+	uint32_t n = nfonts - 1 < A(1) ? nfonts - 1 : A(1);
+	for (uint32_t i = 0; i < n; i++) ((uint32_t *)G2H(A(0)))[i] = i + 1;
+	if (A(2)) *(uint32_t *)G2H(A(2)) = n;
+	RET(0);
+}
+// names a font answers to: family 1, full 4, PostScript 6 (Mac platform, Roman)
+static const uint32_t name_codes[3] = { 1, 4, 6 };
+static CFStringRef font_name(uint32_t id, uint32_t code)
+{
+	if (code == 6) return CFRetain(fonts[id]);
+	CTFontRef f = CTFontCreateWithName(fonts[id], 12, NULL);
+	CFStringRef n = CTFontCopyName(f, code == 1 ? kCTFontFamilyNameKey : kCTFontFullNameKey);
+	CFRelease(f);
+	return n;
+}
+static void t_ATSUCountFontNames(uint32_t *args, struct hres *r)
+{
+	*(uint32_t *)G2H(A(1)) = 3;
+	RET(A(0) && A(0) < nfonts ? 0 : -8796);	// kATSUInvalidFontErr
+}
+static void t_ATSUGetIndFontName(uint32_t *args, struct hres *r)
+{
+	uint32_t id = A(0), idx = A(1), max = A(2);
+	if (!id || id >= nfonts || idx >= 3) { RET(-8796); return; }
+	CFStringRef n = font_name(id, name_codes[idx]);
+	char buf[512] = "";
+	if (n) { CFStringGetCString(n, buf, sizeof buf, kCFStringEncodingMacRoman); CFRelease(n); }
+	uint32_t len = (uint32_t)strlen(buf);
+	if (A(3)) memcpy(G2H(A(3)), buf, len < max ? len : max);
+	if (A(4)) *(uint32_t *)G2H(A(4)) = len;
+	if (A(5)) *(uint32_t *)G2H(A(5)) = name_codes[idx];
+	if (A(6)) *(uint32_t *)G2H(A(6)) = 1;	// kFontMacintoshPlatform
+	if (A(7)) *(uint32_t *)G2H(A(7)) = 0;	// kFontRomanScript
+	if (A(8)) *(uint32_t *)G2H(A(8)) = 0;	// kFontEnglishLanguage
+	RET(0);
+}
+static void t_ATSUFindFontFromName(uint32_t *args, struct hres *r)
+{
+	const uint8_t *b = G2H(A(0));
+	uint32_t len = A(1), platform = A(3);
+	CFStringRef n;
+	if (platform == 0 || platform == 3 || (len >= 2 && !b[0]))	// Unicode / Microsoft: UTF-16BE
+		n = CFStringCreateWithBytes(NULL, b, len, kCFStringEncodingUTF16BE, false);
+	else
+		n = CFStringCreateWithBytes(NULL, b, len, kCFStringEncodingMacRoman, false);
+	uint32_t id = find_font(n);
+	if (n) CFRelease(n);
+	*(uint32_t *)G2H(A(6)) = id;
+	RET(id ? 0 : -8796);
+}
+static void t_ATSFontActivateFromFileReference(uint32_t *args, struct hres *r)
+{
+	char path[PATH_MAX];
+	if (FSRefMakePath(G2H(A(0)), (UInt8 *)path, sizeof path)) { RET(-43); return; }	// fnfErr
+	CFURLRef u = CFURLCreateFromFileSystemRepresentation(NULL, (UInt8 *)path, (CFIndex)strlen(path), false);
+	CFErrorRef err = NULL;
+	bool ok = CTFontManagerRegisterFontsForURL(u, kCTFontManagerScopeProcess, &err) ||
+		  (err && CFErrorGetCode(err) == kCTFontManagerErrorAlreadyRegistered);
+	LOG("ATSFontActivateFromFileReference(%s): %s\n", path, ok ? "registered" : "failed");
+	if (err) CFRelease(err);
+	CFRelease(u);
+	if (A(5)) *(uint32_t *)G2H(A(5)) = 1;	// container ref
+	RET(ok ? 0 : -1);
+}
 
 static void t_ATSFontActivateFromMemory(uint32_t *args, struct hres *r)
 {
@@ -397,10 +489,38 @@ static int w_SetThemeCursor(uint32_t c)
 	return f ? f(c) : 0;
 }
 
+// QuickDraw Rect {top, left, bottom, right} of the ink, y down, around (x, y)
+static void t_ATSUMeasureTextImage(uint32_t *args, struct hres *r)
+{
+	struct layout *l = L(A(0));
+	if (!l) { RET(-8790); return; }
+	CGFloat asc = 0, desc = 0;
+	double w = CTLineGetTypographicBounds(layout_line(l), &asc, &desc, NULL);
+	double x = FIX2D(A(3)), y = FIX2D(A(4));
+	int16_t *rc = G2H(A(5));
+	rc[0] = (int16_t)floor(y - asc);
+	rc[1] = (int16_t)floor(x);
+	rc[2] = (int16_t)ceil(y + desc);
+	rc[3] = (int16_t)ceil(x + w);
+	RET(0);
+}
+static void t_CGContextSelectFont(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	float size;
+	memcpy(&size, &args[2], 4);
+	CGContextSelectFont(hobj_unwrap(A(0)), G2H(A(1)), size, (CGTextEncoding)A(3));
+}
+
 static struct hfn ats[] = {
 	R("_ATSFontFindFromName", t_ATSFontFindFromName),
 	R("_ATSFontFindFromPostScriptName", t_ATSFontFindFromPostScriptName),
 	R("_ATSFontActivateFromMemory", t_ATSFontActivateFromMemory),
+	R("_ATSFontActivateFromFileReference", t_ATSFontActivateFromFileReference),
+	R("_ATSUFontCount", t_ATSUFontCount), R("_ATSUGetFontIDs", t_ATSUGetFontIDs),
+	R("_ATSUCountFontNames", t_ATSUCountFontNames), R("_ATSUGetIndFontName", t_ATSUGetIndFontName),
+	R("_ATSUFindFontFromName", t_ATSUFindFontFromName), R("_ATSUMeasureTextImage", t_ATSUMeasureTextImage),
+	R("_CGContextSelectFont", t_CGContextSelectFont),
 	R("_ATSFontGetName", t_ATSFontGetName),
 	R("_ATSFontGetHorizontalMetrics", t_ATSFontGetHorizontalMetrics),
 	R("_ATSUCreateStyle", t_ATSUCreateStyle), R("_ATSUDisposeStyle", t_ATSUDisposeStyle),

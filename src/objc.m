@@ -296,6 +296,8 @@ static void ret_h2g(const char *t, const void *v, struct hres *r, g32 sret)
 
 // ---- handles ------------------------------------------------------------------
 static g32 cfconst_isa;
+static int is_block(g32 g);
+static id host_block_for(g32 gb);
 static void init_cfconst(g32 a) { cfconst_isa = a; }
 
 g32 hobj_wrap(void *h)
@@ -377,6 +379,10 @@ static id objc_unwrap(g32 g)
 		if (gc) {
 			Class c = ensure_host_class(gc);
 			h = g == gc->meta ? object_getClass(c) : c;
+		} else if (is_block(g)) {
+			pthread_mutex_unlock(&lk);
+			h = host_block_for(g);	// not cached: stack blocks reuse addresses
+			pthread_mutex_lock(&lk);
 		} else if (cfconst_isa && U32(g) == cfconst_isa) {
 			// CFSTR("...") constant in a guest image: {isa, flags, char *, length}
 			CFStringRef s = CFStringCreateWithBytes(NULL, G2H(U32(g + 8)), (CFIndex)U32(g + 12),
@@ -787,6 +793,219 @@ static void t_enum_mutation(uint32_t *args, struct hres *r) { (void)args; (void)
 static void init_nsapp(g32 a) { nsapp_var = a; U32(a) = objc_wrap(NSApp); }
 static void init_runloopmode(g32 a) { U32(a) = objc_wrap(NSDefaultRunLoopMode); }
 
+// ---- ARC entry points (SDL2 and other clang-built code) ---------------------
+// A guest object is a handle; ARC calls act on the host object behind it and
+// hand back the same handle.
+extern void *objc_autoreleasePoolPush(void);
+extern void objc_autoreleasePoolPop(void *);
+#include <objc/objc-sync.h>
+
+static id arc_obj(g32 g) { return g ? objc_unwrap(g) : nil; }
+static void t_objc_retain(uint32_t *args, struct hres *r) { [arc_obj(A(0)) retain]; RET(A(0)); }
+static void t_objc_release(uint32_t *args, struct hres *r) { (void)r; [arc_obj(A(0)) release]; }
+static void t_objc_autorelease(uint32_t *args, struct hres *r) { [arc_obj(A(0)) autorelease]; RET(A(0)); }
+static void t_objc_retainAutorelease(uint32_t *args, struct hres *r) { [[arc_obj(A(0)) retain] autorelease]; RET(A(0)); }
+static void t_objc_storeStrong(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	g32 *loc = G2H(A(0)), obj = A(1), old = *loc;
+	if (old == obj) return;
+	[arc_obj(obj) retain];
+	*loc = obj;
+	[arc_obj(old) release];
+}
+// weak references are not zeroed when the object dies: fine for the window
+// and view back-pointers SDL keeps, which outlive their users
+static void t_objc_storeWeak(uint32_t *args, struct hres *r) { *(g32 *)G2H(A(0)) = A(1); RET(A(1)); }
+static void t_objc_loadWeakRetained(uint32_t *args, struct hres *r) { g32 g = *(g32 *)G2H(A(0)); [arc_obj(g) retain]; RET(g); }
+static void t_objc_loadWeak(uint32_t *args, struct hres *r) { RET(*(g32 *)G2H(A(0))); }
+static void t_objc_destroyWeak(uint32_t *args, struct hres *r) { (void)r; *(g32 *)G2H(A(0)) = 0; }
+static void t_objc_copyWeak(uint32_t *args, struct hres *r) { (void)r; *(g32 *)G2H(A(0)) = *(g32 *)G2H(A(1)); }
+
+// pool tokens are host pointers: the guest gets the depth instead
+static __thread void *pools[1024];
+static __thread uint32_t npools;
+static void t_pool_push(uint32_t *args, struct hres *r)
+{
+	(void)args;
+	if (npools == 1024) die("objc: autorelease pools nested too deep");
+	pools[npools++] = objc_autoreleasePoolPush();
+	RET(npools);
+}
+static void t_pool_pop(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	uint32_t d = A(0);
+	if (!d || d > npools) return;
+	objc_autoreleasePoolPop(pools[d - 1]);
+	npools = d - 1;
+}
+static void t_objc_sync_enter(uint32_t *args, struct hres *r) { RET(objc_sync_enter(arc_obj(A(0)))); }
+static void t_objc_sync_exit(uint32_t *args, struct hres *r) { RET(objc_sync_exit(arc_obj(A(0)))); }
+
+// ---- blocks -----------------------------------------------------------------
+// i386 block: isa, flags, reserved, invoke, descriptor, captures...
+// descriptor: reserved, size, [copy, dispose], [signature]
+enum { BLK_REFCOUNT = 0xfffe, BLK_NEEDS_FREE = 1 << 24, BLK_COPY_DISPOSE = 1 << 25,
+       BLK_IS_GLOBAL = 1 << 28, BLK_HAS_SIG = 1 << 30 };
+static g32 isa_stack, isa_malloc, isa_global;
+static void init_isa_stack(g32 a) { isa_stack = a; }
+static void init_isa_malloc(g32 a) { isa_malloc = a; }
+static void init_isa_global(g32 a) { isa_global = a; }
+static int is_block(g32 g) { g32 i = U32(g); return i && (i == isa_stack || i == isa_malloc || i == isa_global); }
+
+static g32 block_copy(g32 b)
+{
+	if (!b) return 0;
+	g32 isa = U32(b);
+	if (isa == isa_global) return b;
+	if (isa == isa_malloc) { __sync_fetch_and_add((uint32_t *)G2H(b + 4), 2); return b; }
+	g32 desc = U32(b + 16);
+	uint32_t size = U32(desc + 4), flags = U32(b + 4);
+	g32 n = gmalloc(size);
+	memcpy(G2H(n), G2H(b), size);
+	U32(n) = isa_malloc;
+	U32(n + 4) = (flags & ~BLK_REFCOUNT) | BLK_NEEDS_FREE | 2;
+	if (flags & BLK_COPY_DISPOSE) gcall(U32(desc + 8), 2, n, b);
+	return n;
+}
+static void block_release(g32 b)
+{
+	if (!b || U32(b) != isa_malloc) return;
+	uint32_t f = __sync_sub_and_fetch((uint32_t *)G2H(b + 4), 2);
+	if (f & BLK_REFCOUNT) return;
+	if (f & BLK_COPY_DISPOSE) gcall(U32(U32(b + 16) + 12), 1, b);
+	gfree(b);
+}
+
+// __block variables: isa, forwarding, flags, size, [keep, destroy], value
+static g32 byref_copy(g32 src)
+{
+	g32 fwd = U32(src + 4);
+	if (U32(fwd + 8) & BLK_NEEDS_FREE) { __sync_fetch_and_add((uint32_t *)G2H(fwd + 8), 2); return fwd; }
+	uint32_t size = U32(src + 12), flags = U32(src + 8);
+	g32 n = gmalloc(size);
+	memcpy(G2H(n), G2H(src), size);
+	U32(n + 4) = n;
+	U32(src + 4) = n;
+	U32(n + 8) = (flags & ~BLK_REFCOUNT) | BLK_NEEDS_FREE | 4;	// one for the stack copy, one for the block
+	if (flags & BLK_COPY_DISPOSE) gcall(U32(src + 16), 2, n, src);
+	return n;
+}
+
+static void t_Block_object_assign(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	g32 *dst = G2H(A(0)), src = A(1);
+	uint32_t f = A(2);
+	if (f & 128) { *dst = src; return; }		// BLOCK_BYREF_CALLER: plain store
+	switch (f & 0x1f) {
+	case 3: [arc_obj(src) retain]; *dst = src; break;		// object
+	case 7: *dst = block_copy(src); break;			// block
+	case 8: case 24: *dst = byref_copy(src); break;		// __block (weak) variable
+	default: *dst = src; break;
+	}
+}
+static void t_Block_object_dispose(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	g32 o = A(0);
+	switch (A(1) & 0x1f) {
+	case 3: [arc_obj(o) release]; break;
+	case 7: block_release(o); break;
+	default: break;		// __block storage: kept (small, and other blocks may share it)
+	}
+}
+static void t_Block_copy(uint32_t *args, struct hres *r) { RET(block_copy(A(0))); }
+static void t_Block_release(uint32_t *args, struct hres *r) { (void)r; block_release(A(0)); }
+
+// A guest block handed to a host method becomes a host block that calls it.
+// Its argument and return types come from the block's signature.
+static const char *block_sig(g32 b)
+{
+	uint32_t f = U32(b + 4);
+	if (!(f & BLK_HAS_SIG)) return NULL;
+	g32 d = U32(b + 16);
+	return G2H(U32(d + ((f & BLK_COPY_DISPOSE) ? 16 : 8)));
+}
+static const char *next_type(const char *t)	// past one type and its offset
+{
+	t = skipq(t);
+	if (*t == '{' || *t == '(') {
+		int depth = 0;
+		do { if (*t == '{' || *t == '(') depth++; else if (*t == '}' || *t == ')') depth--; t++; } while (depth && *t);
+	} else if (*t == '^') return next_type(t + 1);
+	else if (*t == '@' && t[1] == '?') t += 2;
+	else if (*t == '@' && t[1] == '"') { t = strchr(t + 2, '"') + 1; }
+	else t++;
+	while (*t >= '0' && *t <= '9') t++;
+	return t;
+}
+static id host_block_for(g32 gb)
+{
+	g32 b = block_copy(gb);
+	const char *sig = block_sig(b);
+	if (!sig) die("objc: a block without a signature was passed to the host");
+	char ret = *skipq(sig);
+	struct { char c[4]; } bt = {{0}};
+	char *at = bt.c;
+	int n = 0;
+	const char *t = next_type(next_type(sig));	// skip the return type and the block itself
+	while (*t && n < 4) { at[n++] = *skipq(t); t = next_type(t); }
+	for (int i = 0; i < n; i++)
+		if (!strchr("@#ciIlLsSCBq*^", at[i])) die("objc: block argument type %c not bridged (%s)", at[i], sig);
+	if (!strchr("v@cCBiIlL", ret)) die("objc: block return type %c not bridged (%s)", ret, sig);
+	void *(^hb)(void *, void *, void *, void *) = ^void *(void *a0, void *a1, void *a2, void *a3) {
+		void *in[4] = { a0, a1, a2, a3 };
+		const char *at = bt.c;
+		uint32_t v[5];
+		v[0] = b;
+		for (int i = 0; i < n; i++)
+			v[i + 1] = at[i] == '@' || at[i] == '#' ? objc_wrap((id)in[i])
+				 : at[i] == '*' || at[i] == '^' ? ((uintptr_t)in[i] < LOW_END ? (g32)(uintptr_t)in[i] : hobj_wrap(in[i]))
+				 : (uint32_t)(uintptr_t)in[i];
+		uint64_t rv = gcallv(U32(b + 12), n + 1, v, NULL);
+		if (ret == '@') return (void *)objc_unwrap((g32)rv);
+		if (ret == 'v') return NULL;
+		return (void *)(uintptr_t)(ret == 'c' || ret == 'C' || ret == 'B' ? (rv & 0xff) : (uint32_t)rv);
+	};
+	return [hb copy];	// kept for the life of the process, like the guest copy
+}
+
+// ---- dispatch with guest blocks -----------------------------------------------
+static g32 main_q;
+static void init_main_q(g32 a) { main_q = a; }
+static dispatch_queue_t host_queue(g32 q) { return q == main_q ? dispatch_get_main_queue() : (dispatch_queue_t)objc_unwrap(q); }
+static void t_dispatch_async(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	g32 b = block_copy(A(1));
+	dispatch_async(host_queue(A(0)), ^{ gcall(U32(b + 12), 1, b); block_release(b); });
+}
+static void t_dispatch_sync(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	g32 b = A(1);
+	dispatch_sync(host_queue(A(0)), ^{ gcall(U32(b + 12), 1, b); });
+}
+static void t_dispatch_get_main_queue(uint32_t *args, struct hres *r) { (void)args; RET(main_q); }
+
+// ---- AppKit / Foundation constants ------------------------------------------------
+#define NSCONST(sym) static void init_##sym(g32 a) { U32(a) = objc_wrap((id)sym); }
+NSCONST(NSApplicationDidBecomeActiveNotification) NSCONST(NSBackingPropertyOldScaleFactorKey)
+NSCONST(NSCurrentLocaleDidChangeNotification) NSCONST(NSDeviceRGBColorSpace)
+NSCONST(NSFilenamesPboardType) NSCONST(NSPasteboardTypeString) NSCONST(NSURLIsAliasFileKey)
+NSCONST(NSWindowDidBecomeKeyNotification) NSCONST(NSWindowDidChangeBackingPropertiesNotification)
+NSCONST(NSWindowDidChangeScreenProfileNotification) NSCONST(NSWindowDidDeminiaturizeNotification)
+NSCONST(NSWindowDidEnterFullScreenNotification) NSCONST(NSWindowDidExitFullScreenNotification)
+NSCONST(NSWindowDidExposeNotification) NSCONST(NSWindowDidMiniaturizeNotification)
+NSCONST(NSWindowDidMoveNotification) NSCONST(NSWindowDidResignKeyNotification)
+NSCONST(NSWindowDidResizeNotification) NSCONST(NSWindowWillCloseNotification)
+NSCONST(NSWindowWillEnterFullScreenNotification) NSCONST(NSWindowWillExitFullScreenNotification)
+static void init_appkit_version(g32 a) { double v = NSAppKitVersionNumber; memcpy(G2H(a), &v, 8); }
+static void init_zero16(g32 a) { memset(G2H(a), 0, 16); }
+#define NSC(sym) D("_" #sym, 4, init_##sym)
+
 static struct hfn objc_fns[] = {
 	R("_objc_msgSend", t_msgSend), R("_objc_msgSend_stret", t_msgSend_stret),
 	R("_objc_msgSend_fpret", t_msgSend_fpret), R("_objc_msgSendSuper", t_msgSendSuper),
@@ -795,6 +1014,33 @@ static struct hfn objc_fns[] = {
 	R("_NSClassFromString", t_NSClassFromString), R("_NSLog", t_NSLog),
 	D("_NSApp", 4, init_nsapp), D("_NSDefaultRunLoopMode", 4, init_runloopmode),
 	D("___CFConstantStringClassReference", 32, init_cfconst),
+	R("_objc_retain", t_objc_retain), R("_objc_release", t_objc_release),
+	R("_objc_autorelease", t_objc_autorelease), R("_objc_autoreleaseReturnValue", t_objc_autorelease),
+	R("_objc_retainAutoreleasedReturnValue", t_objc_retain), R("_objc_unsafeClaimAutoreleasedReturnValue", t_objc_retain),
+	R("_objc_retainAutorelease", t_objc_retainAutorelease), R("_objc_retainAutoreleaseReturnValue", t_objc_retainAutorelease),
+	R("_objc_storeStrong", t_objc_storeStrong), R("_objc_storeWeak", t_objc_storeWeak), R("_objc_initWeak", t_objc_storeWeak),
+	R("_objc_loadWeakRetained", t_objc_loadWeakRetained), R("_objc_loadWeak", t_objc_loadWeak),
+	R("_objc_destroyWeak", t_objc_destroyWeak), R("_objc_copyWeak", t_objc_copyWeak),
+	R("_objc_autoreleasePoolPush", t_pool_push), R("_objc_autoreleasePoolPop", t_pool_pop),
+	R("_objc_sync_enter", t_objc_sync_enter), R("_objc_sync_exit", t_objc_sync_exit),
+	D("__NSConcreteStackBlock", 32, init_isa_stack), D("__NSConcreteMallocBlock", 32, init_isa_malloc),
+	D("__NSConcreteGlobalBlock", 32, init_isa_global),
+	R("__Block_object_assign", t_Block_object_assign), R("__Block_object_dispose", t_Block_object_dispose),
+	R("__Block_copy", t_Block_copy), R("__Block_release", t_Block_release),
+	D("__dispatch_main_q", 128, init_main_q), R("_dispatch_get_main_queue", t_dispatch_get_main_queue),
+	R("_dispatch_async", t_dispatch_async), R("_dispatch_sync", t_dispatch_sync),
+	NSC(NSApplicationDidBecomeActiveNotification), NSC(NSBackingPropertyOldScaleFactorKey),
+	NSC(NSCurrentLocaleDidChangeNotification), NSC(NSDeviceRGBColorSpace),
+	NSC(NSFilenamesPboardType), NSC(NSPasteboardTypeString), NSC(NSURLIsAliasFileKey),
+	NSC(NSWindowDidBecomeKeyNotification), NSC(NSWindowDidChangeBackingPropertiesNotification),
+	NSC(NSWindowDidChangeScreenProfileNotification), NSC(NSWindowDidDeminiaturizeNotification),
+	NSC(NSWindowDidEnterFullScreenNotification), NSC(NSWindowDidExitFullScreenNotification),
+	NSC(NSWindowDidExposeNotification), NSC(NSWindowDidMiniaturizeNotification),
+	NSC(NSWindowDidMoveNotification), NSC(NSWindowDidResignKeyNotification),
+	NSC(NSWindowDidResizeNotification), NSC(NSWindowWillCloseNotification),
+	NSC(NSWindowWillEnterFullScreenNotification), NSC(NSWindowWillExitFullScreenNotification),
+	D("_NSAppKitVersionNumber", 8, init_appkit_version),
+	D("_NSZeroPoint", 8, init_zero16), D("_NSZeroSize", 8, init_zero16), D("_NSZeroRect", 16, init_zero16),
 };
 
 void thunks_objc_init(void) { REGISTER(objc_fns); }

@@ -319,7 +319,10 @@ static void t_mmap(uint32_t *args, struct hres *r)
 }
 static int w_munmap(uint32_t a, uint32_t len)
 {
-	// keep the range reserved so the address space stays ours
+	// a whole block we handed out: its range can be reused
+	uint32_t blen = low_block_len(a);
+	if (blen && ((len + 0xfff) & ~0xfffu) >= blen) return low_free(a) ? 0 : -1;
+	// part of one: drop the pages, keep the range reserved so it stays ours
 	return mmap(G2H(a), len, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED | MAP_NORESERVE, -1, 0) == MAP_FAILED ? -1 : 0;
 }
 static int w_mprotect(uint32_t a, uint32_t len, int prot) { return mprotect(G2H(a & ~0xfffu), len + (a & 0xfff), prot); }
@@ -349,6 +352,15 @@ static int32_t w_labs(int32_t x) { return x < 0 ? -x : x; }
 static void w_sincos(double x, uint32_t s, uint32_t c) { double a = sin(x), b = cos(x); memcpy(G2H(s), &a, 8); memcpy(G2H(c), &b, 8); }
 static void w_sincosf(float x, uint32_t s, uint32_t c) { float a = sinf(x), b = cosf(x); memcpy(G2H(s), &a, 4); memcpy(G2H(c), &b, 4); }
 
+static int32_t w_sysconf(int n) { long v = sysconf(n); return v > INT32_MAX ? INT32_MAX : (int32_t)v; }
+static int w_creat(const char *p, uint32_t mode) { return creat(p, (mode_t)mode); }
+static void t_assert_rtn(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	die("guest assertion failed: %s, %s:%d: %s", A(0) ? (char *)G2H(A(0)) : "?", A(1) ? (char *)G2H(A(1)) : "?",
+	    (int)A(2), A(3) ? (char *)G2H(A(3)) : "?");
+}
+
 static struct hfn libc2[] = {
 	R("_sscanf", t_sscanf), R("_vsscanf", t_vsscanf), R("_fscanf", t_fscanf),
 	R("_stat", t_stat), R("_lstat", t_lstat), R("_fstat", t_fstat),
@@ -375,6 +387,9 @@ static struct hfn libc2[] = {
 	D("__DefaultRuneLocale", 52 + 3 * 1024 + 64, init_runelocale),
 	D("__CurrentRuneLocale", 4, init_currentrune),
 	G("___maskrune", w_maskrune, "u:iu"), G("___toupper_l", w_toupper_l, "i:i"), G("___tolower_l", w_tolower_l, "i:i"),
+	G("_isblank", isblank, "i:i"), G("_iscntrl", iscntrl, "i:i"), G("_isgraph", isgraph, "i:i"),
+	G("_scalbn", scalbn, "d:di"), G("_scalbnf", scalbnf, "f:fi"), G("_sysconf", w_sysconf, "i:i"),
+	G("_creat", w_creat, "i:pu"), G("_atoll", atoll, "l:p"), R("___assert_rtn", t_assert_rtn),
 	G("_isalpha", isalpha, "i:i"), G("_isdigit", isdigit, "i:i"), G("_isspace", isspace, "i:i"),
 	G("_isalnum", isalnum, "i:i"), G("_isupper", isupper, "i:i"), G("_islower", islower, "i:i"),
 	G("_isprint", isprint, "i:i"), G("_ispunct", ispunct, "i:i"), G("_isxdigit", isxdigit, "i:i"),

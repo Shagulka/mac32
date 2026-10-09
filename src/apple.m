@@ -167,7 +167,8 @@ static void init_zero(g32 a) { *(uint32_t *)G2H(a) = 0; }
 // ---- more CoreFoundation ----------------------------------------------------------
 // The guest passes &kCFTypeDictionaryKeyCallBacks etc.: our guest copies of
 // those data symbols stand for the host's structs.
-static g32 g_dkey, g_dval, g_arr;
+static g32 g_dkey, g_dval, g_arr, g_cskey;
+static void init_cskey(g32 a) { g_cskey = a; }
 static void init_dkey(g32 a) { g_dkey = a; }
 static void init_dval(g32 a) { g_dval = a; }
 static void init_arr(g32 a) { g_arr = a; }
@@ -177,6 +178,7 @@ static const void *cb_dict(g32 g)
 	if (g == g_dkey) return &kCFTypeDictionaryKeyCallBacks;
 	if (g == g_dval) return &kCFTypeDictionaryValueCallBacks;
 	if (g == g_arr) return &kCFTypeArrayCallBacks;
+	if (g == g_cskey) return &kCFCopyStringDictionaryKeyCallBacks;
 	die("CF collection with custom callbacks (%#x) is not supported", g);
 }
 static void init_true(g32 a) { *(uint32_t *)G2H(a) = hobj_wrap((void *)kCFBooleanTrue); }
@@ -346,7 +348,7 @@ static struct hfn apple[] = {
 	R("_CFUserNotificationDisplayAlert", t_CFUserNotificationDisplayAlert),
 	D("_kCFAllocatorDefault", 4, init_zero),
 	D("_kCFTypeDictionaryKeyCallBacks", 32, init_dkey), D("_kCFTypeDictionaryValueCallBacks", 32, init_dval),
-	D("_kCFTypeArrayCallBacks", 32, init_arr),
+	D("_kCFTypeArrayCallBacks", 32, init_arr), D("_kCFCopyStringDictionaryKeyCallBacks", 32, init_cskey),
 	D("_kCFBooleanTrue", 4, init_true), D("_kCFBooleanFalse", 4, init_false), D("_kCFNull", 4, init_null),
 	R("_CFDictionaryCreateMutable", t_CFDictionaryCreateMutable), R("_CFArrayCreateMutable", t_CFArrayCreateMutable),
 	R("_CFArrayCreate", t_CFArrayCreate), R("_CFDictionaryCreate", t_CFDictionaryCreate),

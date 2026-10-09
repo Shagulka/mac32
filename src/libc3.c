@@ -228,12 +228,18 @@ static void t_swscanf(uint32_t *args, struct hres *r)
 }
 
 // ---- scandir with guest callbacks; old 264-byte i386 struct dirent -----------
-static void t_alphasort(uint32_t *args, struct hres *r)
+// old i386 dirent: ino u32, reclen u16, type u8, namlen u8, name[256] (264 bytes)
+// $INODE64 dirent: ino u64, seekoff u64, reclen u16, namlen u16, type u8, name[1024]
+#define NAME_OLD 8
+#define NAME_64 21
+static void alphasort_at(uint32_t *args, struct hres *r, uint32_t off)
 {
 	g32 a = *(g32 *)G2H(*(g32 *)G2H(A(0))), b = *(g32 *)G2H(*(g32 *)G2H(A(1)));
-	RET(strcoll((char *)G2H(a + 8), (char *)G2H(b + 8)));
+	RET(strcoll((char *)G2H(a + off), (char *)G2H(b + off)));
 }
-static void t_scandir(uint32_t *args, struct hres *r)
+static void t_alphasort(uint32_t *args, struct hres *r) { alphasort_at(args, r, NAME_OLD); }
+static void t_alphasort64(uint32_t *args, struct hres *r) { alphasort_at(args, r, NAME_64); }
+static void scandir_as(uint32_t *args, struct hres *r, int inode64)
 {
 	DIR *d = opendir(G2H(A(0)));
 	if (!d) { RET(-1); return; }
@@ -242,13 +248,26 @@ static void t_scandir(uint32_t *args, struct hres *r)
 	g32 list = gmalloc(cap * 4);
 	struct dirent *e;
 	while ((e = readdir(d))) {
-		g32 g = gcalloc(1, 264);
-		uint8_t *p = G2H(g);
-		*(uint32_t *)p = (uint32_t)e->d_ino;
-		*(uint16_t *)(p + 4) = 264;
-		p[6] = e->d_type;
-		p[7] = (uint8_t)(e->d_namlen > 255 ? 255 : e->d_namlen);
-		memcpy(p + 8, e->d_name, p[7]);
+		g32 g;
+		if (inode64) {
+			uint32_t len = (NAME_64 + e->d_namlen + 1 + 3) & ~3u;
+			g = gcalloc(1, len);
+			uint8_t *p = G2H(g);
+			memcpy(p, &e->d_ino, 8);
+			memcpy(p + 8, &e->d_seekoff, 8);
+			*(uint16_t *)(p + 16) = (uint16_t)len;
+			*(uint16_t *)(p + 18) = e->d_namlen;
+			p[20] = e->d_type;
+			memcpy(p + NAME_64, e->d_name, e->d_namlen);
+		} else {
+			g = gcalloc(1, 264);
+			uint8_t *p = G2H(g);
+			*(uint32_t *)p = (uint32_t)e->d_ino;
+			*(uint16_t *)(p + 4) = 264;
+			p[6] = e->d_type;
+			p[7] = (uint8_t)(e->d_namlen > 255 ? 255 : e->d_namlen);
+			memcpy(p + NAME_OLD, e->d_name, p[7]);
+		}
 		if (sel && !(uint32_t)gcall(sel, 1, g)) { gfree(g); continue; }
 		if (n == cap) { cap *= 2; list = grealloc(list, cap * 4); }
 		((g32 *)G2H(list))[n++] = g;
@@ -269,6 +288,8 @@ static void t_scandir(uint32_t *args, struct hres *r)
 	*(g32 *)G2H(A(1)) = list;
 	RET(n);
 }
+static void t_scandir(uint32_t *args, struct hres *r) { scandir_as(args, r, 0); }
+static void t_scandir64(uint32_t *args, struct hres *r) { scandir_as(args, r, 1); }
 
 // ---- more stdio / locale ----------------------------------------------------
 static void t_clearerr(uint32_t *args, struct hres *r) { (void)r; clearerr(gfile_host(A(0))); }
@@ -569,7 +590,7 @@ static struct hfn libc3[] = {
 	G("_wcstof", w_wcstof, "f:pp"),
 	R("_swprintf", t_swprintf), R("_vswprintf", t_vswprintf), R("_swscanf", t_swscanf),
 	R("_scandir", t_scandir), R("_alphasort", t_alphasort),
-	R("_scandir$INODE64", t_scandir),
+	R("_scandir$INODE64", t_scandir64), R("_alphasort$INODE64", t_alphasort64),
 	R("__dyld_find_unwind_sections", t_dyld_find_unwind_sections),
 	R("__dyld_register_func_for_remove_image", t_noop0), R("__dyld_register_func_for_add_image", t_noop0),
 	R("_dladdr", t_dladdr), R("_posix_memalign", t_posix_memalign), R("___cxa_demangle", t_cxa_demangle),

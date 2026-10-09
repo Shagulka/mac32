@@ -307,7 +307,18 @@ static void t_once(uint32_t *args, struct hres *r)
 
 static void t_yield(uint32_t *args, struct hres *r) { (void)args; (void)r; sched_yield(); }
 
+static void t_cancel(uint32_t *args, struct hres *r) { RET(pthread_cancel(rec_host(A(0)))); }
+static void t_setcanceltype(uint32_t *args, struct hres *r)
+{
+	int old = 0;
+	int rc = pthread_setcanceltype((int)A(0), &old);
+	if (A(1)) *(uint32_t *)G2H(A(1)) = (uint32_t)old;
+	RET(rc);
+}
+
 static struct hfn pth[] = {
+	R("_pthread_cancel", t_cancel), R("_pthread_cancel$UNIX2003", t_cancel),
+	R("_pthread_setcanceltype", t_setcanceltype), R("_pthread_setcanceltype$UNIX2003", t_setcanceltype),
 	R("_pthread_mutex_init", t_mutex_init), R("_pthread_mutex_destroy", t_mutex_destroy),
 	R("_pthread_mutex_lock", t_mutex_lock), R("_pthread_mutex_trylock", t_mutex_trylock),
 	R("_pthread_mutex_unlock", t_mutex_unlock),

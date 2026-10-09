@@ -1,3 +1,4 @@
+#include <pthread.h>
 // mac32 — run 32-bit i386 Mac programs on Apple Silicon.
 //   mac32 [-v] [-t] [-L dir]... program [args...]
 //   mac32 [-v] -L dir --tier0-test dylib
@@ -148,6 +149,8 @@ static void run_entry(g32 entry)
 	die("start returned");
 }
 
+static void *churn_thread(void *fn) { gcall((g32)(uintptr_t)fn, 1, 1); return NULL; }
+
 int main(int argc, char **argv)
 {
 	int i = 1;
@@ -186,6 +189,25 @@ int main(int argc, char **argv)
 		clock_gettime(CLOCK_MONOTONIC, &t1);
 		double guest_ns = ((t1.tv_sec - t0.tv_sec) * 1e9 + (t1.tv_nsec - t0.tv_nsec)) / 1e6;
 		fprintf(stderr, "guest->host call: %.0f ns each; guest->guest call: %.1f ns each\n", host_ns, guest_ns);
+		// address space reuse: 40 GB of big blocks, a churning mixed heap,
+		// and 2000 short threads with 8 MB guest stacks each
+		for (int k = 0; k < 40000; k++) gfree(gmalloc(1 << 20));
+		static g32 keep[1024];
+		for (int k = 0; k < 1000000; k++) {
+			int j = (int)(arc4random() % 1024);
+			gfree(keep[j]);
+			uint32_t sz = arc4random() % 4 ? arc4random() % 4096 : arc4random() % (4 << 20);
+			keep[j] = gmalloc(sz);
+			*(uint8_t *)G2H(keep[j]) = 1;
+		}
+		for (int k = 0; k < 1024; k++) { gfree(keep[k]); keep[k] = 0; }
+		g32 flat = macho_sym(img, "_test_flat");
+		for (int k = 0; k < 2000; k++) {
+			pthread_t t;
+			pthread_create(&t, NULL, churn_thread, (void *)(uintptr_t)flat);
+			pthread_join(t, NULL);
+		}
+		fprintf(stderr, "allocator churn: ok\n");
 		char ex[PATH_MAX];
 		snprintf(ex, sizeof ex, "%s", selftest);
 		strcpy(strrchr(ex, '/') + 1, "extest.dylib");

@@ -20,6 +20,8 @@ extern int verbose;
 void low_init(void);
 void low_commit(g32 addr, uint32_t len, int prot);	// map fixed, zeroed
 g32 low_pages(uint32_t len, int prot);			// page-aligned block
+int low_free(g32 a);					// give a low_pages block back
+uint32_t low_block_len(g32 a);				// its length, 0 if a is not one
 g32 gmalloc(uint32_t n);
 g32 gcalloc(uint32_t n, uint32_t sz);
 g32 grealloc(g32 p, uint32_t n);

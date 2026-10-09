@@ -8,7 +8,7 @@ all: selftest.dylib libmac32rt.dylib libmac32cxx.dylib extest.dylib
 selftest.dylib: selftest.c libSystem.tbd
 	$(LINK) $^ -o $@
 
-libmac32rt.dylib: rt.c rtstring.c setjmp.s libSystem.tbd
+libmac32rt.dylib: rt.c rtstring.c objcexc.c setjmp.s libSystem.tbd
 	$(LINK) -install_name /usr/lib/libmac32rt.dylib $^ -o $@
 
 clean:

@@ -22,20 +22,26 @@
 #define GF_FILE 14
 static FILE *files[4096];
 static uint32_t nfiles = 1;
+static uint32_t free_slots[4096], nfree;	// closed slots, reused first
 static os_unfair_lock flock_ = OS_UNFAIR_LOCK_INIT;
 
+static void gfile_bind(g32 g, FILE *h);
 g32 gfile_new(FILE *h)
 {
 	if (!h) return 0;
 	g32 g = gcalloc(1, GFILE_SIZE);
+	gfile_bind(g, h);
+	return g;
+}
+static void gfile_bind(g32 g, FILE *h)
+{
 	os_unfair_lock_lock(&flock_);
-	uint32_t i = nfiles++;
+	uint32_t i = nfree ? free_slots[--nfree] : nfiles++;
 	if (i >= 4096) die("too many open guest files");
 	files[i] = h;
 	os_unfair_lock_unlock(&flock_);
 	*(uint32_t *)G2H(g + GF_COOKIE) = i;
 	*(int16_t *)G2H(g + GF_FILE) = (int16_t)fileno(h);
-	return g;
 }
 
 FILE *gfile_host(g32 g)
@@ -56,7 +62,10 @@ FILE *gfile_reopen(g32 g, FILE *h)
 static void gfile_close(g32 g)
 {
 	uint32_t i = *(uint32_t *)G2H(g + GF_COOKIE);
+	os_unfair_lock_lock(&flock_);
 	files[i] = NULL;
+	free_slots[nfree++] = i;
+	os_unfair_lock_unlock(&flock_);
 	gfree(g);
 }
 
@@ -64,6 +73,13 @@ static g32 g_stdin, g_stdout, g_stderr;
 static void init_stdinp(g32 a) { *(g32 *)G2H(a) = g_stdin; }
 static void init_stdoutp(g32 a) { *(g32 *)G2H(a) = g_stdout; }
 static void init_stderrp(g32 a) { *(g32 *)G2H(a) = g_stderr; }
+// the old stdio array: stdin, stdout, stderr were &__sF[0..2]
+static void init_sF(g32 a)
+{
+	gfile_bind(a, stdin);
+	gfile_bind(a + GFILE_SIZE, stdout);
+	gfile_bind(a + 2 * GFILE_SIZE, stderr);
+}
 
 static void t_fopen(uint32_t *args, struct hres *r) { RET(gfile_new(fopen(G2H(A(0)), G2H(A(1))))); }
 static void t_fdopen(uint32_t *args, struct hres *r) { RET(gfile_new(fdopen((int)A(0), G2H(A(1))))); }
@@ -118,6 +134,9 @@ static void t_sprintf(uint32_t *args, struct hres *r) { to_buf(A(0), 0x7fffffff,
 static void t_vsprintf(uint32_t *args, struct hres *r) { to_buf(A(0), 0x7fffffff, G2H(A(1)), G2H(A(2)), r); }
 static void t_snprintf(uint32_t *args, struct hres *r) { to_buf(A(0), A(1), G2H(A(2)), &args[3], r); }
 static void t_vsnprintf(uint32_t *args, struct hres *r) { to_buf(A(0), A(1), G2H(A(2)), G2H(A(3)), r); }
+// fortified forms: (buf, maxlen, flag, bufsize, fmt, ...)
+static void t_snprintf_chk(uint32_t *args, struct hres *r) { to_buf(A(0), A(1), G2H(A(4)), &args[5], r); }
+static void t_vsnprintf_chk(uint32_t *args, struct hres *r) { to_buf(A(0), A(1), G2H(A(4)), G2H(A(5)), r); }
 static void t_vasprintf(uint32_t *args, struct hres *r)
 {
 	int n;
@@ -521,7 +540,7 @@ static struct hfn libc[] = {
 	G("_strlcpy", strlcpy, "u:ppu"),
 	G("_strlcat", strlcat, "u:ppu"),
 	G("_strcat", strcat, "p:pp"),
-	G("_strncat", strncat, "p:ppu"),
+	G("_strncat", strncat, "p:ppu"), G("___strncat_chk", strncat, "p:ppu"), G("___strncpy_chk", strncpy, "p:ppu"),
 	G("_strchr", strchr, "p:pi"),
 	G("_strrchr", strrchr, "p:pi"),
 	G("_strstr", strstr, "p:pp"),
@@ -557,11 +576,11 @@ static struct hfn libc[] = {
 	R("_ungetc", t_ungetc),
 	R("_printf", t_printf), R("_vprintf", t_vprintf), R("_fprintf", t_fprintf), R("_vfprintf", t_vfprintf),
 	R("_sprintf", t_sprintf), R("_vsprintf", t_vsprintf), R("_snprintf", t_snprintf),
-	R("_vsnprintf", t_vsnprintf), R("_asprintf", t_asprintf), R("_vasprintf", t_vasprintf),
+	R("_vsnprintf", t_vsnprintf), R("___snprintf_chk", t_snprintf_chk), R("___vsnprintf_chk", t_vsnprintf_chk), R("_asprintf", t_asprintf), R("_vasprintf", t_vasprintf),
 	G("_puts", puts, "i:p"),
 	G("_putchar", putchar, "i:i"),
 	G("_perror", perror, "v:p"),
-	D("___stdinp", 4, init_stdinp), D("___stdoutp", 4, init_stdoutp), D("___stderrp", 4, init_stderrp),
+	D("___sF", 3 * GFILE_SIZE, init_sF), D("___stdinp", 4, init_stdinp), D("___stdoutp", 4, init_stdoutp), D("___stderrp", 4, init_stderrp),
 	// process
 	R("_getenv", t_getenv),
 	G("_setenv", setenv, "i:ppi"),

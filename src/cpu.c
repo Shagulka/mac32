@@ -26,6 +26,16 @@ static g32 stubs;			// 10-byte "push idx; jmp hostcall" stubs
 static pthread_key_t tsd_key;		// slot read by the trampoline via %gs
 static __thread g32 guest_stack_top;
 
+// each thread's guest stack goes back when the thread ends (GCD retires
+// idle worker threads all the time, and each one that ran guest code has one)
+static pthread_key_t stack_key;
+static void free_stack(void *base)
+{
+	low_free((g32)(uintptr_t)base);
+	guest_stack_top = 0;	// a guest key destructor that runs later gets a new one
+}
+
+
 void hostcall_dispatch(uint32_t idx, uint32_t *args, struct hres *r);
 
 // read guest memory without faulting inside the signal handler
@@ -102,6 +112,7 @@ void cpu_init(void)
 	if (sel < 0) die("i386_set_ldt failed");
 
 	if (pthread_key_create(&tsd_key, NULL)) die("pthread_key_create");
+	if (pthread_key_create(&stack_key, free_stack)) die("pthread_key_create");
 
 	size_t tlen = t_end - t_start;
 	tramp = low_pages((uint32_t)tlen, PROT_READ | PROT_WRITE);
@@ -146,6 +157,7 @@ void cpu_thread_init(uint32_t stack_size)
 {
 	g32 base = low_pages(stack_size, PROT_READ | PROT_WRITE);
 	guest_stack_top = base + stack_size - 64;
+	pthread_setspecific(stack_key, (void *)(uintptr_t)base);
 }
 
 // Where the next guest call's arguments go: well under the current stack
