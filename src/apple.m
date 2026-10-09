@@ -26,6 +26,27 @@ static int w_SetFrontProcess(const ProcessSerialNumber *p)
 }
 static int w_TransformProcessType(const ProcessSerialNumber *p, uint32_t t) { return TransformProcessType(p, t); }
 static int w_SetSystemUIMode(uint32_t m, uint32_t o) { return SetSystemUIMode(m, o); }
+// The launcher's mouseDown:/mouseUp: read the buttons here instead of from
+// the event. Carbon defined it as the state as of the event being handled, so
+// derive it from NSApp's current event (bit 0 left, 1 right, 2+ others), and
+// add the live hardware state for everything else.
+static uint32_t w_GetCurrentEventButtonState(void)
+{
+	uint32_t state = (uint32_t)[NSEvent pressedMouseButtons];
+	NSEvent *e = [NSApp currentEvent];
+	if (e) {
+		switch (e.type) {
+		case NSEventTypeLeftMouseDown: case NSEventTypeLeftMouseDragged: state |= 1; break;
+		case NSEventTypeRightMouseDown: case NSEventTypeRightMouseDragged: state |= 2; break;
+		case NSEventTypeOtherMouseDown: case NSEventTypeOtherMouseDragged: state |= 1u << e.buttonNumber; break;
+		case NSEventTypeLeftMouseUp: state &= ~1u; break;
+		case NSEventTypeRightMouseUp: state &= ~2u; break;
+		case NSEventTypeOtherMouseUp: state &= ~(1u << e.buttonNumber); break;
+		default: break;
+		}
+	}
+	return state;
+}
 static int w_CGWarpMouseCursorPosition(float x, float y) { return CGWarpMouseCursorPosition(CGPointMake(x, y)); }
 static int32_t w_CFArrayGetCount(CFArrayRef a) { return (int32_t)CFArrayGetCount(a); }
 static const void *w_CFArrayGetValueAtIndex(CFArrayRef a, int32_t i) { return CFArrayGetValueAtIndex(a, i); }
@@ -431,7 +452,7 @@ static struct hfn apple[] = {
 	G("_IORegistryEntryGetParentEntry", IORegistryEntryGetParentEntry, "i:upp"),
 	// Carbon
 	G("_Gestalt", w_Gestalt, "i:up"),
-	G("_GetCurrentEventButtonState", GetCurrentEventButtonState, "u:"),
+	G("_GetCurrentEventButtonState", w_GetCurrentEventButtonState, "u:"),
 	G("_GetCurrentKeyModifiers", GetCurrentKeyModifiers, "u:"),
 	G("_SetFrontProcess", w_SetFrontProcess, "i:p"),
 	G("_TransformProcessType", w_TransformProcessType, "i:pu"),
