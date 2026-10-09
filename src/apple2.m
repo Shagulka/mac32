@@ -67,7 +67,14 @@ static void t_CFRunLoopSourceCreate(uint32_t *args, struct hres *r)
 	CFRunLoopSourceContext hc = { .info = s, .perform = source_perform };
 	RET(hobj_wrap(CFRunLoopSourceCreate(NULL, (CFIndex)(int32_t)A(1), &hc)));
 }
+// old SDL adds the (absent) notification port's source without checking it
+static void t_CFRunLoopAddSource(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	if (A(1)) CFRunLoopAddSource(hobj_unwrap(A(0)), hobj_unwrap(A(1)), hobj_unwrap(A(2)));
+}
 static void init_rlmode(g32 a) { U32(a) = hobj_wrap((void *)kCFRunLoopDefaultMode); }
+static void init_rlcommon(g32 a) { U32(a) = hobj_wrap((void *)kCFRunLoopCommonModes); }
 
 // ---- CoreGraphics displays --------------------------------------------------------
 // Display capture and fades would take the user's screens over (and leave them
@@ -153,6 +160,11 @@ static void t_IOServiceAddMatchingNotification(uint32_t *args, struct hres *r)
 	if (A(4)) U32(A(4)) = 0;
 	RET(kIOReturnUnsupported);
 }
+static void t_IOServiceAddInterestNotification(uint32_t *args, struct hres *r)
+{
+	if (A(5)) U32(A(5)) = 0;	// (port, service, type, callback, refcon, *notification)
+	RET(kIOReturnUnsupported);
+}
 static uint32_t w_IONotificationPortGetMachPort(IONotificationPortRef p) { return IONotificationPortGetMachPort(p); }
 static int w_IOIteratorIsValid(uint32_t i) { return IOIteratorIsValid(i); }
 static int w_IOObjectIsEqualTo(uint32_t a, uint32_t b) { return IOObjectIsEqualTo(a, b); }
@@ -196,6 +208,14 @@ static void t_NSMouseInRect(uint32_t *args, struct hres *r)
 	NSPoint p = NSMakePoint(F32(A(0)), F32(A(1)));
 	NSRect rc = NSMakeRect(F32(A(2)), F32(A(3)), F32(A(4)), F32(A(5)));
 	RET(NSMouseInRect(p, rc, (A(6) & 0xff) != 0));
+}
+static int w_CGSetLocalEventsSuppressionInterval(double s) { return CGSetLocalEventsSuppressionInterval(s); }
+static int w_CGEventSourceKeyState(int st, uint32_t key) { return CGEventSourceKeyState(st, (CGKeyCode)key); }
+static void t_HideMenuBar(uint32_t *args, struct hres *r) { (void)args; (void)r; [NSMenu setMenuBarVisible:NO]; }
+static void t_ShowMenuBar(uint32_t *args, struct hres *r) { (void)args; (void)r; [NSMenu setMenuBarVisible:YES]; }
+static void t_NSPointInRect(uint32_t *args, struct hres *r)
+{
+	RET(NSPointInRect(NSMakePoint(F32(A(0)), F32(A(1))), NSMakeRect(F32(A(2)), F32(A(3)), F32(A(4)), F32(A(5)))));
 }
 static void t_NSRectFill(uint32_t *args, struct hres *r)
 {
@@ -241,9 +261,17 @@ static struct hfn apple2_fns[] = {
 	G("_CFSetGetCount", CFSetGetCount, "i:o"), R("_CFSetGetValues", t_CFSetGetValues),
 	R("_CFURLCreateDataAndPropertiesFromResource", t_CFURLCreateDataAndPropertiesFromResource),
 	R("_CFRunLoopSourceCreate", t_CFRunLoopSourceCreate),
-	G("_CFRunLoopAddSource", CFRunLoopAddSource, "v:ooo"), G("_CFRunLoopSourceSignal", CFRunLoopSourceSignal, "v:o"),
+	R("_CFRunLoopAddSource", t_CFRunLoopAddSource), G("_CFRunLoopSourceSignal", CFRunLoopSourceSignal, "v:o"),
 	G("_CFRunLoopStop", CFRunLoopStop, "v:o"), G("_CFRunLoopWakeUp", CFRunLoopWakeUp, "v:o"),
-	D("_kCFRunLoopDefaultMode", 4, init_rlmode),
+	D("_kCFRunLoopDefaultMode", 4, init_rlmode), D("_kCFRunLoopCommonModes", 4, init_rlcommon),
+	G("_CFRunLoopRemoveSource", CFRunLoopRemoveSource, "v:ooo"),
+	G("_CFBundleGetInfoDictionary", CFBundleGetInfoDictionary, "o:o"),
+	// event taps need the Accessibility permission; SDL copes without one
+	R("_CGEventTapCreate", t_zero), R("_CGEventTapEnable", t_nothing),
+	G("_CGSetLocalEventsSuppressionInterval", w_CGSetLocalEventsSuppressionInterval, "i:d"),
+	G("_CGEventSourceKeyState", w_CGEventSourceKeyState, "i:iu"),
+	R("_HideMenuBar", t_HideMenuBar), R("_ShowMenuBar", t_ShowMenuBar), R("_UpdateSystemActivity", t_zero),
+	R("_NSPointInRect", t_NSPointInRect),
 
 	R("_CGAcquireDisplayFadeReservation", t_fade_reserve), R("_CGDisplayFade", t_ok),
 	R("_CGReleaseDisplayFadeReservation", t_ok),
@@ -281,6 +309,7 @@ static struct hfn apple2_fns[] = {
 	// no notification ports: SDL's HID discovery then stays off (it also
 	// destroys a port twice when matching fails)
 	R("_IONotificationPortCreate", t_zero), R("_IONotificationPortDestroy", t_nothing),
+	R("_IONotificationPortGetRunLoopSource", t_zero), R("_IOServiceAddInterestNotification", t_IOServiceAddInterestNotification),
 	G("_IONotificationPortGetMachPort", w_IONotificationPortGetMachPort, "u:o"),
 	R("_IODispatchCalloutFromMessage", t_nothing),
 	G("_IOIteratorIsValid", w_IOIteratorIsValid, "i:u"), G("_IOObjectIsEqualTo", w_IOObjectIsEqualTo, "i:uu"),

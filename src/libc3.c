@@ -153,6 +153,11 @@ static void t_ctime(uint32_t *args, struct hres *r)
 	strcpy(G2H(ctime_buf), ctime_r(&t, b));
 	RET(ctime_buf);
 }
+static void t_ctime_r(uint32_t *args, struct hres *r)
+{
+	time_t t = *(int32_t *)G2H(A(0));
+	RET(ctime_r(&t, G2H(A(1))) ? A(1) : 0);
+}
 // mstats() returns a 20-byte struct through a hidden pointer
 static void t_mstats(uint32_t *args, struct hres *r)
 {
@@ -583,7 +588,7 @@ static struct hfn libc3[] = {
 	G("_htonl", w_htonl, "u:u"), G("_ntohl", w_ntohl, "u:u"),
 	R("_gethostbyname", t_gethostbyname), G("_gethostname", gethostname, "i:pu"),
 	R("_getpwuid", t_getpwuid),
-	R("_getrusage", t_getrusage), R("_futimes", t_futimes), R("_ctime", t_ctime), R("_mstats", t_mstats),
+	R("_getrusage", t_getrusage), R("_futimes", t_futimes), R("_ctime", t_ctime), R("_ctime_r", t_ctime_r), R("_mstats", t_mstats),
 	G("_tzset", tzset, "v:"), G("_setlocale", setlocale, "S:ip"),
 	G("_uuid_generate", uuid_generate, "v:p"), G("_flock", flock, "i:ii"),
 	G("_copyfile", w_copyfile, "i:pppu"), G("_atol", w_atol, "i:p"), G("_strtok", strtok, "p:pp"),

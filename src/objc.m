@@ -1129,7 +1129,7 @@ static void t_dispatch_get_main_queue(uint32_t *args, struct hres *r) { (void)ar
 #define NSCONST(sym) static void init_##sym(g32 a) { U32(a) = objc_wrap((id)sym); }
 NSCONST(NSApplicationDidBecomeActiveNotification) NSCONST(NSBackingPropertyOldScaleFactorKey)
 NSCONST(NSCurrentLocaleDidChangeNotification) NSCONST(NSDeviceRGBColorSpace)
-NSCONST(NSFilenamesPboardType) NSCONST(NSPasteboardTypeString) NSCONST(NSURLIsAliasFileKey)
+NSCONST(NSFilenamesPboardType) NSCONST(NSStringPboardType) NSCONST(NSPasteboardTypeString) NSCONST(NSURLIsAliasFileKey)
 NSCONST(NSWindowDidBecomeKeyNotification) NSCONST(NSWindowDidChangeBackingPropertiesNotification)
 NSCONST(NSWindowDidChangeScreenProfileNotification) NSCONST(NSWindowDidDeminiaturizeNotification)
 NSCONST(NSWindowDidEnterFullScreenNotification) NSCONST(NSWindowDidExitFullScreenNotification)
@@ -1140,6 +1140,9 @@ NSCONST(NSWindowWillEnterFullScreenNotification) NSCONST(NSWindowWillExitFullScr
 static void init_appkit_version(g32 a) { double v = NSAppKitVersionNumber; memcpy(G2H(a), &v, 8); }
 static void init_zero16(g32 a) { memset(G2H(a), 0, 16); }
 #define NSC(sym) D("_" #sym, 4, init_##sym)
+// a guest SEL is its canonical name string
+static void t_sel_registerName(uint32_t *args, struct hres *r) { pthread_mutex_lock(&lk); RET(canon_sel(G2H(A(0)), 0)); pthread_mutex_unlock(&lk); }
+static void t_sel_getName(uint32_t *args, struct hres *r) { RET(A(0)); }
 
 static struct hfn objc_fns[] = {
 	R("_objc_msgSend", t_msgSend), R("_objc_msgSend_stret", t_msgSend_stret),
@@ -1166,7 +1169,8 @@ static struct hfn objc_fns[] = {
 	R("_dispatch_async", t_dispatch_async), R("_dispatch_sync", t_dispatch_sync),
 	NSC(NSApplicationDidBecomeActiveNotification), NSC(NSBackingPropertyOldScaleFactorKey),
 	NSC(NSCurrentLocaleDidChangeNotification), NSC(NSDeviceRGBColorSpace),
-	NSC(NSFilenamesPboardType), NSC(NSPasteboardTypeString), NSC(NSURLIsAliasFileKey),
+	NSC(NSFilenamesPboardType), NSC(NSStringPboardType),
+	R("_sel_registerName", t_sel_registerName), R("_sel_getUid", t_sel_registerName), R("_sel_getName", t_sel_getName), NSC(NSPasteboardTypeString), NSC(NSURLIsAliasFileKey),
 	NSC(NSWindowDidBecomeKeyNotification), NSC(NSWindowDidChangeBackingPropertiesNotification),
 	NSC(NSWindowDidChangeScreenProfileNotification), NSC(NSWindowDidDeminiaturizeNotification),
 	NSC(NSWindowDidEnterFullScreenNotification), NSC(NSWindowDidExitFullScreenNotification),

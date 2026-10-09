@@ -42,7 +42,20 @@ static const struct siface *find_iface(const char *version)
 {
 	for (const struct siface *i = steam_ifaces; i->cls; i++)
 		if (!strcmp(i->version, version)) return i;
-	return NULL;
+	// A newer version than our tables know (SteamClient021): borrow the names
+	// and signatures of the newest known one. Slots still come from probing
+	// the game's own wrappers, which match the version it asked for; methods
+	// only the newer version has stop the game with a clear message.
+	size_t pl = strlen(version);
+	while (pl && version[pl - 1] >= '0' && version[pl - 1] <= '9') pl--;
+	const struct siface *best = NULL;
+	for (const struct siface *i = steam_ifaces; i->cls; i++)
+		if (!strncmp(i->version, version, pl) && strlen(i->version) > pl &&
+		    i->version[pl] >= '0' && i->version[pl] <= '9' &&
+		    (!best || atoi(i->version + pl) > atoi(best->version + pl)))
+			best = i;
+	if (best) fprintf(stderr, "[mac32] steam: %s is newer than our tables; using %s's methods\n", version, best->version);
+	return best;
 }
 
 // ---- vtable layout, measured from the game's own libsteam_api ---------------

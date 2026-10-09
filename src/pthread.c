@@ -112,21 +112,43 @@ static void t_cond_destroy(uint32_t *args, struct hres *r)
 	memset(w, 0, 28);
 	RET(0);
 }
+// MAC32_JOINLOG: where each thread is waiting, so a stuck join can say why
+static struct { pthread_t t; g32 ret, ebp; } waits[256];
+static void note_wait(uint32_t *args, int on)
+{
+	static int enabled = -1;
+	if (enabled < 0) enabled = getenv("MAC32_JOINLOG") != NULL;
+	if (!enabled) return;
+	pthread_t me = pthread_self();
+	int free_i = -1;
+	for (int i = 0; i < 256; i++) {
+		if (waits[i].t == me) { waits[i].ret = on ? args[-1] : 0; waits[i].ebp = args[-3]; return; }
+		if (!waits[i].t && free_i < 0) free_i = i;
+	}
+	if (on && free_i >= 0) waits[free_i] = (typeof(waits[0])){ me, args[-1], args[-3] };
+}
 static void t_cond_signal(uint32_t *args, struct hres *r) { RET(pthread_cond_signal(host_cond(A(0)))); }
 static void t_cond_broadcast(uint32_t *args, struct hres *r) { RET(pthread_cond_broadcast(host_cond(A(0)))); }
-static void t_cond_wait(uint32_t *args, struct hres *r) { RET(pthread_cond_wait(host_cond(A(0)), host_mutex(A(1), -1))); }
+static void t_cond_wait(uint32_t *args, struct hres *r)
+{
+	note_wait(args, 1);
+	RET(pthread_cond_wait(host_cond(A(0)), host_mutex(A(1), -1)));
+	note_wait(args, 0);
+}
 static void t_cond_timedwait(uint32_t *args, struct hres *r)
 {
 	int32_t *g = G2H(A(2));
 	struct timespec ts = { g[0], g[1] };
+	note_wait(args, 1);
 	RET(pthread_cond_timedwait(host_cond(A(0)), host_mutex(A(1), -1), &ts));
+	note_wait(args, 0);
 }
 static void t_condattr_init(uint32_t *args, struct hres *r) { memset(G2H(A(0)), 0, 8); RET(0); }
 static void t_condattr_destroy(uint32_t *args, struct hres *r) { (void)args; RET(0); }
 
 // ---- threads ---------------------------------------------------------------
 // Guest pthread_t is a pointer to this 16-byte guest record.
-struct gthread { uint64_t host; uint32_t retval; uint32_t pad; };
+struct gthread { uint64_t host; uint32_t retval; g32 fn; };	// fn: start routine, for logs
 static __thread g32 self_rec;
 
 static g32 thread_record(pthread_t t)
@@ -168,6 +190,11 @@ static void t_create(uint32_t *args, struct hres *r) { create_thread(args, r, 0)
 static void t_create_suspended(uint32_t *args, struct hres *r) { create_thread(args, r, 1); }
 static void t_thread_resume(uint32_t *args, struct hres *r)
 {
+	if (getenv("MAC32_JOINLOG")) {
+		extern void guest_backtrace(g32 ret, g32 ebp);
+		fprintf(stderr, "[mac32] thread_resume(%#x)\n", A(0));
+		guest_backtrace(args[-1], args[-3]);
+	}
 	pthread_mutex_lock(&susp_lock);
 	for (int i = 0; i < 64; i++)
 		if (suspended[i].go && suspended[i].port == A(0)) {
@@ -197,20 +224,27 @@ static void create_thread(uint32_t *args, struct hres *r, int suspended_start)
 	s->arg = A(3);
 	s->stack = stack;
 	s->rec = gcalloc(1, sizeof(struct gthread));
+	((struct gthread *)G2H(s->rec))->fn = A(2);
 	pthread_attr_t ha;
 	pthread_attr_init(&ha);
 	pthread_attr_setdetachstate(&ha, detach);
 	pthread_t t;
 	g32 rec = s->rec;
+	dispatch_semaphore_t go = s->go;	// the new thread frees s as soon as it starts
 	int rc = pthread_create(&t, &ha, thread_main, s);
 	pthread_attr_destroy(&ha);
 	if (rc) { RET(rc); return; }	// s is freed by nobody: rare
 	((struct gthread *)G2H(rec))->host = (uint64_t)(uintptr_t)t;
 	*(g32 *)G2H(A(0)) = rec;
 	if (suspended_start) {
+		if (getenv("MAC32_JOINLOG")) {
+			g32 off;
+			const char *n = macho_addr_name(A(2), &off);
+			fprintf(stderr, "[mac32] created suspended thread %#x port %#x at %s+%#x\n", rec, pthread_mach_thread_np(t), n ? n : "?", off);
+		}
 		pthread_mutex_lock(&susp_lock);
 		for (int i = 0; i < 64; i++)
-			if (!suspended[i].go) { suspended[i].port = pthread_mach_thread_np(t); suspended[i].go = s->go; break; }
+			if (!suspended[i].go) { suspended[i].port = pthread_mach_thread_np(t); suspended[i].go = go; break; }
 		pthread_mutex_unlock(&susp_lock);
 	}
 	RET(0);
@@ -218,7 +252,20 @@ static void create_thread(uint32_t *args, struct hres *r, int suspended_start)
 static void t_join(uint32_t *args, struct hres *r)
 {
 	void *rv;
+	if (getenv("MAC32_JOINLOG")) {
+		g32 off, fn = ((struct gthread *)G2H(A(0)))->fn;
+		const char *n = macho_addr_name(fn, &off);
+		fprintf(stderr, "[mac32] join thread %#x started at %s+%#x\n", A(0), n ? n : "?", off);
+		sleep(3);
+		extern void guest_backtrace(g32 ret, g32 ebp);
+		for (int i = 0; i < 256; i++)
+			if (waits[i].t == rec_host(A(0)) && waits[i].ret) {
+				fprintf(stderr, "[mac32] it is waiting on a condition:\n");
+				guest_backtrace(waits[i].ret, waits[i].ebp);
+			}
+	}
 	int rc = pthread_join(rec_host(A(0)), &rv);
+	if (getenv("MAC32_JOINLOG")) fprintf(stderr, "[mac32] joined %#x: %d\n", A(0), rc);
 	if (!rc && A(1)) *(g32 *)G2H(A(1)) = (g32)(uintptr_t)rv;
 	RET(rc);
 }

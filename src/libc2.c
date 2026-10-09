@@ -284,6 +284,14 @@ static void t_strerror(uint32_t *args, struct hres *r)
 	if (e >= 0 && e < 200) { if (!errstr[e]) errstr[e] = gstrdup(strerror(e)); RET(errstr[e]); }
 	else RET(gstrdup(strerror(e)));
 }
+static int64_t w_wcstoll(const wchar_t *s, uint32_t endp, int base)
+{
+	wchar_t *e;
+	long long v = wcstoll(s, &e, base);
+	if (endp) *(g32 *)G2H(endp) = H2G(e);
+	return v;
+}
+static int w_isnanf(float f) { return isnan(f); }
 static int32_t w_wcstol(const wchar_t *s, uint32_t endp, int base)
 {
 	wchar_t *e;
@@ -397,7 +405,9 @@ static struct hfn libc2[] = {
 	G("_rindex", rindex, "p:pi"), G("_index", index, "p:pi"),
 	R("_strerror_r", t_strerror_r), R("_strerror", t_strerror),
 	G("_strdup", gstrdup, "p:p"),
-	G("_wcstol", w_wcstol, "i:ppi"), G("_wcscat", wcscat, "p:pp"), G("_wcsncmp", wcsncmp, "i:ppu"),
+	G("_wcstol", w_wcstol, "i:ppi"), G("_wcstoll", w_wcstoll, "l:ppi"),
+	G("_fminf", fminf, "f:ff"), G("_fmaxf", fmaxf, "f:ff"), G("___isnanf", w_isnanf, "i:f"),
+	G("_getloadavg", getloadavg, "i:pi"), G("_wcscat", wcscat, "p:pp"), G("_wcsncmp", wcsncmp, "i:ppu"),
 	G("_wcschr", wcschr, "p:pi"), G("_wcsrchr", wcsrchr, "p:pi"), G("_wcsstr", wcsstr, "p:pp"),
 	G("_wcsncat", wcsncat, "p:ppu"), G("_wcscasecmp", wcscasecmp, "i:pp"), G("_wcsncasecmp", wcsncasecmp, "i:ppu"),
 	G("_memset_pattern16", w_memset_pattern16, "v:ppu"), G("_memset_pattern4", w_memset_pattern4, "v:ppu"),

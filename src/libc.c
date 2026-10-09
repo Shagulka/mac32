@@ -83,6 +83,7 @@ static void init_sF(g32 a)
 
 static void t_fopen(uint32_t *args, struct hres *r) { RET(gfile_new(fopen(G2H(A(0)), G2H(A(1))))); }
 static void t_fdopen(uint32_t *args, struct hres *r) { RET(gfile_new(fdopen((int)A(0), G2H(A(1))))); }
+static void t_setbuf(uint32_t *args, struct hres *r) { (void)r; setbuf(gfile_host(A(0)), A(1) ? G2H(A(1)) : NULL); }
 static void t_fclose(uint32_t *args, struct hres *r) { FILE *f = gfile_host(A(0)); RET(fclose(f)); gfile_close(A(0)); }
 static void t_fgetc(uint32_t *args, struct hres *r) { RET(fgetc(gfile_host(A(0)))); }
 static void t_fputc(uint32_t *args, struct hres *r) { RET(fputc((int)A(0), gfile_host(A(1)))); }
@@ -589,7 +590,7 @@ static struct hfn libc[] = {
 	G("_puts", puts, "i:p"),
 	G("_putchar", putchar, "i:i"),
 	G("_perror", perror, "v:p"),
-	D("___sF", 3 * GFILE_SIZE, init_sF), D("___stdinp", 4, init_stdinp), D("___stdoutp", 4, init_stdoutp), D("___stderrp", 4, init_stderrp),
+	R("_setbuf", t_setbuf), D("___sF", 3 * GFILE_SIZE, init_sF), D("___stdinp", 4, init_stdinp), D("___stdoutp", 4, init_stdoutp), D("___stderrp", 4, init_stderrp),
 	// process
 	R("_getenv", t_getenv),
 	G("_setenv", setenv, "i:ppi"),
