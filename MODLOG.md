@@ -149,6 +149,54 @@ More facts learned:
 18. Crash reports print the last 32 host calls of the thread and the guest
     ebp chain with symbol names; unimplemented calls print the guest stack.
 
+## Step 3 — Steam bridge, main menu renders (2026-10-08)
+`make && tools/run_p2.sh 120` now reaches Portal 2's main menu: live 3D
+background map, logo, menu (docs/first-light-main-menu.jpg). Steam reports
+`CClientSteamContext logged on = 1` with the user's real Steam ID.
+
+Steam bridge (src/steam.c, generated src/steam_ifaces.c):
+- The game's 32-bit libsteam_api finds Steam over Mach IPC
+  (bootstrap_look_up + mach_msg pass straight through: port names and message
+  headers are 32-bit everywhere), then dlopens steamclient.dylib. That dlopen
+  returns STEAM_HANDLE; dlsym on it gives host thunks for CreateInterface,
+  Steam_BGetCallback, Steam_FreeLastCallback, Steam_GetAPICallResult,
+  Steam_ReleaseThreadLocalMemory (+ Breakpad no-ops) that call the real x86_64
+  steamclient.dylib inside Steam.app. Steam does every check itself.
+- Interfaces reach the guest as proxies: guest block whose vptr is a guest
+  vtable of host stubs ('C' closure kind). Each stub unwraps this, takes the
+  host vtable entry, converts args by signature, wraps returned interfaces by
+  the pchVersion argument.
+- Portal 2 was rebuilt (2024) against Steamworks SDK ~1.55: SteamClient020,
+  SteamUser021, SteamFriends017, SteamUtils010, SteamInput006, UGC016,
+  NetworkingSockets012... Method signatures come from steam_api.json
+  (Steamworks.NET 20.1.0/20.0.0, MIT, third_party/). The JSON omits
+  STEAM_PRIVATE_API vtable slots (ISteamClient::RunFrame,
+  DEPRECATED_GetISteamUnifiedMessages, Set_SteamAPI_CCheckCallbackRegisteredInProcess,
+  ISteamUtils::GetCSERIPPort/RunFrame, ISteamGameServer::InitGameServer ...),
+  so vtable indices are read from the game's own libsteam_api flat wrappers
+  (`SteamAPI_ISteamX_Method` = `mov (this),vt; jmp *off(vt)`), 931 decoded.
+- Callback payloads are #pragma pack(4) on macOS: same bytes in 32/64-bit;
+  only CallbackMsg_t (has a pointer) is converted.
+- Not bridged (stop with a clear message if called): server-browser response
+  interfaces, SteamParamStringArray_t args, struct returns (Input action data),
+  guest callback function pointers (passed as NULL), ISteamGameStats/
+  GameCoordinator added by hand from the public headers.
+- run_p2.sh sets SteamAppId=620, as Steam does when it launches the game.
+
+Other things this step needed: zlib (z_stream twin per guest stream), CF
+collections/strings/bundles/prefs, CFRange by value, kCFType*CallBacks
+mapping, old dyld NSSymbol API for Miles, MP semaphores, suspended pthreads
+(pthread_create_suspended_np + thread_resume), GL buffer shadows per buffer
+name (freed on glDeleteBuffers), ATSUI sentinels kATSUFromTextBeginning/
+kATSUToTextEnd, ATSLayoutRecord is 2-byte packed (14 bytes), text colour is
+kATSURGBAlphaColorTag (288, 4 floats). Mac32.app bundle (com.khesin.mac32)
+gives the window an app identity for window tools.
+
+## Saves backup (before the first level load, 2026-10-08 19:55)
+- `~/.universal-modder/backups/portal2-saves/20261008-195500.zip` (portal2/SAVE)
+- `~/.universal-modder/backups/portal2-cfg/20261008-195500.zip` (portal2/cfg)
+Restore: `um backup restore portal2-saves` / `um backup restore portal2-cfg`.
+
 ## Plan
 1. (done) Loader core: parse i386 Mach-O (LC_SEGMENT, LC_DYLD_INFO rebase/bind/lazy-bind,
    LC_SYMTAB/DYSYMTAB for older indirect symbols), map into low 4 GB, apply

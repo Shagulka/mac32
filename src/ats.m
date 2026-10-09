@@ -5,8 +5,10 @@
 // ATSUI facts used here (Apple's ATSUnicode*.h / SATSTypes.h):
 //   attribute tags: bold 256, italic 257, underline 258, font 261 (ATSUFontID),
 //   size 262 (Fixed), color 263 (RGBColor), rendering options 18;
-//   layout control kATSUCGContextTag 32767; direct-access selector 100 =
-//   ATSLayoutRecord {u16 glyph; u32 flags; u32 originalOffset; Fixed realPos}.
+//   RGB-alpha color 288 (4 floats); layout control kATSUCGContextTag 32767;
+//   direct-access selector 100 = ATSLayoutRecord, packed to 2 bytes like the
+//   Carbon headers: {u16 glyph @0; u32 flags @2; u32 originalOffset @6;
+//   Fixed realPos @10} = 14 bytes (the game walks it with stride 14).
 //   ATSFontMetrics: version + 14 floats, in fractions of an em.
 #import <Foundation/Foundation.h>
 #import <CoreText/CoreText.h>
@@ -155,6 +157,7 @@ static void t_ATSUSetAttributes(uint32_t *args, struct hres *r)
 		case 261: s->font = *(uint32_t *)v; break;
 		case 262: s->size = FIX2D(*(int32_t *)v); break;
 		case 263: { uint16_t *c = v; for (int k = 0; k < 3; k++) s->rgb[k] = c[k] / 65535.0f; break; }
+		case 288: { float *c = v; for (int k = 0; k < 3; k++) s->rgb[k] = c[k]; break; }	// kATSURGBAlphaColorTag
 		default: break;
 		}
 	}
@@ -243,7 +246,7 @@ static void t_ATSUDirectGetLayoutDataArrayPtrFromTextLayout(uint32_t *args, stru
 	CTLineRef line = layout_line(l);
 	CFArrayRef runs = CTLineGetGlyphRuns(line);
 	CFIndex total = CTLineGetGlyphCount(line);
-	g32 arr = gcalloc((uint32_t)total + 1, 16);
+	g32 arr = gcalloc((uint32_t)total + 1, 14);
 	uint8_t *rec = G2H(arr);
 	CFIndex k = 0;
 	for (CFIndex i = 0; i < CFArrayGetCount(runs); i++) {
@@ -256,17 +259,22 @@ static void t_ATSUDirectGetLayoutDataArrayPtrFromTextLayout(uint32_t *args, stru
 		CTRunGetPositions(run, CFRangeMake(0, 0), p);
 		CTRunGetStringIndices(run, CFRangeMake(0, 0), si);
 		for (CFIndex j = 0; j < n; j++, k++) {
-			uint8_t *e = rec + k * 16;
-			*(uint16_t *)e = g[j];
-			*(uint32_t *)(e + 8) = (uint32_t)si[j] * 2;
-			*(int32_t *)(e + 12) = (int32_t)(p[j].x * 65536.0);
+			uint8_t *e = rec + k * 14;
+			uint32_t off = (uint32_t)si[j] * 2;
+			int32_t pos = (int32_t)(p[j].x * 65536.0);
+			memcpy(e, &g[j], 2);
+			memcpy(e + 6, &off, 4);
+			memcpy(e + 10, &pos, 4);
 		}
 		free(g); free(p); free(si);
 	}
-	uint8_t *e = rec + total * 16;
-	*(uint16_t *)e = 0xffff;					// kATSDeletedGlyphcode
-	*(uint32_t *)(e + 8) = l->len * 2;
-	*(int32_t *)(e + 12) = (int32_t)(CTLineGetTypographicBounds(line, NULL, NULL, NULL) * 65536.0);
+	uint8_t *e = rec + total * 14;
+	uint16_t del = 0xffff;						// kATSDeletedGlyphcode
+	uint32_t end = l->len * 2;
+	int32_t width = (int32_t)(CTLineGetTypographicBounds(line, NULL, NULL, NULL) * 65536.0);
+	memcpy(e, &del, 2);
+	memcpy(e + 6, &end, 4);
+	memcpy(e + 10, &width, 4);
 	*(g32 *)G2H(A(3)) = arr;
 	*(uint32_t *)G2H(A(4)) = (uint32_t)total + 1;
 	RET(0);
