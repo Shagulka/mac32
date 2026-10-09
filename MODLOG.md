@@ -307,3 +307,27 @@ Restore: `um backup restore portal2-saves` / `um backup restore portal2-cfg`.
   vguimatsurface crashes: `CFontManager::CreateOrFindWin32Font` stores a NULL
   font and returns NULL. `COSXFont` exists only as template leftovers, so this
   Mac build has no font code at all. Running it needs a font layer.
+
+## Step 9: more programs (2026-10-09)
+Downloads (official servers) live in `~/Developer/mac32-apps`, outside the repo:
+VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
+1.1.5 + OpenGFX 0.4.4 (openttd.org). All i386 (Firefox/OpenTTD also ppc).
+- OpenTTD (10.4 SDK, fixed-address executable at 0x1000-0xa86000):
+  - our own pages now start at 0x10000000; the gap below goes to the allocator
+    after the program is mapped (low_exe_placed)
+  - classic relocation r_address counts from segment 0 (__PAGEZERO), not from
+    __TEXT: external fixups were landing 4 KB off and overwrote data tables
+  - guest pthread_exit longjmps back to thread_main (a host pthread_exit inside
+    a 32-bit call wedges Rosetta at 100% CPU)
+  - getRectsBeingDrawn:count: and NSTrackingRectTag need conversion (host
+    pointer arrays, 64-bit tags)
+  - runs with `-s null -m null` (cwd = its folder, OpenGFX in `data/`)
+- VLC 1.1.12: loads all plugins, main window up.
+  - missing data imports that are host objects (NSFontAttributeName ...) are
+    looked up with dlsym; before, the program read a code stub as a pointer
+  - system class handles carry an i386 class layout: legacy `[super x]` in a
+    category class method loads the class's isa (found via VLC's source,
+    AppleRemote.m +allocWithZone:)
+  - host AppKit runs on guest thread stacks: minimum 8 MB
+  - crash handler on an alternate stack; crash reports describe addresses
+- Portal 2 rechecked after all of this: logs on, loads a map, quits cleanly.

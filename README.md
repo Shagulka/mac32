@@ -18,6 +18,8 @@ graphics, sound, Bink videos, mouse, keyboard, saves and Steam.
 |---|---|
 | Portal 2 (Steam, app 620) | Plays start to finish. Survives long sessions and quits cleanly. |
 | Half-Life (25th anniversary build) | Reaches the menu and loads maps. An occasional crash in SDL's text input is still open. |
+| OpenTTD 1.1.5 (Mac OS X 10.4-era build) | Runs and draws the game; sound and music not bridged yet (run with `-s null -m null`). |
+| VLC 1.1.12 | Loads all 268 plugins and shows its main window; playback not tested yet. |
 | Half-Life 2 (Nov 2024 build) | Starts, then stops: Valve's 2024 Mac build has no Mac font code, so it could not run on any Mac. |
 
 Other 32-bit Source and GoldSrc games are the next targets. Anything else
