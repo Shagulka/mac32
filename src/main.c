@@ -109,9 +109,10 @@ static int bundle_executable(const char *path, char *out, size_t n)
 // libstdc++/libgcc provided as 32-bit code. It lives next to the mac32 binary.
 static void load_runtime(void)
 {
-	char exe[PATH_MAX], rt[PATH_MAX];
-	uint32_t n = sizeof exe;
-	if (_NSGetExecutablePath(exe, &n)) die("cannot find own path");
+	char self[PATH_MAX], exe[PATH_MAX], rt[PATH_MAX];
+	uint32_t n = sizeof self;
+	if (_NSGetExecutablePath(self, &n)) die("cannot find own path");
+	if (!realpath(self, exe)) snprintf(exe, sizeof exe, "%s", self);	// wrappers run a symlink to us
 	char *slash = strrchr(exe, '/');
 	*slash = 0;
 	snprintf(rt, sizeof rt, "%s/guest/libmac32rt.dylib", exe);
@@ -162,7 +163,15 @@ int main(int argc, char **argv)
 		else if (!strcmp(argv[i], "--tier0-test") && i + 1 < argc) t0 = argv[++i];
 		else if (!strcmp(argv[i], "--deps") && i + 1 < argc) deps = argv[++i];
 		else if (!strcmp(argv[i], "--selftest") && i + 1 < argc) selftest = argv[++i];
+		else if (!strncmp(argv[i], "-psn_", 5)) break;
 		else die("unknown option %s", argv[i]);
+	}
+	// Finder starts apps with no arguments (older macOS added -psn_...): pick one
+	if (i < argc && !strncmp(argv[i], "-psn_", 5)) i++;
+	if (i >= argc && !t0 && !deps && !selftest) {
+		extern void launcher_main(void);
+		launcher_main();	// returns only if nothing was chosen
+		return 0;
 	}
 	low_init();
 	cpu_init();

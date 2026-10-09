@@ -18,9 +18,9 @@ graphics, sound, Bink videos, mouse, keyboard, saves and Steam.
 |---|---|
 | Portal 2 (Steam, app 620) | Plays start to finish. Survives long sessions and quits cleanly. |
 | Half-Life (25th anniversary build) | Reaches the menu and loads maps. An occasional crash in SDL's text input is still open. |
-| OpenTTD 1.1.5 (Mac OS X 10.4-era build) | Runs and draws the game; sound and music not bridged yet (run with `-s null -m null`). |
-| VLC 1.1.12 | Loads all 268 plugins and shows its main window; playback not tested yet. |
-| Half-Life 2 (Nov 2024 build) | Starts, then stops: Valve's 2024 Mac build has no Mac font code, so it could not run on any Mac. |
+| OpenTTD 1.1.5 (Mac OS X 10.4-era build) | Runs and draws the game; sound and music not bridged yet (`mac32 config OpenTTD.app set "args=-s null -m null"`). |
+| VLC 1.1.12 | Loads all 268 plugins and shows its main window; opening files does not work yet. |
+| Portal, Half-Life 2 (Nov 2024 builds) | Valve's 2024 Mac build cannot make fonts; mac32 patches that in memory and draws them with CoreText. They now reach the game loop and stop at `shm_open`. |
 
 Other 32-bit Source and GoldSrc games are the next targets. Anything else
 32-bit will hit calls mac32 does not cover yet; the loader names each one.
@@ -71,15 +71,32 @@ This builds `mac32`, the 32-bit runtime libraries in `guest/`, and `Mac32.app`
 (a bundle so macOS treats the game as a normal app). `./mac32 --selftest
 guest/selftest.dylib` checks mode switches, callbacks, exceptions and memory reuse.
 
-## Play
+## Use it
+
+mac32 works like `wine`, for old Mac apps.
+
+**From Finder.** Double-click `Mac32.app` and pick a 32-bit app, drop an app on
+its icon, or right-click an app and choose Open With > mac32.
+
+**From the terminal** (`make install` links the `mac32` command into
+`~/.local/bin`; or run `bin/mac32` from here):
 
 ```bash
-./play_source.sh "Portal 2"
+mac32 run ~/Games/OpenTTD.app
 ```
 
-The argument is the game's folder in `steamapps/common`. Game options go after
-it, for example `./play_source.sh "Portal 2" -windowed -w 1280 -h 720`. The log
-goes to `~/Library/Logs/mac32-<folder>.log`.
+| Command | What it does |
+|---|---|
+| `mac32 run <app> [args]` | Run an app bundle, a program file, or a Steam game by its folder name (`mac32 run "Portal 2"`). Also `mac32 <app>`. |
+| `mac32 check <app>` | Is it 32-bit? Which of its imports does mac32 not cover yet? |
+| `mac32 scan [folders]` | Find 32-bit apps in Applications, Downloads, Desktop and your Steam library. |
+| `mac32 config <app> set args=... / cwd=... / env=NAME=VALUE` | Settings kept for that app, like `winecfg`. |
+| `mac32 wrap <app>` | Make a launcher in `~/Applications/mac32` with the app's name and icon, for the Dock or Launchpad. |
+| `mac32 logs [app]` | Follow a program's log (`~/Library/Logs/mac32-<name>.log`). |
+| `mac32 selftest` | Check mac32 itself. |
+
+For a Steam game, Steam must be running and logged in; Steam checks that you
+own the game.
 
 Useful settings:
 

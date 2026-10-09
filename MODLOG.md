@@ -351,3 +351,14 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   void* handles (HServerListRequest) map to handles.
 - termios conversion. Now Portal reaches its frame loop (console, menus load)
   and stops at shm_open (not bridged yet). HL2 should be at the same point.
+
+## Step 11: a wine-like front end (2026-10-09)
+- `bin/mac32` (bash 3.2, copied into Mac32.app/Contents/Resources): run, check,
+  scan, config (per-app args/cwd/env in ~/Library/Application Support/mac32),
+  wrap (launcher app in ~/Applications/mac32 with the target's icon; it runs
+  the engine through a symlink inside itself so the Dock shows its name),
+  logs, selftest. `make install` links it into ~/.local/bin.
+- Mac32.app opened with no program: takes an Open With / dropped app, or
+  shows a file panel, then execs `Resources/mac32 run <path>`.
+  CFBundleDocumentTypes: application bundles and Unix executables (Alternate).
+- License changed to GPL-3.0-or-later at the user's request.
