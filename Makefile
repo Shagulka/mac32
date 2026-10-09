@@ -6,7 +6,7 @@ LDFLAGS = -arch x86_64 -liconv -lz -framework Foundation -framework AppKit -fram
           -framework IOKit -framework OpenGL -framework ApplicationServices -framework ImageIO -framework CFNetwork -framework SystemConfiguration -framework CoreText -framework AudioToolbox -framework CoreAudio -Wl,-pagezero_size,0x1000 -Wl,-no_pie -Wl,-image_base,0x200000000 \
           -Wl,-segaddr,__RESERVE,0x1000 -Wl,-segprot,__RESERVE,rwx,---
 SRC = src/main.c src/lowmem.c src/cpu.c src/thunks.c src/libc.c src/format.c \
-      src/pthread.c src/cxx.c src/libc2.c src/objc.m src/apple.m src/gl_thunks.c src/gl_special.c src/libc3.c src/ats.m src/steam.c src/steam_ifaces.c src/zlib.c src/audio.c src/macho.c src/tramp.s src/invoke.s src/reserve.s
+      src/pthread.c src/cxx.c src/libc2.c src/objc.m src/apple.m src/gl_thunks.c src/gl_special.c src/libc3.c src/ats.m src/steam.c src/steam_ifaces.c src/zlib.c src/audio.c src/sndmgr.c src/macho.c src/tramp.s src/invoke.s src/reserve.s
 OBJ = $(patsubst src/%,build/%.o,$(SRC))
 
 all: mac32 guest app

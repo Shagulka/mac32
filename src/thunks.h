@@ -34,6 +34,7 @@ void thunks_ats_init(void);
 void thunks_steam_init(void);
 void thunks_zlib_init(void);
 void thunks_audio_init(void);
+void thunks_sndmgr_init(void);
 
 // raw thunk helpers
 #define A(i) (args[i])

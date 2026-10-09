@@ -251,4 +251,5 @@ void thunks_init(void)
 	thunks_steam_init();
 	thunks_zlib_init();
 	thunks_audio_init();
+	thunks_sndmgr_init();
 }
