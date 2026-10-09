@@ -299,7 +299,7 @@ Restore: `um backup restore portal2-saves` / `um backup restore portal2-cfg`.
 - Type strings: keep struct names (an `l`->`i` pass turned `SDL_Window` into
   `SDI_Window`), pointers to structs become `^v`, NSRange widens to `QQ`.
 - Result: menu, New Game dialog and the first map (`+map c1a0`) work; it ran in
-  the map 20 minutes without errors. Open: an intermittent
+  the map 11 minutes without errors. Open: an intermittent
   unrecognized-selector exception on `SDLTranslatorResponder` (the selector
   pointer is junk). The exception preprocessor now prints the throwing stack.
 - Half-Life 2 (Nov 25 2024 build): Steam and the engine start (SteamClient021
