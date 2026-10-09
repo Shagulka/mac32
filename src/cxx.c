@@ -64,7 +64,29 @@ static void t_dyld_func_lookup(uint32_t *args, struct hres *r)
 }
 static void t_dyld_noop(uint32_t *args, struct hres *r) { (void)args; RET(0); }
 
+// self-test hooks used by guest/selftest.c
+static int st_add1(int x) { return x + 1; }
+static void t_st_callback(uint32_t *args, struct hres *r) { RET(gcall(A(0), 1, A(1))); }
+
+static void t_guest_fatal(uint32_t *args, struct hres *r)
+{
+	(void)r;
+	die("guest: %s %s", (char *)G2H(A(0)), A(1) ? (char *)G2H(A(1)) : "");
+}
+
+// Chromium (libcef) needs a full 32-bit GNU libstdc++ we do not have yet, so
+// the in-game browser reports itself unavailable through the CEF C API.
+static void t_cef_fail(uint32_t *args, struct hres *r) { (void)args; RET(0); }
+static void t_cef_void(uint32_t *args, struct hres *r) { (void)args; (void)r; }
+
 static struct hfn cxx[] = {
+	R("!_cef_initialize", t_cef_fail), R("!_cef_shutdown", t_cef_void),
+	R("!_cef_register_scheme", t_cef_fail), R("!_cef_browser_create_sync", t_cef_fail),
+	R("!_cef_browser_create", t_cef_fail), R("!_cef_request_create", t_cef_fail),
+	R("!_cef_post_data_create", t_cef_fail), R("!_cef_post_data_element_create", t_cef_fail),
+	R("!_cef_do_message_loop_work", t_cef_void),
+	R("_mac32_guest_fatal", t_guest_fatal),
+	G("_mac32_host_add1", st_add1, "i:i"), R("_mac32_host_callback", t_st_callback),
 	G("__Znwm", w_new, "p:u"), G("__Znam", w_new, "p:u"),
 	G("__Znwj", w_new, "p:u"), G("__Znaj", w_new, "p:u"),	// operator new(unsigned int)
 	G("__ZdlPv", gfree, "v:p"), G("__ZdaPv", gfree, "v:p"),

@@ -52,6 +52,13 @@ g32 missing_stub(const char *name);	// stub that reports an unimplemented call
 void thunks_init(void);
 const char *hostcall_name(uint32_t idx);
 
+// objc.m: host objects (CF, Cocoa, CGL...) seen from the guest.
+// Each host object gets one small guest block; the same object always maps
+// to the same block. Guest-class instances keep their 32-bit ivars there.
+g32 hobj_wrap(void *h);
+void *hobj_unwrap(g32 g);
+g32 guest_cstr(const char *s);	// copy into a recycled guest buffer
+
 // macho.c
 struct image;
 void macho_add_search_dir(const char *dir);

@@ -152,7 +152,15 @@ int unresolved_count;
 
 static g32 resolve(struct image *img, int ord, const char *name, int weak)
 {
-	g32 a = 0;
+	// host overrides ("!name") win over every guest library: used to switch
+	// off subsystems we cannot run yet, through their own API
+	char ov[512];
+	snprintf(ov, sizeof ov, "!%s", name);
+	g32 a = host_lookup(ov);
+	if (a) {
+		LOG("override %s (needed by %s)\n", name, img->path);
+		return a;
+	}
 	if (!(img->mh->flags & MH_TWOLEVEL) || ord == DYNAMIC_LOOKUP_ORDINAL || ord == -2) {
 		a = macho_find_any(name);
 	} else if (ord == SELF_LIBRARY_ORDINAL) {
@@ -165,6 +173,7 @@ static g32 resolve(struct image *img, int ord, const char *name, int weak)
 		else if (img->depsys[ord - 1]) a = host_lookup(name);
 		if (!a) a = macho_find_any(name);	// moved symbols, our runtime libs
 	}
+	if (!a && weak) LOG("weak import %s missing (needed by %s): bound to 0\n", name, img->path);
 	if (!a && !weak) {
 		unresolved_count++;
 		LOG("unresolved %s (needed by %s)\n", name, img->path);
@@ -415,6 +424,7 @@ static int find_dylib(struct image *from, const char *name, char *out)
 }
 
 static struct image *load_file(const char *rp);
+void objc_image_loaded(struct image *img);
 
 static void load_deps(struct image *img)
 {
@@ -546,6 +556,7 @@ static struct image *load_file(const char *path)
 	load_deps(img);
 	if (img->di) fix_dyldinfo(img);
 	else if (img->dst) fix_classic(img);
+	objc_image_loaded(img);
 
 	for (int i = 0; i < img->nseg; i++) {
 		struct segment_command *sg = img->seg[i];
@@ -559,6 +570,21 @@ static struct image *load_file(const char *path)
 }
 
 struct image *macho_load(const char *path) { return load_file(path); }
+
+int macho_section(struct image *img, const char *seg, const char *sect, g32 *addr, uint32_t *size)
+{
+	for (int si = 0; si < img->nseg; si++) {
+		struct segment_command *sg = img->seg[si];
+		struct section *s = (void *)(sg + 1);
+		for (uint32_t k = 0; k < sg->nsects; k++, s++)
+			if (!strncmp(s->segname, seg, 16) && !strncmp(s->sectname, sect, 16)) {
+				*addr = s->addr + (g32)img->slide;
+				*size = s->size;
+				return 1;
+			}
+	}
+	return 0;
+}
 
 struct image *macho_dlopen(const char *path)
 {
@@ -575,10 +601,31 @@ struct image *macho_dlopen(const char *path)
 
 g32 macho_entry(struct image *img) { return img->entry; }
 
+// Images whose static initializers we do not run yet (MAC32_SKIP_INIT, comma
+// separated leaf names). Default: libcef.dylib, Chromium for the in-game web
+// pages, whose initializers need a full 32-bit GNU libstdc++ (iostreams, COW
+// strings) that mac32 does not have yet.
+static int skip_init(struct image *img)
+{
+	const char *list = getenv("MAC32_SKIP_INIT");
+	if (!list) list = "libcef.dylib";
+	const char *leaf = strrchr(img->path, '/') + 1;
+	size_t n = strlen(leaf);
+	for (const char *p = list; (p = strstr(p, leaf)); p += n)
+		if ((p == list || p[-1] == ',') && (p[n] == 0 || p[n] == ',')) return 1;
+	return 0;
+}
+
 void macho_run_initializers(struct image *img)
 {
 	if (img->inited) return;
 	img->inited = 1;
+	if (skip_init(img)) {
+		fprintf(stderr, "[mac32] not running static initializers of %s (MAC32_SKIP_INIT)\n", img->path);
+		for (int i = 0; i < img->ndeps; i++)
+			if (img->dep[i]) macho_run_initializers(img->dep[i]);
+		return;
+	}
 	for (int i = 0; i < img->ndeps; i++)
 		if (img->dep[i]) macho_run_initializers(img->dep[i]);
 	if (img->routines) {

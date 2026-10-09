@@ -20,7 +20,11 @@ static void put(struct buf *b, const char *s, int n)
 	b->p[b->len] = 0;
 }
 
-char *gvformat(const char *fmt, const uint32_t *ap, int *len)
+char *gvformat_objc(const char *fmt, const uint32_t *ap, int *len, const char *(*obj)(g32));
+char *gvformat(const char *fmt, const uint32_t *ap, int *len) { return gvformat_objc(fmt, ap, len, NULL); }
+
+// obj renders %@ (NSLog, stringWithFormat:); NULL for plain printf
+char *gvformat_objc(const char *fmt, const uint32_t *ap, int *len, const char *(*obj)(g32))
 {
 	struct buf b = {0};
 	put(&b, "", 0);
@@ -103,6 +107,15 @@ char *gvformat(const char *fmt, const uint32_t *ap, int *len)
 		}
 		case 'p':
 			on = snprintf(out, sizeof out, "0x%x", *ap++);
+			break;
+		case '@':
+			if (obj) {
+				const char *d = obj(*ap++);
+				int need = (int)strlen(d);
+				if (need >= (int)sizeof out) o = malloc((size_t)need + 1);
+				memcpy(o, d, (size_t)need + 1);
+				on = need;
+			}
 			break;
 		case 'n': {
 			g32 p = *ap++;

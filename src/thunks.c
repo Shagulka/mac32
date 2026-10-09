@@ -109,10 +109,14 @@ g32 missing_stub(const char *name)
 const char *hostcall_name(uint32_t idx) { return idx < nhfn ? table[idx]->name : "?"; }
 
 static __thread uint32_t cur_idx;
+void guest_backtrace(g32 ret, g32 ebp);
 static void call_missing(uint32_t *args, struct hres *r)
 {
-	(void)args; (void)r;
-	die("guest called unimplemented function %s", table[cur_idx]->name);
+	(void)r;
+	// host-call frame: [ebx][edi][esi][ebp][idx][ret][args...]
+	fprintf(stderr, "[mac32] guest called unimplemented function %s\n", table[cur_idx]->name);
+	guest_backtrace(args[-1], args[-3]);
+	die("unimplemented: %s", table[cur_idx]->name);
 }
 
 static void call_generic(struct hfn *h, uint32_t *a, struct hres *r)
@@ -128,6 +132,7 @@ static void call_generic(struct hfn *h, uint32_t *a, struct hres *r)
 		switch (*s) {
 		case 'i': v = (uint64_t)(int64_t)(int32_t)*a++; break;
 		case 'u': case 'p': v = *a++; break;
+		case 'o': v = (uint64_t)(uintptr_t)hobj_unwrap(*a++); break;
 		case 'l': v = a[0] | (uint64_t)a[1] << 32; a += 2; break;
 		case 'd': memcpy(&v, a, 8); a += 2; fp = 1; break;
 		case 'f': v = 0; memcpy(&v, a, 4); a++; fp = 1; break;
@@ -147,6 +152,9 @@ static void call_generic(struct hfn *h, uint32_t *a, struct hres *r)
 		r->rax = rax;
 		break;
 	case 'l': r->rax = rax; break;
+	case 'o': r->rax = hobj_wrap((void *)(uintptr_t)rax); break;
+	case 'b': r->rax = rax & 0xff; break;	// GLboolean / Boolean: junk above the low byte
+	case 'S': r->rax = rax ? guest_cstr((const char *)(uintptr_t)rax) : 0; break;
 	case 'd': r->st0 = x0; r->flags |= F_ST0; break;
 	case 'f': { float f; memcpy(&f, &x0, 4); r->st0 = f; r->flags |= F_ST0; break; }
 	default: die("bad return sig %s for %s", h->sig, h->name);
@@ -155,9 +163,21 @@ static void call_generic(struct hfn *h, uint32_t *a, struct hres *r)
 
 int trace_calls;
 
+// the last host calls of each thread, printed by the crash handler
+#define RING 32
+static __thread uint32_t ring[RING], ring_n;
+void print_recent_calls(void)
+{
+	fprintf(stderr, "  last host calls on this thread (oldest first):\n   ");
+	for (uint32_t i = ring_n > RING ? ring_n - RING : 0; i < ring_n; i++)
+		fprintf(stderr, " %s", table[ring[i % RING]]->name);
+	fprintf(stderr, "\n");
+}
+
 void hostcall_dispatch(uint32_t idx, uint32_t *args, struct hres *r)
 {
 	struct hfn *h = table[idx];
+	ring[ring_n++ % RING] = idx;
 	if (trace_calls) fprintf(stderr, "[call] %s\n", h->name);
 	switch (h->kind) {
 	case 'G': call_generic(h, args, r); break;
@@ -172,4 +192,10 @@ void thunks_init(void)
 	thunks_libc_init();
 	thunks_pthread_init();
 	thunks_cxx_init();
+	thunks_libc2_init();
+	thunks_objc_init();
+	thunks_apple_init();
+	thunks_gl_init();
+	thunks_libc3_init();
+	thunks_ats_init();
 }

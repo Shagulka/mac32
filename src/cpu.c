@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <mach/mach.h>
+#include <execinfo.h>
 #include <i386/user_ldt.h>
 #include <architecture/i386/table.h>
 
@@ -50,6 +51,13 @@ static void crash(int sig, siginfo_t *si, void *ucv)
 	fprintf(stderr, "  esi %08llx edi %08llx ebp %08llx esp %08llx\n",
 		uc->uc_mcontext->__ss.__rsi & 0xffffffff, uc->uc_mcontext->__ss.__rdi & 0xffffffff,
 		uc->uc_mcontext->__ss.__rbp & 0xffffffff, uc->uc_mcontext->__ss.__rsp & 0xffffffff);
+	if (ip >> 32) {		// host code: print the host stack too
+		void *bt[64];
+		int n = backtrace(bt, 64);
+		backtrace_symbols_fd(bt, n, 2);
+	}
+	extern void print_recent_calls(void);
+	print_recent_calls();
 	// walk the guest ebp chain
 	g32 ebp = (g32)uc->uc_mcontext->__ss.__rbp;
 	for (int i = 0; i < 16 && ebp > 0x1000 && ebp < LOW_END; i++) {
@@ -60,6 +68,20 @@ static void crash(int sig, siginfo_t *si, void *ucv)
 		ebp = next;
 	}
 	_exit(128 + sig);
+}
+
+void guest_backtrace(g32 ret, g32 ebp)
+{
+	g32 off;
+	const char *n = macho_addr_name(ret, &off);
+	fprintf(stderr, "  called from %08x %s+%#x\n", ret, n ? n : "?", off);
+	for (int i = 0; i < 16 && ebp > 0x1000 && ebp < LOW_END; i++) {
+		g32 r, next;
+		if (!safe_read32(ebp + 4, &r) || !safe_read32(ebp, &next)) break;
+		n = macho_addr_name(r, &off);
+		fprintf(stderr, "  #%d %08x %s+%#x\n", i, r, n ? n : "?", off);
+		ebp = next;
+	}
 }
 
 void cpu_init(void)
@@ -121,14 +143,16 @@ void cpu_thread_init(uint32_t stack_size)
 	guest_stack_top = base + stack_size - 64;
 }
 
-// Where the next guest call's arguments go: under the current stack if we
-// are already running on a guest stack (inside a host call), else at the
-// top of this thread's guest stack.
-static g32 arg_area(int nargs)
+// Where the next guest call's arguments go: well under the current stack
+// pointer if we are already running on a guest stack (inside a host call),
+// else at the top of this thread's guest stack. The gap must cover what
+// t_call32 pushes below rsp (saved registers + the iretq frame).
+static inline __attribute__((always_inline)) g32 arg_area(int nargs)
 {
-	uintptr_t sp = (uintptr_t)__builtin_frame_address(0);
+	uintptr_t sp;
+	__asm__ volatile("mov %%rsp, %0" : "=r"(sp));
 	g32 top;
-	if (sp < LOW_END) top = (g32)sp - 256;
+	if (sp < LOW_END) top = (g32)sp - 1024;
 	else {
 		if (!guest_stack_top) cpu_thread_init(8 << 20);
 		top = guest_stack_top;

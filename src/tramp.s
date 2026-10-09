@@ -43,15 +43,7 @@ _t_call32:
 	pushq %rax			# cs
 	pushq %rdi			# eip
 	iretq
-
-	.code32
-back32:
-	call 1f
-1:	pop  %ecx
-	lea  (back64 - 1b)(%ecx), %ecx
-	pushl $0x2b
-	pushl %ecx
-	lret
+	int3
 
 	.code64
 back64:
@@ -72,21 +64,6 @@ back64:
 	pop  %rbx
 	pop  %rbp
 	ret
-
-# Guest -> host. Import stubs are "push $idx; jmp _t_hostcall32".
-# Guest stack on entry: [idx][ret][args...]
-	.code32
-_t_hostcall32:
-	push %ebp
-	push %esi
-	push %edi
-	push %ebx			# [ebx][edi][esi][ebp][idx][ret][args]
-	call 1f
-1:	pop  %ecx
-	lea  (hostcall64 - 1b)(%ecx), %ecx
-	pushl $0x2b
-	pushl %ecx
-	lret
 
 	.code64
 hostcall64:
@@ -121,6 +98,37 @@ hostcall64:
 	pushq %rcx			# cs
 	pushq %r8			# eip
 	iretq
+	int3
+
+# ---- 32-bit code, on its own page --------------------------------------------
+# Kept apart from the 64-bit code, with a trap after every mode switch, as a
+# precaution against a translator decoding one mode's bytes in the other.
+	.p2align 12
+	.code32
+back32:
+	call 1f
+1:	pop  %ecx
+	lea  (back64 - 1b)(%ecx), %ecx
+	pushl $0x2b
+	pushl %ecx
+	lret
+	int3
+
+# Guest -> host. Import stubs are "push $idx; jmp _t_hostcall32".
+# Guest stack on entry: [idx][ret][args...]
+	.code32
+_t_hostcall32:
+	push %ebp
+	push %esi
+	push %edi
+	push %ebx			# [ebx][edi][esi][ebp][idx][ret][args]
+	call 1f
+1:	pop  %ecx
+	lea  (hostcall64 - 1b)(%ecx), %ecx
+	pushl $0x2b
+	pushl %ecx
+	lret
+	int3
 
 	.code32
 hostret32:
@@ -138,8 +146,9 @@ hostret32_pop4:
 	add  $4, %esp
 	ret  $4
 
+
 	.code64
-	.p2align 3
+	.p2align 12
 _t_dispatch:	.quad 0
 _t_tsd_off:	.quad 0
 _t_cs32:	.word 0

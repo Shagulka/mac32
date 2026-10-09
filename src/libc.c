@@ -46,6 +46,13 @@ FILE *gfile_host(g32 g)
 	return files[i];
 }
 
+FILE *gfile_reopen(g32 g, FILE *h)
+{
+	files[*(uint32_t *)G2H(g + GF_COOKIE)] = h;
+	*(int16_t *)G2H(g + GF_FILE) = (int16_t)fileno(h);
+	return h;
+}
+
 static void gfile_close(g32 g)
 {
 	uint32_t i = *(uint32_t *)G2H(g + GF_COOKIE);
@@ -327,12 +334,20 @@ static void t_sysctlbyname(uint32_t *args, struct hres *r)
 struct image *macho_dlopen(const char *path);
 g32 macho_dlsym(struct image *img, const char *name);
 static struct image *handles[1024];
-static uint32_t nhandles = 1;
+static uint32_t nhandles = 2;	// 1 (handle 16) is SYS_HANDLE
 static char dlerr[512];
 static g32 dlerr_g;
+// handle 16 stands for "the host's system libraries": dlsym on it looks in
+// the host thunk table (e.g. libtogl dlopens OpenGL's libGL.dylib by path)
+#define SYS_HANDLE 16
+static int is_system_path(const char *p)
+{
+	return p && (!strncmp(p, "/System/", 8) || !strncmp(p, "/usr/lib/", 9));
+}
 static void t_dlopen(uint32_t *args, struct hres *r)
 {
 	const char *p = A(0) ? G2H(A(0)) : NULL;
+	if (is_system_path(p)) { LOG("dlopen(%s): host library\n", p); RET(SYS_HANDLE); return; }
 	struct image *img = macho_dlopen(p);
 	if (!img) { snprintf(dlerr, sizeof dlerr, "dlopen(%s): image not found", p ? p : "NULL"); RET(0); return; }
 	for (uint32_t i = 1; i < nhandles; i++) if (handles[i] == img) { RET(i * 16); return; }
@@ -346,8 +361,14 @@ static void t_dlsym(uint32_t *args, struct hres *r)
 	g32 h = A(0), a;
 	if (h == 0xfffffffe || h == 0xfffffffd || h == 0xfffffffb)	// RTLD_DEFAULT/NEXT/SELF
 		a = macho_find_any(nm);
+	else if (h == SYS_HANDLE)
+		a = host_lookup(nm);
 	else {
-		if (h % 16 || h / 16 >= nhandles) { RET(0); return; }
+		if (!h || h % 16 || h / 16 >= nhandles) {
+			snprintf(dlerr, sizeof dlerr, "dlsym: invalid handle %#x", h);
+			RET(0);
+			return;
+		}
 		a = macho_dlsym(handles[h / 16], nm);
 	}
 	if (!a) snprintf(dlerr, sizeof dlerr, "dlsym: symbol %s not found", nm + 1);
