@@ -259,3 +259,19 @@ void _ZSt16__throw_bad_castv(void) { mac32_guest_fatal("std::bad_cast", ""); }
 // iostream static setup: no streams are wired up yet
 void _ZNSt8ios_base4InitC1Ev(void *self) { (void)self; }
 void _ZNSt8ios_base4InitD1Ev(void *self) { (void)self; }
+
+// ---- std::list nodes (libstdc++ _List_node_base: next, prev) ------------------
+typedef struct lnode { struct lnode *next, *prev; } lnode;
+void _ZNSt15_List_node_base4hookEPS_(lnode *self, lnode *pos)	// insert self before pos
+{
+	self->next = pos;
+	self->prev = pos->prev;
+	pos->prev->next = self;
+	pos->prev = self;
+}
+void _ZNSt15_List_node_base6unhookEv(lnode *self)
+{
+	self->prev->next = self->next;
+	self->next->prev = self->prev;
+}
+int _ZSt18uncaught_exceptionv(void) { return 0; }	// only asked by destructors that log

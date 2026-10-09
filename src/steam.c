@@ -49,11 +49,12 @@ static const struct siface *find_iface(const char *version)
 	size_t pl = strlen(version);
 	while (pl && version[pl - 1] >= '0' && version[pl - 1] <= '9') pl--;
 	const struct siface *best = NULL;
+	int want = atoi(version + pl);
 	for (const struct siface *i = steam_ifaces; i->cls; i++)
 		if (!strncmp(i->version, version, pl) && strlen(i->version) > pl &&
-		    i->version[pl] >= '0' && i->version[pl] <= '9' &&
+		    i->version[pl] >= '0' && i->version[pl] <= '9' && atoi(i->version + pl) < want &&
 		    (!best || atoi(i->version + pl) > atoi(best->version + pl)))
-			best = i;
+			best = i;	// older interfaces had other layouts: those stay unbridged
 	if (best) fprintf(stderr, "[mac32] steam: %s is newer than our tables; using %s's methods\n", version, best->version);
 	return best;
 }

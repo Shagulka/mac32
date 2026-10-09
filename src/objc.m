@@ -12,6 +12,7 @@
 #import <AppKit/AppKit.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
+#import <objc/objc-exception.h>
 #include <pthread.h>
 #include <ctype.h>
 #include "thunks.h"
@@ -521,9 +522,19 @@ static void call_host(id target, Class super_cls, SEL hsel, const char *selname,
 			[inv setArgument:buf atIndex:(NSInteger)i];
 		}
 	}
-	if (super_cls) [inv invokeUsingIMP:object_isClass(target) ? method_getImplementation(class_getClassMethod(super_cls, hsel))
-								   : class_getMethodImplementation(super_cls, hsel)];
-	else [inv invoke];
+	@try {
+		if (super_cls) [inv invokeUsingIMP:object_isClass(target) ? method_getImplementation(class_getClassMethod(super_cls, hsel))
+									   : class_getMethodImplementation(super_cls, hsel)];
+		else [inv invoke];
+	} @catch (NSException *e) {
+		// guest code cannot catch host exceptions: report where it was thrown
+		fprintf(stderr, "[mac32] Objective-C exception in -[%s %s]: %s\n", object_getClassName(target), selname,
+			e.reason.UTF8String);
+		for (NSString *l in e.callStackSymbols) fprintf(stderr, "  %s\n", l.UTF8String);
+		extern void print_recent_calls(void);
+		print_recent_calls();
+		@throw;
+	}
 	for (NSUInteger i = 2; i < n && i < 16; i++)
 		if (outp[i]) U32(outp[i]) = objc_wrap(outv[i]);
 	const char *rt = sig.methodReturnType;
@@ -829,6 +840,7 @@ static char *host_types(const char *g)
 		if (!strncmp(p, "{_NSRect=", 9)) { [s appendString:@"{CGRect={CGPoint=dd}{CGSize=dd}}"]; p = strstr(p, "}}") + 1; continue; }
 		if (!strncmp(p, "{_NSPoint=ff}", 13)) { [s appendString:@"{CGPoint=dd}"]; p += 12; continue; }
 		if (!strncmp(p, "{_NSSize=ff}", 12)) { [s appendString:@"{CGSize=dd}"]; p += 11; continue; }
+		if (!strncmp(p, "{_NSRange=II}", 13)) { [s appendString:@"{_NSRange=QQ}"]; p += 12; continue; }	// NSUInteger fields
 		if (*p == '{' || *p == '(') {				// struct name stays as it is
 			const char *e = p + 1;
 			while (*e && *e != '=' && *e != '}' && *e != ')') e++;
@@ -1182,4 +1194,31 @@ static struct hfn objc_fns[] = {
 	D("_NSZeroPoint", 8, init_zero16), D("_NSZeroSize", 8, init_zero16), D("_NSZeroRect", 16, init_zero16),
 };
 
-void thunks_objc_init(void) { REGISTER(objc_fns); }
+// an Objective-C exception nobody catches: say where it came from
+static void uncaught(NSException *e)
+{
+	fprintf(stderr, "[mac32] uncaught Objective-C exception %s: %s\n", e.name.UTF8String, e.reason.UTF8String);
+	for (NSString *l in [NSThread callStackSymbols]) fprintf(stderr, "  %s\n", l.UTF8String);
+	extern void print_recent_calls(void);
+	print_recent_calls();
+}
+
+// every Objective-C throw passes here first, on any thread: log the ones a
+// bridged object causes (unrecognized selectors) with the stack that threw
+static objc_exception_preprocessor prev_pre;
+static id preprocess(id exc)
+{
+	NSException *e = exc;
+	if ([e isKindOfClass:[NSException class]] && [e.reason containsString:@"unrecognized selector"]) {
+		fprintf(stderr, "[mac32] Objective-C exception: %s\n", e.reason.UTF8String);
+		for (NSString *l in [NSThread callStackSymbols]) fprintf(stderr, "  %s\n", l.UTF8String);
+	}
+	return prev_pre ? prev_pre(exc) : exc;
+}
+
+void thunks_objc_init(void)
+{
+	REGISTER(objc_fns);
+	NSSetUncaughtExceptionHandler(uncaught);
+	prev_pre = objc_setExceptionPreprocessor(preprocess);
+}
