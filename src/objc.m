@@ -512,7 +512,8 @@ static void msgsend(uint32_t *a, struct hres *r, int kind)
 	if (!self) return;
 	const char *sel = G2H(gsel);
 	extern int trace_calls;
-	if (trace_calls) fprintf(stderr, "[objc] %s%#x %s\n", supcls ? "super " : "", self, sel);
+	extern int trace_match(const char *);
+	if (trace_calls && trace_match(sel)) fprintf(stderr, "[objc] %s%#x %s\n", supcls ? "super " : "", self, sel);
 	const uint32_t *ga = a + 2;
 
 	// a guest method?
@@ -631,6 +632,9 @@ static void forward_to_guest(id self, SEL _cmd, NSInvocation *inv)
 	(void)_cmd;
 	const char *sel = sel_getName(inv.selector);
 	int classmethod = object_isClass(self);
+	extern int trace_calls;
+	extern int trace_match(const char *);
+	if (trace_calls && trace_match(sel)) fprintf(stderr, "[objc<-host] %s %s\n", object_getClassName(self), sel);
 	struct gclass *gc = gclass_of_host(classmethod ? (Class)self : object_getClass(self));
 	g32 imp = gc ? find_imp(gc, sel, classmethod, NULL) : 0;
 	if (!imp) {

@@ -8,12 +8,14 @@ LOG=${MAC32_LOG:-/tmp/mac32-p2.log}
 cd "$P2" || exit 1
 export SteamAppId=620 SteamGameId=620	# what Steam sets when it launches the game
 set -m					# own process group, so we can stop all of it
-( "$HOME/Developer/mac32/Mac32.app/Contents/MacOS/mac32" -v "$@" -L bin/osx32 ./portal2_osx -game portal2 -nosound -novid -windowed -w 1280 -h 720 2>&1 \
+( "$HOME/Developer/mac32/Mac32.app/Contents/MacOS/mac32" -v "$@" -L bin/osx32 ./portal2_osx -game portal2 ${NOSOUND--nosound} -novid -windowed -w 1280 -h 720 $GAMEARGS 2>&1 \
 	| head -c 50000000 > "$LOG" ) &
 pg=$!
 for ((i = 0; i < secs; i++)); do
 	sleep 1
 	kill -0 $pg 2>/dev/null || break
+	# ACTIVATE=<second>: bring the game to the front then (as a click would)
+	[ "$i" = "${ACTIVATE:-x}" ] && open -b com.khesin.mac32 && echo "activated at ${i}s"
 	# SHOT=<second>[,<second>...]: capture the game window at those times
 	for t in ${SHOT//,/ }; do
 		if [ "$i" = "$t" ]; then

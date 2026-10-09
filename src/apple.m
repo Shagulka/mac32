@@ -1,6 +1,7 @@
 // CoreFoundation, CoreGraphics, IOKit, Carbon and CGL for the guest.
 // Opaque objects travel as handles ('o' in a signature, see objc.m).
 #import <Foundation/Foundation.h>
+#import <AppKit/AppKit.h>
 #import <ApplicationServices/ApplicationServices.h>
 #import <Carbon/Carbon.h>
 #import <IOKit/IOKitLib.h>
@@ -13,7 +14,16 @@
 // Boolean / OSErr results: the host leaves junk above the low byte/half
 static int w_CFBooleanGetValue(CFBooleanRef b) { return CFBooleanGetValue(b) ? 1 : 0; }
 static int w_Gestalt(uint32_t sel, int32_t *resp) { SInt32 v = 0; OSErr e = Gestalt(sel, &v); if (resp) *resp = v; return e; }
-static int w_SetFrontProcess(const ProcessSerialNumber *p) { return SetFrontProcess(p); }
+// The launcher brings itself forward with the old Carbon call, which modern
+// macOS ignores; ask AppKit as well.
+static int w_SetFrontProcess(const ProcessSerialNumber *p)
+{
+	int rc = SetFrontProcess(p);
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateAllWindows];
+	});
+	return rc;
+}
 static int w_TransformProcessType(const ProcessSerialNumber *p, uint32_t t) { return TransformProcessType(p, t); }
 static int w_SetSystemUIMode(uint32_t m, uint32_t o) { return SetSystemUIMode(m, o); }
 static int w_CGWarpMouseCursorPosition(float x, float y) { return CGWarpMouseCursorPosition(CGPointMake(x, y)); }
@@ -57,10 +67,10 @@ static void t_CFNumberCreate(uint32_t *args, struct hres *r)
 
 static void t_CFUserNotificationDisplayAlert(uint32_t *args, struct hres *r)
 {
-	// timeout(double) flags icon sound loc header message default alt other *response
-	NSString *h = hobj_unwrap(A(7)), *m = hobj_unwrap(A(8));
+	// timeout (double: 2 slots) flags icon sound loc header message default alt other *response
+	NSString *h = hobj_unwrap(A(6)), *m = hobj_unwrap(A(7));
 	fprintf(stderr, "[mac32] alert: %s\n  %s\n", h.UTF8String ?: "", m.UTF8String ?: "");
-	if (A(12)) *(uint32_t *)G2H(A(12)) = kCFUserNotificationDefaultResponse;
+	if (A(11)) *(uint32_t *)G2H(A(11)) = kCFUserNotificationDefaultResponse;
 	RET(0);
 }
 

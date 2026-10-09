@@ -194,6 +194,24 @@ void call_sig(void *fn, const char *sig, const char *name, uint32_t *a, struct h
 
 int trace_calls;
 
+// MAC32_TRACE=sub1,sub2: with -t, only trace calls whose name contains one of them
+int trace_match(const char *name)
+{
+	static char *filters[16];
+	static int nf = -1;
+	if (nf < 0) {
+		nf = 0;
+		const char *e = getenv("MAC32_TRACE");
+		if (e) {
+			char *c = strdup(e), *t;
+			while ((t = strsep(&c, ",")) && nf < 16) if (*t) filters[nf++] = t;
+		}
+	}
+	if (!nf) return 1;
+	for (int i = 0; i < nf; i++) if (strstr(name, filters[i])) return 1;
+	return 0;
+}
+
 // the last host calls of each thread, printed by the crash handler
 #define RING 32
 static __thread uint32_t ring[RING], ring_n;
@@ -209,7 +227,7 @@ void hostcall_dispatch(uint32_t idx, uint32_t *args, struct hres *r)
 {
 	struct hfn *h = table[idx];
 	ring[ring_n++ % RING] = idx;
-	if (trace_calls) fprintf(stderr, "[call] %s\n", h->name);
+	if (trace_calls && trace_match(h->name)) fprintf(stderr, "[call] %s\n", h->name);
 	switch (h->kind) {
 	case 'G': call_generic(h, args, r); break;
 	case 'R': ((rawfn)h->fn)(args, r); break;
@@ -232,4 +250,5 @@ void thunks_init(void)
 	thunks_ats_init();
 	thunks_steam_init();
 	thunks_zlib_init();
+	thunks_audio_init();
 }
