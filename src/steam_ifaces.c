@@ -2,1199 +2,1207 @@
 #include "steam.h"
 
 static const struct smethod m_STEAMAPPLIST_INTERFACE_VERSION001[] = {
-	{ "GetNumInstalledApps", "u:o", 0 },	/* 0 */
-	{ "GetInstalledApps", "u:opu", 0 },	/* 1 */
-	{ "GetAppName", "i:oupi", 0 },	/* 2 */
-	{ "GetAppInstallDir", "i:oupi", 0 },	/* 3 */
-	{ "GetAppBuildId", "i:ou", 0 },	/* 4 */
+	{ "GetNumInstalledApps", "SteamAPI_ISteamAppList_GetNumInstalledApps", "u:o", 0, -1 },
+	{ "GetInstalledApps", "SteamAPI_ISteamAppList_GetInstalledApps", "u:opu", 0, -1 },
+	{ "GetAppName", "SteamAPI_ISteamAppList_GetAppName", "i:oupi", 0, -1 },
+	{ "GetAppInstallDir", "SteamAPI_ISteamAppList_GetAppInstallDir", "i:oupi", 0, -1 },
+	{ "GetAppBuildId", "SteamAPI_ISteamAppList_GetAppBuildId", "i:ou", 0, -1 },
 };
 static const struct smethod m_STEAMAPPS_INTERFACE_VERSION008[] = {
-	{ "BIsSubscribed", "b:o", 0 },	/* 0 */
-	{ "BIsLowViolence", "b:o", 0 },	/* 1 */
-	{ "BIsCybercafe", "b:o", 0 },	/* 2 */
-	{ "BIsVACBanned", "b:o", 0 },	/* 3 */
-	{ "GetCurrentGameLanguage", "S:o", 0 },	/* 4 */
-	{ "GetAvailableGameLanguages", "S:o", 0 },	/* 5 */
-	{ "BIsSubscribedApp", "b:ou", 0 },	/* 6 */
-	{ "BIsDlcInstalled", "b:ou", 0 },	/* 7 */
-	{ "GetEarliestPurchaseUnixTime", "u:ou", 0 },	/* 8 */
-	{ "BIsSubscribedFromFreeWeekend", "b:o", 0 },	/* 9 */
-	{ "GetDLCCount", "i:o", 0 },	/* 10 */
-	{ "BGetDLCDataByIndex", "b:oipppi", 0 },	/* 11 */
-	{ "InstallDLC", "v:ou", 0 },	/* 12 */
-	{ "UninstallDLC", "v:ou", 0 },	/* 13 */
-	{ "RequestAppProofOfPurchaseKey", "v:ou", 0 },	/* 14 */
-	{ "GetCurrentBetaName", "b:opi", 0 },	/* 15 */
-	{ "MarkContentCorrupt", "b:oB", 0 },	/* 16 */
-	{ "GetInstalledDepots", "u:oupu", 0 },	/* 17 */
-	{ "GetAppInstallDir", "u:oupu", 0 },	/* 18 */
-	{ "BIsAppInstalled", "b:ou", 0 },	/* 19 */
-	{ "GetAppOwner", "l:o", 0 },	/* 20 */
-	{ "GetLaunchQueryParam", "S:op", 0 },	/* 21 */
-	{ "GetDlcDownloadProgress", "b:oupp", 0 },	/* 22 */
-	{ "GetAppBuildId", "i:o", 0 },	/* 23 */
-	{ "RequestAllProofOfPurchaseKeys", "v:o", 0 },	/* 24 */
-	{ "GetFileDetails", "l:op", 0 },	/* 25 */
-	{ "GetLaunchCommandLine", "i:opi", 0 },	/* 26 */
-	{ "BIsSubscribedFromFamilySharing", "b:o", 0 },	/* 27 */
-	{ "BIsTimedTrial", "b:opp", 0 },	/* 28 */
+	{ "BIsSubscribed", "SteamAPI_ISteamApps_BIsSubscribed", "b:o", 0, -1 },
+	{ "BIsLowViolence", "SteamAPI_ISteamApps_BIsLowViolence", "b:o", 0, -1 },
+	{ "BIsCybercafe", "SteamAPI_ISteamApps_BIsCybercafe", "b:o", 0, -1 },
+	{ "BIsVACBanned", "SteamAPI_ISteamApps_BIsVACBanned", "b:o", 0, -1 },
+	{ "GetCurrentGameLanguage", "SteamAPI_ISteamApps_GetCurrentGameLanguage", "S:o", 0, -1 },
+	{ "GetAvailableGameLanguages", "SteamAPI_ISteamApps_GetAvailableGameLanguages", "S:o", 0, -1 },
+	{ "BIsSubscribedApp", "SteamAPI_ISteamApps_BIsSubscribedApp", "b:ou", 0, -1 },
+	{ "BIsDlcInstalled", "SteamAPI_ISteamApps_BIsDlcInstalled", "b:ou", 0, -1 },
+	{ "GetEarliestPurchaseUnixTime", "SteamAPI_ISteamApps_GetEarliestPurchaseUnixTime", "u:ou", 0, -1 },
+	{ "BIsSubscribedFromFreeWeekend", "SteamAPI_ISteamApps_BIsSubscribedFromFreeWeekend", "b:o", 0, -1 },
+	{ "GetDLCCount", "SteamAPI_ISteamApps_GetDLCCount", "i:o", 0, -1 },
+	{ "BGetDLCDataByIndex", "SteamAPI_ISteamApps_BGetDLCDataByIndex", "b:oipppi", 0, -1 },
+	{ "InstallDLC", "SteamAPI_ISteamApps_InstallDLC", "v:ou", 0, -1 },
+	{ "UninstallDLC", "SteamAPI_ISteamApps_UninstallDLC", "v:ou", 0, -1 },
+	{ "RequestAppProofOfPurchaseKey", "SteamAPI_ISteamApps_RequestAppProofOfPurchaseKey", "v:ou", 0, -1 },
+	{ "GetCurrentBetaName", "SteamAPI_ISteamApps_GetCurrentBetaName", "b:opi", 0, -1 },
+	{ "MarkContentCorrupt", "SteamAPI_ISteamApps_MarkContentCorrupt", "b:oB", 0, -1 },
+	{ "GetInstalledDepots", "SteamAPI_ISteamApps_GetInstalledDepots", "u:oupu", 0, -1 },
+	{ "GetAppInstallDir", "SteamAPI_ISteamApps_GetAppInstallDir", "u:oupu", 0, -1 },
+	{ "BIsAppInstalled", "SteamAPI_ISteamApps_BIsAppInstalled", "b:ou", 0, -1 },
+	{ "GetAppOwner", "SteamAPI_ISteamApps_GetAppOwner", "l:o", 0, -1 },
+	{ "GetLaunchQueryParam", "SteamAPI_ISteamApps_GetLaunchQueryParam", "S:op", 0, -1 },
+	{ "GetDlcDownloadProgress", "SteamAPI_ISteamApps_GetDlcDownloadProgress", "b:oupp", 0, -1 },
+	{ "GetAppBuildId", "SteamAPI_ISteamApps_GetAppBuildId", "i:o", 0, -1 },
+	{ "RequestAllProofOfPurchaseKeys", "SteamAPI_ISteamApps_RequestAllProofOfPurchaseKeys", "v:o", 0, -1 },
+	{ "GetFileDetails", "SteamAPI_ISteamApps_GetFileDetails", "l:op", 0, -1 },
+	{ "GetLaunchCommandLine", "SteamAPI_ISteamApps_GetLaunchCommandLine", "i:opi", 0, -1 },
+	{ "BIsSubscribedFromFamilySharing", "SteamAPI_ISteamApps_BIsSubscribedFromFamilySharing", "b:o", 0, -1 },
+	{ "BIsTimedTrial", "SteamAPI_ISteamApps_BIsTimedTrial", "b:opp", 0, -1 },
 };
 static const struct smethod m_STEAMHTMLSURFACE_INTERFACE_VERSION_005[] = {
-	{ "Init", "b:o", 0 },	/* 0 */
-	{ "Shutdown", "b:o", 0 },	/* 1 */
-	{ "CreateBrowser", "l:opp", 0 },	/* 2 */
-	{ "RemoveBrowser", "v:ou", 0 },	/* 3 */
-	{ "LoadURL", "v:oupp", 0 },	/* 4 */
-	{ "SetSize", "v:ouuu", 0 },	/* 5 */
-	{ "StopLoad", "v:ou", 0 },	/* 6 */
-	{ "Reload", "v:ou", 0 },	/* 7 */
-	{ "GoBack", "v:ou", 0 },	/* 8 */
-	{ "GoForward", "v:ou", 0 },	/* 9 */
-	{ "AddHeader", "v:oupp", 0 },	/* 10 */
-	{ "ExecuteJavascript", "v:oup", 0 },	/* 11 */
-	{ "MouseUp", "v:oui", 0 },	/* 12 */
-	{ "MouseDown", "v:oui", 0 },	/* 13 */
-	{ "MouseDoubleClick", "v:oui", 0 },	/* 14 */
-	{ "MouseMove", "v:ouii", 0 },	/* 15 */
-	{ "MouseWheel", "v:oui", 0 },	/* 16 */
-	{ "KeyDown", "v:ouuiB", 0 },	/* 17 */
-	{ "KeyUp", "v:ouui", 0 },	/* 18 */
-	{ "KeyChar", "v:ouui", 0 },	/* 19 */
-	{ "SetHorizontalScroll", "v:ouu", 0 },	/* 20 */
-	{ "SetVerticalScroll", "v:ouu", 0 },	/* 21 */
-	{ "SetKeyFocus", "v:ouB", 0 },	/* 22 */
-	{ "ViewSource", "v:ou", 0 },	/* 23 */
-	{ "CopyToClipboard", "v:ou", 0 },	/* 24 */
-	{ "PasteFromClipboard", "v:ou", 0 },	/* 25 */
-	{ "Find", "v:oupBB", 0 },	/* 26 */
-	{ "StopFind", "v:ou", 0 },	/* 27 */
-	{ "GetLinkAtPosition", "v:ouii", 0 },	/* 28 */
-	{ "SetCookie", "v:oppppuBB", 0 },	/* 29 */
-	{ "SetPageScaleFactor", "v:oufii", 0 },	/* 30 */
-	{ "SetBackgroundMode", "v:ouB", 0 },	/* 31 */
-	{ "SetDPIScalingFactor", "v:ouf", 0 },	/* 32 */
-	{ "OpenDeveloperTools", "v:ou", 0 },	/* 33 */
-	{ "AllowStartRequest", "v:ouB", 0 },	/* 34 */
-	{ "JSDialogResponse", "v:ouB", 0 },	/* 35 */
-	{ "FileLoadDialogResponse", "v:ouQ", 0 },	/* 36 */
+	{ "Init", "SteamAPI_ISteamHTMLSurface_Init", "b:o", 0, -1 },
+	{ "Shutdown", "SteamAPI_ISteamHTMLSurface_Shutdown", "b:o", 0, -1 },
+	{ "CreateBrowser", "SteamAPI_ISteamHTMLSurface_CreateBrowser", "l:opp", 0, -1 },
+	{ "RemoveBrowser", "SteamAPI_ISteamHTMLSurface_RemoveBrowser", "v:ou", 0, -1 },
+	{ "LoadURL", "SteamAPI_ISteamHTMLSurface_LoadURL", "v:oupp", 0, -1 },
+	{ "SetSize", "SteamAPI_ISteamHTMLSurface_SetSize", "v:ouuu", 0, -1 },
+	{ "StopLoad", "SteamAPI_ISteamHTMLSurface_StopLoad", "v:ou", 0, -1 },
+	{ "Reload", "SteamAPI_ISteamHTMLSurface_Reload", "v:ou", 0, -1 },
+	{ "GoBack", "SteamAPI_ISteamHTMLSurface_GoBack", "v:ou", 0, -1 },
+	{ "GoForward", "SteamAPI_ISteamHTMLSurface_GoForward", "v:ou", 0, -1 },
+	{ "AddHeader", "SteamAPI_ISteamHTMLSurface_AddHeader", "v:oupp", 0, -1 },
+	{ "ExecuteJavascript", "SteamAPI_ISteamHTMLSurface_ExecuteJavascript", "v:oup", 0, -1 },
+	{ "MouseUp", "SteamAPI_ISteamHTMLSurface_MouseUp", "v:oui", 0, -1 },
+	{ "MouseDown", "SteamAPI_ISteamHTMLSurface_MouseDown", "v:oui", 0, -1 },
+	{ "MouseDoubleClick", "SteamAPI_ISteamHTMLSurface_MouseDoubleClick", "v:oui", 0, -1 },
+	{ "MouseMove", "SteamAPI_ISteamHTMLSurface_MouseMove", "v:ouii", 0, -1 },
+	{ "MouseWheel", "SteamAPI_ISteamHTMLSurface_MouseWheel", "v:oui", 0, -1 },
+	{ "KeyDown", "SteamAPI_ISteamHTMLSurface_KeyDown", "v:ouuiB", 0, -1 },
+	{ "KeyUp", "SteamAPI_ISteamHTMLSurface_KeyUp", "v:ouui", 0, -1 },
+	{ "KeyChar", "SteamAPI_ISteamHTMLSurface_KeyChar", "v:ouui", 0, -1 },
+	{ "SetHorizontalScroll", "SteamAPI_ISteamHTMLSurface_SetHorizontalScroll", "v:ouu", 0, -1 },
+	{ "SetVerticalScroll", "SteamAPI_ISteamHTMLSurface_SetVerticalScroll", "v:ouu", 0, -1 },
+	{ "SetKeyFocus", "SteamAPI_ISteamHTMLSurface_SetKeyFocus", "v:ouB", 0, -1 },
+	{ "ViewSource", "SteamAPI_ISteamHTMLSurface_ViewSource", "v:ou", 0, -1 },
+	{ "CopyToClipboard", "SteamAPI_ISteamHTMLSurface_CopyToClipboard", "v:ou", 0, -1 },
+	{ "PasteFromClipboard", "SteamAPI_ISteamHTMLSurface_PasteFromClipboard", "v:ou", 0, -1 },
+	{ "Find", "SteamAPI_ISteamHTMLSurface_Find", "v:oupBB", 0, -1 },
+	{ "StopFind", "SteamAPI_ISteamHTMLSurface_StopFind", "v:ou", 0, -1 },
+	{ "GetLinkAtPosition", "SteamAPI_ISteamHTMLSurface_GetLinkAtPosition", "v:ouii", 0, -1 },
+	{ "SetCookie", "SteamAPI_ISteamHTMLSurface_SetCookie", "v:oppppuBB", 0, -1 },
+	{ "SetPageScaleFactor", "SteamAPI_ISteamHTMLSurface_SetPageScaleFactor", "v:oufii", 0, -1 },
+	{ "SetBackgroundMode", "SteamAPI_ISteamHTMLSurface_SetBackgroundMode", "v:ouB", 0, -1 },
+	{ "SetDPIScalingFactor", "SteamAPI_ISteamHTMLSurface_SetDPIScalingFactor", "v:ouf", 0, -1 },
+	{ "OpenDeveloperTools", "SteamAPI_ISteamHTMLSurface_OpenDeveloperTools", "v:ou", 0, -1 },
+	{ "AllowStartRequest", "SteamAPI_ISteamHTMLSurface_AllowStartRequest", "v:ouB", 0, -1 },
+	{ "JSDialogResponse", "SteamAPI_ISteamHTMLSurface_JSDialogResponse", "v:ouB", 0, -1 },
+	{ "FileLoadDialogResponse", "SteamAPI_ISteamHTMLSurface_FileLoadDialogResponse", "v:ouQ", 0, -1 },
 };
 static const struct smethod m_STEAMHTTP_INTERFACE_VERSION003[] = {
-	{ "CreateHTTPRequest", "u:oip", 0 },	/* 0 */
-	{ "SetHTTPRequestContextValue", "b:oul", 0 },	/* 1 */
-	{ "SetHTTPRequestNetworkActivityTimeout", "b:ouu", 0 },	/* 2 */
-	{ "SetHTTPRequestHeaderValue", "b:oupp", 0 },	/* 3 */
-	{ "SetHTTPRequestGetOrPostParameter", "b:oupp", 0 },	/* 4 */
-	{ "SendHTTPRequest", "b:oup", 0 },	/* 5 */
-	{ "SendHTTPRequestAndStreamResponse", "b:oup", 0 },	/* 6 */
-	{ "DeferHTTPRequest", "b:ou", 0 },	/* 7 */
-	{ "PrioritizeHTTPRequest", "b:ou", 0 },	/* 8 */
-	{ "GetHTTPResponseHeaderSize", "b:oupp", 0 },	/* 9 */
-	{ "GetHTTPResponseHeaderValue", "b:ouppu", 0 },	/* 10 */
-	{ "GetHTTPResponseBodySize", "b:oup", 0 },	/* 11 */
-	{ "GetHTTPResponseBodyData", "b:oupu", 0 },	/* 12 */
-	{ "GetHTTPStreamingResponseBodyData", "b:ouupu", 0 },	/* 13 */
-	{ "ReleaseHTTPRequest", "b:ou", 0 },	/* 14 */
-	{ "GetHTTPDownloadProgressPct", "b:oup", 0 },	/* 15 */
-	{ "SetHTTPRequestRawPostBody", "b:ouppu", 0 },	/* 16 */
-	{ "CreateCookieContainer", "u:oB", 0 },	/* 17 */
-	{ "ReleaseCookieContainer", "b:ou", 0 },	/* 18 */
-	{ "SetCookie", "b:ouppp", 0 },	/* 19 */
-	{ "SetHTTPRequestCookieContainer", "b:ouu", 0 },	/* 20 */
-	{ "SetHTTPRequestUserAgentInfo", "b:oup", 0 },	/* 21 */
-	{ "SetHTTPRequestRequiresVerifiedCertificate", "b:ouB", 0 },	/* 22 */
-	{ "SetHTTPRequestAbsoluteTimeoutMS", "b:ouu", 0 },	/* 23 */
-	{ "GetHTTPRequestWasTimedOut", "b:oup", 0 },	/* 24 */
+	{ "CreateHTTPRequest", "SteamAPI_ISteamHTTP_CreateHTTPRequest", "u:oip", 0, -1 },
+	{ "SetHTTPRequestContextValue", "SteamAPI_ISteamHTTP_SetHTTPRequestContextValue", "b:oul", 0, -1 },
+	{ "SetHTTPRequestNetworkActivityTimeout", "SteamAPI_ISteamHTTP_SetHTTPRequestNetworkActivityTimeout", "b:ouu", 0, -1 },
+	{ "SetHTTPRequestHeaderValue", "SteamAPI_ISteamHTTP_SetHTTPRequestHeaderValue", "b:oupp", 0, -1 },
+	{ "SetHTTPRequestGetOrPostParameter", "SteamAPI_ISteamHTTP_SetHTTPRequestGetOrPostParameter", "b:oupp", 0, -1 },
+	{ "SendHTTPRequest", "SteamAPI_ISteamHTTP_SendHTTPRequest", "b:oup", 0, -1 },
+	{ "SendHTTPRequestAndStreamResponse", "SteamAPI_ISteamHTTP_SendHTTPRequestAndStreamResponse", "b:oup", 0, -1 },
+	{ "DeferHTTPRequest", "SteamAPI_ISteamHTTP_DeferHTTPRequest", "b:ou", 0, -1 },
+	{ "PrioritizeHTTPRequest", "SteamAPI_ISteamHTTP_PrioritizeHTTPRequest", "b:ou", 0, -1 },
+	{ "GetHTTPResponseHeaderSize", "SteamAPI_ISteamHTTP_GetHTTPResponseHeaderSize", "b:oupp", 0, -1 },
+	{ "GetHTTPResponseHeaderValue", "SteamAPI_ISteamHTTP_GetHTTPResponseHeaderValue", "b:ouppu", 0, -1 },
+	{ "GetHTTPResponseBodySize", "SteamAPI_ISteamHTTP_GetHTTPResponseBodySize", "b:oup", 0, -1 },
+	{ "GetHTTPResponseBodyData", "SteamAPI_ISteamHTTP_GetHTTPResponseBodyData", "b:oupu", 0, -1 },
+	{ "GetHTTPStreamingResponseBodyData", "SteamAPI_ISteamHTTP_GetHTTPStreamingResponseBodyData", "b:ouupu", 0, -1 },
+	{ "ReleaseHTTPRequest", "SteamAPI_ISteamHTTP_ReleaseHTTPRequest", "b:ou", 0, -1 },
+	{ "GetHTTPDownloadProgressPct", "SteamAPI_ISteamHTTP_GetHTTPDownloadProgressPct", "b:oup", 0, -1 },
+	{ "SetHTTPRequestRawPostBody", "SteamAPI_ISteamHTTP_SetHTTPRequestRawPostBody", "b:ouppu", 0, -1 },
+	{ "CreateCookieContainer", "SteamAPI_ISteamHTTP_CreateCookieContainer", "u:oB", 0, -1 },
+	{ "ReleaseCookieContainer", "SteamAPI_ISteamHTTP_ReleaseCookieContainer", "b:ou", 0, -1 },
+	{ "SetCookie", "SteamAPI_ISteamHTTP_SetCookie", "b:ouppp", 0, -1 },
+	{ "SetHTTPRequestCookieContainer", "SteamAPI_ISteamHTTP_SetHTTPRequestCookieContainer", "b:ouu", 0, -1 },
+	{ "SetHTTPRequestUserAgentInfo", "SteamAPI_ISteamHTTP_SetHTTPRequestUserAgentInfo", "b:oup", 0, -1 },
+	{ "SetHTTPRequestRequiresVerifiedCertificate", "SteamAPI_ISteamHTTP_SetHTTPRequestRequiresVerifiedCertificate", "b:ouB", 0, -1 },
+	{ "SetHTTPRequestAbsoluteTimeoutMS", "SteamAPI_ISteamHTTP_SetHTTPRequestAbsoluteTimeoutMS", "b:ouu", 0, -1 },
+	{ "GetHTTPRequestWasTimedOut", "SteamAPI_ISteamHTTP_GetHTTPRequestWasTimedOut", "b:oup", 0, -1 },
 };
 static const struct smethod m_STEAMINVENTORY_INTERFACE_V003[] = {
-	{ "GetResultStatus", "i:oi", 0 },	/* 0 */
-	{ "GetResultItems", "b:oipp", 0 },	/* 1 */
-	{ "GetResultItemProperty", "b:oiuppp", 0 },	/* 2 */
-	{ "GetResultTimestamp", "u:oi", 0 },	/* 3 */
-	{ "CheckResultSteamID", "b:oil", 0 },	/* 4 */
-	{ "DestroyResult", "v:oi", 0 },	/* 5 */
-	{ "GetAllItems", "b:op", 0 },	/* 6 */
-	{ "GetItemsByID", "b:oppu", 0 },	/* 7 */
-	{ "SerializeResult", "b:oipp", 0 },	/* 8 */
-	{ "DeserializeResult", "b:oppuB", 0 },	/* 9 */
-	{ "GenerateItems", "b:opppu", 0 },	/* 10 */
-	{ "GrantPromoItems", "b:op", 0 },	/* 11 */
-	{ "AddPromoItem", "b:opi", 0 },	/* 12 */
-	{ "AddPromoItems", "b:oppu", 0 },	/* 13 */
-	{ "ConsumeItem", "b:oplu", 0 },	/* 14 */
-	{ "ExchangeItems", "b:opppuppu", 0 },	/* 15 */
-	{ "TransferItemQuantity", "b:oplul", 0 },	/* 16 */
-	{ "SendItemDropHeartbeat", "v:o", 0 },	/* 17 */
-	{ "TriggerItemDrop", "b:opi", 0 },	/* 18 */
-	{ "TradeItems", "b:oplppuppu", 0 },	/* 19 */
-	{ "LoadItemDefinitions", "b:o", 0 },	/* 20 */
-	{ "GetItemDefinitionIDs", "b:opp", 0 },	/* 21 */
-	{ "GetItemDefinitionProperty", "b:oippp", 0 },	/* 22 */
-	{ "RequestEligiblePromoItemDefinitionsIDs", "l:ol", 0 },	/* 23 */
-	{ "GetEligiblePromoItemDefinitionIDs", "b:olpp", 0 },	/* 24 */
-	{ "StartPurchase", "l:oppu", 0 },	/* 25 */
-	{ "RequestPrices", "l:o", 0 },	/* 26 */
-	{ "GetNumItemsWithPrices", "u:o", 0 },	/* 27 */
-	{ "GetItemsWithPrices", "b:opppu", 0 },	/* 28 */
-	{ "GetItemPrice", "b:oipp", 0 },	/* 29 */
-	{ "StartUpdateProperties", "l:o", 0 },	/* 30 */
-	{ "RemoveProperty", "b:ollp", 0 },	/* 31 */
-	{ "SetProperty", "b:ollpp", 0 },	/* 32 */
-	{ "SetProperty", "b:ollpB", 0 },	/* 33 */
-	{ "SetProperty", "b:ollpl", 0 },	/* 34 */
-	{ "SetProperty", "b:ollpf", 0 },	/* 35 */
-	{ "SubmitUpdateProperties", "b:olp", 0 },	/* 36 */
-	{ "InspectItem", "b:opp", 0 },	/* 37 */
+	{ "GetResultStatus", "SteamAPI_ISteamInventory_GetResultStatus", "i:oi", 0, -1 },
+	{ "GetResultItems", "SteamAPI_ISteamInventory_GetResultItems", "b:oipp", 0, -1 },
+	{ "GetResultItemProperty", "SteamAPI_ISteamInventory_GetResultItemProperty", "b:oiuppp", 0, -1 },
+	{ "GetResultTimestamp", "SteamAPI_ISteamInventory_GetResultTimestamp", "u:oi", 0, -1 },
+	{ "CheckResultSteamID", "SteamAPI_ISteamInventory_CheckResultSteamID", "b:oil", 0, -1 },
+	{ "DestroyResult", "SteamAPI_ISteamInventory_DestroyResult", "v:oi", 0, -1 },
+	{ "GetAllItems", "SteamAPI_ISteamInventory_GetAllItems", "b:op", 0, -1 },
+	{ "GetItemsByID", "SteamAPI_ISteamInventory_GetItemsByID", "b:oppu", 0, -1 },
+	{ "SerializeResult", "SteamAPI_ISteamInventory_SerializeResult", "b:oipp", 0, -1 },
+	{ "DeserializeResult", "SteamAPI_ISteamInventory_DeserializeResult", "b:oppuB", 0, -1 },
+	{ "GenerateItems", "SteamAPI_ISteamInventory_GenerateItems", "b:opppu", 0, -1 },
+	{ "GrantPromoItems", "SteamAPI_ISteamInventory_GrantPromoItems", "b:op", 0, -1 },
+	{ "AddPromoItem", "SteamAPI_ISteamInventory_AddPromoItem", "b:opi", 0, -1 },
+	{ "AddPromoItems", "SteamAPI_ISteamInventory_AddPromoItems", "b:oppu", 0, -1 },
+	{ "ConsumeItem", "SteamAPI_ISteamInventory_ConsumeItem", "b:oplu", 0, -1 },
+	{ "ExchangeItems", "SteamAPI_ISteamInventory_ExchangeItems", "b:opppuppu", 0, -1 },
+	{ "TransferItemQuantity", "SteamAPI_ISteamInventory_TransferItemQuantity", "b:oplul", 0, -1 },
+	{ "SendItemDropHeartbeat", "SteamAPI_ISteamInventory_SendItemDropHeartbeat", "v:o", 0, -1 },
+	{ "TriggerItemDrop", "SteamAPI_ISteamInventory_TriggerItemDrop", "b:opi", 0, -1 },
+	{ "TradeItems", "SteamAPI_ISteamInventory_TradeItems", "b:oplppuppu", 0, -1 },
+	{ "LoadItemDefinitions", "SteamAPI_ISteamInventory_LoadItemDefinitions", "b:o", 0, -1 },
+	{ "GetItemDefinitionIDs", "SteamAPI_ISteamInventory_GetItemDefinitionIDs", "b:opp", 0, -1 },
+	{ "GetItemDefinitionProperty", "SteamAPI_ISteamInventory_GetItemDefinitionProperty", "b:oippp", 0, -1 },
+	{ "RequestEligiblePromoItemDefinitionsIDs", "SteamAPI_ISteamInventory_RequestEligiblePromoItemDefinitionsIDs", "l:ol", 0, -1 },
+	{ "GetEligiblePromoItemDefinitionIDs", "SteamAPI_ISteamInventory_GetEligiblePromoItemDefinitionIDs", "b:olpp", 0, -1 },
+	{ "StartPurchase", "SteamAPI_ISteamInventory_StartPurchase", "l:oppu", 0, -1 },
+	{ "RequestPrices", "SteamAPI_ISteamInventory_RequestPrices", "l:o", 0, -1 },
+	{ "GetNumItemsWithPrices", "SteamAPI_ISteamInventory_GetNumItemsWithPrices", "u:o", 0, -1 },
+	{ "GetItemsWithPrices", "SteamAPI_ISteamInventory_GetItemsWithPrices", "b:opppu", 0, -1 },
+	{ "GetItemPrice", "SteamAPI_ISteamInventory_GetItemPrice", "b:oipp", 0, -1 },
+	{ "StartUpdateProperties", "SteamAPI_ISteamInventory_StartUpdateProperties", "l:o", 0, -1 },
+	{ "RemoveProperty", "SteamAPI_ISteamInventory_RemoveProperty", "b:ollp", 0, -1 },
+	{ "SetProperty", "SteamAPI_ISteamInventory_SetPropertyString", "b:ollpp", 0, -1 },
+	{ "SetProperty", "SteamAPI_ISteamInventory_SetPropertyBool", "b:ollpB", 0, -1 },
+	{ "SetProperty", "SteamAPI_ISteamInventory_SetPropertyInt64", "b:ollpl", 0, -1 },
+	{ "SetProperty", "SteamAPI_ISteamInventory_SetPropertyFloat", "b:ollpf", 0, -1 },
+	{ "SubmitUpdateProperties", "SteamAPI_ISteamInventory_SubmitUpdateProperties", "b:olp", 0, -1 },
+	{ "InspectItem", "SteamAPI_ISteamInventory_InspectItem", "b:opp", 0, -1 },
 };
 static const struct smethod m_STEAMMUSICREMOTE_INTERFACE_VERSION001[] = {
-	{ "RegisterSteamMusicRemote", "b:op", 0 },	/* 0 */
-	{ "DeregisterSteamMusicRemote", "b:o", 0 },	/* 1 */
-	{ "BIsCurrentMusicRemote", "b:o", 0 },	/* 2 */
-	{ "BActivationSuccess", "b:oB", 0 },	/* 3 */
-	{ "SetDisplayName", "b:op", 0 },	/* 4 */
-	{ "SetPNGIcon_64x64", "b:opu", 0 },	/* 5 */
-	{ "EnablePlayPrevious", "b:oB", 0 },	/* 6 */
-	{ "EnablePlayNext", "b:oB", 0 },	/* 7 */
-	{ "EnableShuffled", "b:oB", 0 },	/* 8 */
-	{ "EnableLooped", "b:oB", 0 },	/* 9 */
-	{ "EnableQueue", "b:oB", 0 },	/* 10 */
-	{ "EnablePlaylists", "b:oB", 0 },	/* 11 */
-	{ "UpdatePlaybackStatus", "b:oi", 0 },	/* 12 */
-	{ "UpdateShuffled", "b:oB", 0 },	/* 13 */
-	{ "UpdateLooped", "b:oB", 0 },	/* 14 */
-	{ "UpdateVolume", "b:of", 0 },	/* 15 */
-	{ "CurrentEntryWillChange", "b:o", 0 },	/* 16 */
-	{ "CurrentEntryIsAvailable", "b:oB", 0 },	/* 17 */
-	{ "UpdateCurrentEntryText", "b:op", 0 },	/* 18 */
-	{ "UpdateCurrentEntryElapsedSeconds", "b:oi", 0 },	/* 19 */
-	{ "UpdateCurrentEntryCoverArt", "b:opu", 0 },	/* 20 */
-	{ "CurrentEntryDidChange", "b:o", 0 },	/* 21 */
-	{ "QueueWillChange", "b:o", 0 },	/* 22 */
-	{ "ResetQueueEntries", "b:o", 0 },	/* 23 */
-	{ "SetQueueEntry", "b:oiip", 0 },	/* 24 */
-	{ "SetCurrentQueueEntry", "b:oi", 0 },	/* 25 */
-	{ "QueueDidChange", "b:o", 0 },	/* 26 */
-	{ "PlaylistWillChange", "b:o", 0 },	/* 27 */
-	{ "ResetPlaylistEntries", "b:o", 0 },	/* 28 */
-	{ "SetPlaylistEntry", "b:oiip", 0 },	/* 29 */
-	{ "SetCurrentPlaylistEntry", "b:oi", 0 },	/* 30 */
-	{ "PlaylistDidChange", "b:o", 0 },	/* 31 */
+	{ "RegisterSteamMusicRemote", "SteamAPI_ISteamMusicRemote_RegisterSteamMusicRemote", "b:op", 0, -1 },
+	{ "DeregisterSteamMusicRemote", "SteamAPI_ISteamMusicRemote_DeregisterSteamMusicRemote", "b:o", 0, -1 },
+	{ "BIsCurrentMusicRemote", "SteamAPI_ISteamMusicRemote_BIsCurrentMusicRemote", "b:o", 0, -1 },
+	{ "BActivationSuccess", "SteamAPI_ISteamMusicRemote_BActivationSuccess", "b:oB", 0, -1 },
+	{ "SetDisplayName", "SteamAPI_ISteamMusicRemote_SetDisplayName", "b:op", 0, -1 },
+	{ "SetPNGIcon_64x64", "SteamAPI_ISteamMusicRemote_SetPNGIcon_64x64", "b:opu", 0, -1 },
+	{ "EnablePlayPrevious", "SteamAPI_ISteamMusicRemote_EnablePlayPrevious", "b:oB", 0, -1 },
+	{ "EnablePlayNext", "SteamAPI_ISteamMusicRemote_EnablePlayNext", "b:oB", 0, -1 },
+	{ "EnableShuffled", "SteamAPI_ISteamMusicRemote_EnableShuffled", "b:oB", 0, -1 },
+	{ "EnableLooped", "SteamAPI_ISteamMusicRemote_EnableLooped", "b:oB", 0, -1 },
+	{ "EnableQueue", "SteamAPI_ISteamMusicRemote_EnableQueue", "b:oB", 0, -1 },
+	{ "EnablePlaylists", "SteamAPI_ISteamMusicRemote_EnablePlaylists", "b:oB", 0, -1 },
+	{ "UpdatePlaybackStatus", "SteamAPI_ISteamMusicRemote_UpdatePlaybackStatus", "b:oi", 0, -1 },
+	{ "UpdateShuffled", "SteamAPI_ISteamMusicRemote_UpdateShuffled", "b:oB", 0, -1 },
+	{ "UpdateLooped", "SteamAPI_ISteamMusicRemote_UpdateLooped", "b:oB", 0, -1 },
+	{ "UpdateVolume", "SteamAPI_ISteamMusicRemote_UpdateVolume", "b:of", 0, -1 },
+	{ "CurrentEntryWillChange", "SteamAPI_ISteamMusicRemote_CurrentEntryWillChange", "b:o", 0, -1 },
+	{ "CurrentEntryIsAvailable", "SteamAPI_ISteamMusicRemote_CurrentEntryIsAvailable", "b:oB", 0, -1 },
+	{ "UpdateCurrentEntryText", "SteamAPI_ISteamMusicRemote_UpdateCurrentEntryText", "b:op", 0, -1 },
+	{ "UpdateCurrentEntryElapsedSeconds", "SteamAPI_ISteamMusicRemote_UpdateCurrentEntryElapsedSeconds", "b:oi", 0, -1 },
+	{ "UpdateCurrentEntryCoverArt", "SteamAPI_ISteamMusicRemote_UpdateCurrentEntryCoverArt", "b:opu", 0, -1 },
+	{ "CurrentEntryDidChange", "SteamAPI_ISteamMusicRemote_CurrentEntryDidChange", "b:o", 0, -1 },
+	{ "QueueWillChange", "SteamAPI_ISteamMusicRemote_QueueWillChange", "b:o", 0, -1 },
+	{ "ResetQueueEntries", "SteamAPI_ISteamMusicRemote_ResetQueueEntries", "b:o", 0, -1 },
+	{ "SetQueueEntry", "SteamAPI_ISteamMusicRemote_SetQueueEntry", "b:oiip", 0, -1 },
+	{ "SetCurrentQueueEntry", "SteamAPI_ISteamMusicRemote_SetCurrentQueueEntry", "b:oi", 0, -1 },
+	{ "QueueDidChange", "SteamAPI_ISteamMusicRemote_QueueDidChange", "b:o", 0, -1 },
+	{ "PlaylistWillChange", "SteamAPI_ISteamMusicRemote_PlaylistWillChange", "b:o", 0, -1 },
+	{ "ResetPlaylistEntries", "SteamAPI_ISteamMusicRemote_ResetPlaylistEntries", "b:o", 0, -1 },
+	{ "SetPlaylistEntry", "SteamAPI_ISteamMusicRemote_SetPlaylistEntry", "b:oiip", 0, -1 },
+	{ "SetCurrentPlaylistEntry", "SteamAPI_ISteamMusicRemote_SetCurrentPlaylistEntry", "b:oi", 0, -1 },
+	{ "PlaylistDidChange", "SteamAPI_ISteamMusicRemote_PlaylistDidChange", "b:o", 0, -1 },
 };
 static const struct smethod m_STEAMMUSIC_INTERFACE_VERSION001[] = {
-	{ "BIsEnabled", "b:o", 0 },	/* 0 */
-	{ "BIsPlaying", "b:o", 0 },	/* 1 */
-	{ "GetPlaybackStatus", "i:o", 0 },	/* 2 */
-	{ "Play", "v:o", 0 },	/* 3 */
-	{ "Pause", "v:o", 0 },	/* 4 */
-	{ "PlayPrevious", "v:o", 0 },	/* 5 */
-	{ "PlayNext", "v:o", 0 },	/* 6 */
-	{ "SetVolume", "v:of", 0 },	/* 7 */
-	{ "GetVolume", "f:o", 0 },	/* 8 */
+	{ "BIsEnabled", "SteamAPI_ISteamMusic_BIsEnabled", "b:o", 0, -1 },
+	{ "BIsPlaying", "SteamAPI_ISteamMusic_BIsPlaying", "b:o", 0, -1 },
+	{ "GetPlaybackStatus", "SteamAPI_ISteamMusic_GetPlaybackStatus", "i:o", 0, -1 },
+	{ "Play", "SteamAPI_ISteamMusic_Play", "v:o", 0, -1 },
+	{ "Pause", "SteamAPI_ISteamMusic_Pause", "v:o", 0, -1 },
+	{ "PlayPrevious", "SteamAPI_ISteamMusic_PlayPrevious", "v:o", 0, -1 },
+	{ "PlayNext", "SteamAPI_ISteamMusic_PlayNext", "v:o", 0, -1 },
+	{ "SetVolume", "SteamAPI_ISteamMusic_SetVolume", "v:of", 0, -1 },
+	{ "GetVolume", "SteamAPI_ISteamMusic_GetVolume", "f:o", 0, -1 },
 };
 static const struct smethod m_STEAMPARENTALSETTINGS_INTERFACE_VERSION001[] = {
-	{ "BIsParentalLockEnabled", "b:o", 0 },	/* 0 */
-	{ "BIsParentalLockLocked", "b:o", 0 },	/* 1 */
-	{ "BIsAppBlocked", "b:ou", 0 },	/* 2 */
-	{ "BIsAppInBlockList", "b:ou", 0 },	/* 3 */
-	{ "BIsFeatureBlocked", "b:oi", 0 },	/* 4 */
-	{ "BIsFeatureInBlockList", "b:oi", 0 },	/* 5 */
+	{ "BIsParentalLockEnabled", "SteamAPI_ISteamParentalSettings_BIsParentalLockEnabled", "b:o", 0, -1 },
+	{ "BIsParentalLockLocked", "SteamAPI_ISteamParentalSettings_BIsParentalLockLocked", "b:o", 0, -1 },
+	{ "BIsAppBlocked", "SteamAPI_ISteamParentalSettings_BIsAppBlocked", "b:ou", 0, -1 },
+	{ "BIsAppInBlockList", "SteamAPI_ISteamParentalSettings_BIsAppInBlockList", "b:ou", 0, -1 },
+	{ "BIsFeatureBlocked", "SteamAPI_ISteamParentalSettings_BIsFeatureBlocked", "b:oi", 0, -1 },
+	{ "BIsFeatureInBlockList", "SteamAPI_ISteamParentalSettings_BIsFeatureInBlockList", "b:oi", 0, -1 },
 };
 static const struct smethod m_STEAMREMOTEPLAY_INTERFACE_VERSION001[] = {
-	{ "GetSessionCount", "u:o", 0 },	/* 0 */
-	{ "GetSessionID", "u:oi", 0 },	/* 1 */
-	{ "GetSessionSteamID", "l:ou", 0 },	/* 2 */
-	{ "GetSessionClientName", "S:ou", 0 },	/* 3 */
-	{ "GetSessionClientFormFactor", "i:ou", 0 },	/* 4 */
-	{ "BGetSessionClientResolution", "b:oupp", 0 },	/* 5 */
-	{ "BSendRemotePlayTogetherInvite", "b:ol", 0 },	/* 6 */
+	{ "GetSessionCount", "SteamAPI_ISteamRemotePlay_GetSessionCount", "u:o", 0, -1 },
+	{ "GetSessionID", "SteamAPI_ISteamRemotePlay_GetSessionID", "u:oi", 0, -1 },
+	{ "GetSessionSteamID", "SteamAPI_ISteamRemotePlay_GetSessionSteamID", "l:ou", 0, -1 },
+	{ "GetSessionClientName", "SteamAPI_ISteamRemotePlay_GetSessionClientName", "S:ou", 0, -1 },
+	{ "GetSessionClientFormFactor", "SteamAPI_ISteamRemotePlay_GetSessionClientFormFactor", "i:ou", 0, -1 },
+	{ "BGetSessionClientResolution", "SteamAPI_ISteamRemotePlay_BGetSessionClientResolution", "b:oupp", 0, -1 },
+	{ "BSendRemotePlayTogetherInvite", "SteamAPI_ISteamRemotePlay_BSendRemotePlayTogetherInvite", "b:ol", 0, -1 },
 };
 static const struct smethod m_STEAMREMOTESTORAGE_INTERFACE_VERSION016[] = {
-	{ "FileWrite", "b:oppi", 0 },	/* 0 */
-	{ "FileRead", "i:oppi", 0 },	/* 1 */
-	{ "FileWriteAsync", "l:oppu", 0 },	/* 2 */
-	{ "FileReadAsync", "l:opuu", 0 },	/* 3 */
-	{ "FileReadAsyncComplete", "b:olpu", 0 },	/* 4 */
-	{ "FileForget", "b:op", 0 },	/* 5 */
-	{ "FileDelete", "b:op", 0 },	/* 6 */
-	{ "FileShare", "l:op", 0 },	/* 7 */
-	{ "SetSyncPlatforms", "b:opi", 0 },	/* 8 */
-	{ "FileWriteStreamOpen", "l:op", 0 },	/* 9 */
-	{ "FileWriteStreamWriteChunk", "b:olpi", 0 },	/* 10 */
-	{ "FileWriteStreamClose", "b:ol", 0 },	/* 11 */
-	{ "FileWriteStreamCancel", "b:ol", 0 },	/* 12 */
-	{ "FileExists", "b:op", 0 },	/* 13 */
-	{ "FilePersisted", "b:op", 0 },	/* 14 */
-	{ "GetFileSize", "i:op", 0 },	/* 15 */
-	{ "GetFileTimestamp", "l:op", 0 },	/* 16 */
-	{ "GetSyncPlatforms", "i:op", 0 },	/* 17 */
-	{ "GetFileCount", "i:o", 0 },	/* 18 */
-	{ "GetFileNameAndSize", "S:oip", 0 },	/* 19 */
-	{ "GetQuota", "b:opp", 0 },	/* 20 */
-	{ "IsCloudEnabledForAccount", "b:o", 0 },	/* 21 */
-	{ "IsCloudEnabledForApp", "b:o", 0 },	/* 22 */
-	{ "SetCloudEnabledForApp", "v:oB", 0 },	/* 23 */
-	{ "UGCDownload", "l:olu", 0 },	/* 24 */
-	{ "GetUGCDownloadProgress", "b:olpp", 0 },	/* 25 */
-	{ "GetUGCDetails", "b:olpQpp", 0 },	/* 26 */
-	{ "UGCRead", "i:olpiui", 0 },	/* 27 */
-	{ "GetCachedUGCCount", "i:o", 0 },	/* 28 */
-	{ "GetCachedUGCHandle", "l:oi", 0 },	/* 29 */
-	{ "PublishWorkshopFile", "l:oppuppiXi", 0 },	/* 30 */
-	{ "CreatePublishedFileUpdateRequest", "l:ol", 0 },	/* 31 */
-	{ "UpdatePublishedFileFile", "b:olp", 0 },	/* 32 */
-	{ "UpdatePublishedFilePreviewFile", "b:olp", 0 },	/* 33 */
-	{ "UpdatePublishedFileTitle", "b:olp", 0 },	/* 34 */
-	{ "UpdatePublishedFileDescription", "b:olp", 0 },	/* 35 */
-	{ "UpdatePublishedFileVisibility", "b:oli", 0 },	/* 36 */
-	{ "UpdatePublishedFileTags", "b:olX", 0 },	/* 37 */
-	{ "CommitPublishedFileUpdate", "l:ol", 0 },	/* 38 */
-	{ "GetPublishedFileDetails", "l:olu", 0 },	/* 39 */
-	{ "DeletePublishedFile", "l:ol", 0 },	/* 40 */
-	{ "EnumerateUserPublishedFiles", "l:ou", 0 },	/* 41 */
-	{ "SubscribePublishedFile", "l:ol", 0 },	/* 42 */
-	{ "EnumerateUserSubscribedFiles", "l:ou", 0 },	/* 43 */
-	{ "UnsubscribePublishedFile", "l:ol", 0 },	/* 44 */
-	{ "UpdatePublishedFileSetChangeDescription", "b:olp", 0 },	/* 45 */
-	{ "GetPublishedItemVoteDetails", "l:ol", 0 },	/* 46 */
-	{ "UpdateUserPublishedItemVote", "l:olB", 0 },	/* 47 */
-	{ "GetUserPublishedItemVoteDetails", "l:ol", 0 },	/* 48 */
-	{ "EnumerateUserSharedWorkshopFiles", "l:oluXX", 0 },	/* 49 */
-	{ "PublishVideo", "l:oipppuppiX", 0 },	/* 50 */
-	{ "SetUserPublishedFileAction", "l:oli", 0 },	/* 51 */
-	{ "EnumeratePublishedFilesByUserAction", "l:oiu", 0 },	/* 52 */
-	{ "EnumeratePublishedWorkshopFiles", "l:oiuuuXX", 0 },	/* 53 */
-	{ "UGCDownloadToLocation", "l:olpu", 0 },	/* 54 */
-	{ "GetLocalFileChangeCount", "i:o", 0 },	/* 55 */
-	{ "GetLocalFileChange", "S:oipp", 0 },	/* 56 */
-	{ "BeginFileWriteBatch", "b:o", 0 },	/* 57 */
-	{ "EndFileWriteBatch", "b:o", 0 },	/* 58 */
+	{ "FileWrite", "SteamAPI_ISteamRemoteStorage_FileWrite", "b:oppi", 0, -1 },
+	{ "FileRead", "SteamAPI_ISteamRemoteStorage_FileRead", "i:oppi", 0, -1 },
+	{ "FileWriteAsync", "SteamAPI_ISteamRemoteStorage_FileWriteAsync", "l:oppu", 0, -1 },
+	{ "FileReadAsync", "SteamAPI_ISteamRemoteStorage_FileReadAsync", "l:opuu", 0, -1 },
+	{ "FileReadAsyncComplete", "SteamAPI_ISteamRemoteStorage_FileReadAsyncComplete", "b:olpu", 0, -1 },
+	{ "FileForget", "SteamAPI_ISteamRemoteStorage_FileForget", "b:op", 0, -1 },
+	{ "FileDelete", "SteamAPI_ISteamRemoteStorage_FileDelete", "b:op", 0, -1 },
+	{ "FileShare", "SteamAPI_ISteamRemoteStorage_FileShare", "l:op", 0, -1 },
+	{ "SetSyncPlatforms", "SteamAPI_ISteamRemoteStorage_SetSyncPlatforms", "b:opi", 0, -1 },
+	{ "FileWriteStreamOpen", "SteamAPI_ISteamRemoteStorage_FileWriteStreamOpen", "l:op", 0, -1 },
+	{ "FileWriteStreamWriteChunk", "SteamAPI_ISteamRemoteStorage_FileWriteStreamWriteChunk", "b:olpi", 0, -1 },
+	{ "FileWriteStreamClose", "SteamAPI_ISteamRemoteStorage_FileWriteStreamClose", "b:ol", 0, -1 },
+	{ "FileWriteStreamCancel", "SteamAPI_ISteamRemoteStorage_FileWriteStreamCancel", "b:ol", 0, -1 },
+	{ "FileExists", "SteamAPI_ISteamRemoteStorage_FileExists", "b:op", 0, -1 },
+	{ "FilePersisted", "SteamAPI_ISteamRemoteStorage_FilePersisted", "b:op", 0, -1 },
+	{ "GetFileSize", "SteamAPI_ISteamRemoteStorage_GetFileSize", "i:op", 0, -1 },
+	{ "GetFileTimestamp", "SteamAPI_ISteamRemoteStorage_GetFileTimestamp", "l:op", 0, -1 },
+	{ "GetSyncPlatforms", "SteamAPI_ISteamRemoteStorage_GetSyncPlatforms", "i:op", 0, -1 },
+	{ "GetFileCount", "SteamAPI_ISteamRemoteStorage_GetFileCount", "i:o", 0, -1 },
+	{ "GetFileNameAndSize", "SteamAPI_ISteamRemoteStorage_GetFileNameAndSize", "S:oip", 0, -1 },
+	{ "GetQuota", "SteamAPI_ISteamRemoteStorage_GetQuota", "b:opp", 0, -1 },
+	{ "IsCloudEnabledForAccount", "SteamAPI_ISteamRemoteStorage_IsCloudEnabledForAccount", "b:o", 0, -1 },
+	{ "IsCloudEnabledForApp", "SteamAPI_ISteamRemoteStorage_IsCloudEnabledForApp", "b:o", 0, -1 },
+	{ "SetCloudEnabledForApp", "SteamAPI_ISteamRemoteStorage_SetCloudEnabledForApp", "v:oB", 0, -1 },
+	{ "UGCDownload", "SteamAPI_ISteamRemoteStorage_UGCDownload", "l:olu", 0, -1 },
+	{ "GetUGCDownloadProgress", "SteamAPI_ISteamRemoteStorage_GetUGCDownloadProgress", "b:olpp", 0, -1 },
+	{ "GetUGCDetails", "SteamAPI_ISteamRemoteStorage_GetUGCDetails", "b:olpQpp", 0, -1 },
+	{ "UGCRead", "SteamAPI_ISteamRemoteStorage_UGCRead", "i:olpiui", 0, -1 },
+	{ "GetCachedUGCCount", "SteamAPI_ISteamRemoteStorage_GetCachedUGCCount", "i:o", 0, -1 },
+	{ "GetCachedUGCHandle", "SteamAPI_ISteamRemoteStorage_GetCachedUGCHandle", "l:oi", 0, -1 },
+	{ "PublishWorkshopFile", "SteamAPI_ISteamRemoteStorage_PublishWorkshopFile", "l:oppuppiXi", 0, -1 },
+	{ "CreatePublishedFileUpdateRequest", "SteamAPI_ISteamRemoteStorage_CreatePublishedFileUpdateRequest", "l:ol", 0, -1 },
+	{ "UpdatePublishedFileFile", "SteamAPI_ISteamRemoteStorage_UpdatePublishedFileFile", "b:olp", 0, -1 },
+	{ "UpdatePublishedFilePreviewFile", "SteamAPI_ISteamRemoteStorage_UpdatePublishedFilePreviewFile", "b:olp", 0, -1 },
+	{ "UpdatePublishedFileTitle", "SteamAPI_ISteamRemoteStorage_UpdatePublishedFileTitle", "b:olp", 0, -1 },
+	{ "UpdatePublishedFileDescription", "SteamAPI_ISteamRemoteStorage_UpdatePublishedFileDescription", "b:olp", 0, -1 },
+	{ "UpdatePublishedFileVisibility", "SteamAPI_ISteamRemoteStorage_UpdatePublishedFileVisibility", "b:oli", 0, -1 },
+	{ "UpdatePublishedFileTags", "SteamAPI_ISteamRemoteStorage_UpdatePublishedFileTags", "b:olX", 0, -1 },
+	{ "CommitPublishedFileUpdate", "SteamAPI_ISteamRemoteStorage_CommitPublishedFileUpdate", "l:ol", 0, -1 },
+	{ "GetPublishedFileDetails", "SteamAPI_ISteamRemoteStorage_GetPublishedFileDetails", "l:olu", 0, -1 },
+	{ "DeletePublishedFile", "SteamAPI_ISteamRemoteStorage_DeletePublishedFile", "l:ol", 0, -1 },
+	{ "EnumerateUserPublishedFiles", "SteamAPI_ISteamRemoteStorage_EnumerateUserPublishedFiles", "l:ou", 0, -1 },
+	{ "SubscribePublishedFile", "SteamAPI_ISteamRemoteStorage_SubscribePublishedFile", "l:ol", 0, -1 },
+	{ "EnumerateUserSubscribedFiles", "SteamAPI_ISteamRemoteStorage_EnumerateUserSubscribedFiles", "l:ou", 0, -1 },
+	{ "UnsubscribePublishedFile", "SteamAPI_ISteamRemoteStorage_UnsubscribePublishedFile", "l:ol", 0, -1 },
+	{ "UpdatePublishedFileSetChangeDescription", "SteamAPI_ISteamRemoteStorage_UpdatePublishedFileSetChangeDescription", "b:olp", 0, -1 },
+	{ "GetPublishedItemVoteDetails", "SteamAPI_ISteamRemoteStorage_GetPublishedItemVoteDetails", "l:ol", 0, -1 },
+	{ "UpdateUserPublishedItemVote", "SteamAPI_ISteamRemoteStorage_UpdateUserPublishedItemVote", "l:olB", 0, -1 },
+	{ "GetUserPublishedItemVoteDetails", "SteamAPI_ISteamRemoteStorage_GetUserPublishedItemVoteDetails", "l:ol", 0, -1 },
+	{ "EnumerateUserSharedWorkshopFiles", "SteamAPI_ISteamRemoteStorage_EnumerateUserSharedWorkshopFiles", "l:oluXX", 0, -1 },
+	{ "PublishVideo", "SteamAPI_ISteamRemoteStorage_PublishVideo", "l:oipppuppiX", 0, -1 },
+	{ "SetUserPublishedFileAction", "SteamAPI_ISteamRemoteStorage_SetUserPublishedFileAction", "l:oli", 0, -1 },
+	{ "EnumeratePublishedFilesByUserAction", "SteamAPI_ISteamRemoteStorage_EnumeratePublishedFilesByUserAction", "l:oiu", 0, -1 },
+	{ "EnumeratePublishedWorkshopFiles", "SteamAPI_ISteamRemoteStorage_EnumeratePublishedWorkshopFiles", "l:oiuuuXX", 0, -1 },
+	{ "UGCDownloadToLocation", "SteamAPI_ISteamRemoteStorage_UGCDownloadToLocation", "l:olpu", 0, -1 },
+	{ "GetLocalFileChangeCount", "SteamAPI_ISteamRemoteStorage_GetLocalFileChangeCount", "i:o", 0, -1 },
+	{ "GetLocalFileChange", "SteamAPI_ISteamRemoteStorage_GetLocalFileChange", "S:oipp", 0, -1 },
+	{ "BeginFileWriteBatch", "SteamAPI_ISteamRemoteStorage_BeginFileWriteBatch", "b:o", 0, -1 },
+	{ "EndFileWriteBatch", "SteamAPI_ISteamRemoteStorage_EndFileWriteBatch", "b:o", 0, -1 },
 };
 static const struct smethod m_STEAMSCREENSHOTS_INTERFACE_VERSION003[] = {
-	{ "WriteScreenshot", "u:opuii", 0 },	/* 0 */
-	{ "AddScreenshotToLibrary", "u:oppii", 0 },	/* 1 */
-	{ "TriggerScreenshot", "v:o", 0 },	/* 2 */
-	{ "HookScreenshots", "v:oB", 0 },	/* 3 */
-	{ "SetLocation", "b:oup", 0 },	/* 4 */
-	{ "TagUser", "b:oul", 0 },	/* 5 */
-	{ "TagPublishedFile", "b:oul", 0 },	/* 6 */
-	{ "IsScreenshotsHooked", "b:o", 0 },	/* 7 */
-	{ "AddVRScreenshotToLibrary", "u:oipp", 0 },	/* 8 */
+	{ "WriteScreenshot", "SteamAPI_ISteamScreenshots_WriteScreenshot", "u:opuii", 0, -1 },
+	{ "AddScreenshotToLibrary", "SteamAPI_ISteamScreenshots_AddScreenshotToLibrary", "u:oppii", 0, -1 },
+	{ "TriggerScreenshot", "SteamAPI_ISteamScreenshots_TriggerScreenshot", "v:o", 0, -1 },
+	{ "HookScreenshots", "SteamAPI_ISteamScreenshots_HookScreenshots", "v:oB", 0, -1 },
+	{ "SetLocation", "SteamAPI_ISteamScreenshots_SetLocation", "b:oup", 0, -1 },
+	{ "TagUser", "SteamAPI_ISteamScreenshots_TagUser", "b:oul", 0, -1 },
+	{ "TagPublishedFile", "SteamAPI_ISteamScreenshots_TagPublishedFile", "b:oul", 0, -1 },
+	{ "IsScreenshotsHooked", "SteamAPI_ISteamScreenshots_IsScreenshotsHooked", "b:o", 0, -1 },
+	{ "AddVRScreenshotToLibrary", "SteamAPI_ISteamScreenshots_AddVRScreenshotToLibrary", "u:oipp", 0, -1 },
 };
 static const struct smethod m_STEAMUGC_INTERFACE_VERSION015[] = {
-	{ "CreateQueryUserUGCRequest", "l:ouiiiuuu", 0 },	/* 0 */
-	{ "CreateQueryAllUGCRequest", "l:oiiuuu", 0 },	/* 1 */
-	{ "CreateQueryAllUGCRequest", "l:oiiuup", 0 },	/* 2 */
-	{ "CreateQueryUGCDetailsRequest", "l:opu", 0 },	/* 3 */
-	{ "SendQueryUGCRequest", "l:ol", 0 },	/* 4 */
-	{ "GetQueryUGCResult", "b:olup", 0 },	/* 5 */
-	{ "GetQueryUGCNumTags", "u:olu", 0 },	/* 6 */
-	{ "GetQueryUGCTag", "b:oluupu", 0 },	/* 7 */
-	{ "GetQueryUGCTagDisplayName", "b:oluupu", 0 },	/* 8 */
-	{ "GetQueryUGCPreviewURL", "b:olupu", 0 },	/* 9 */
-	{ "GetQueryUGCMetadata", "b:olupu", 0 },	/* 10 */
-	{ "GetQueryUGCChildren", "b:olupu", 0 },	/* 11 */
-	{ "GetQueryUGCStatistic", "b:oluip", 0 },	/* 12 */
-	{ "GetQueryUGCNumAdditionalPreviews", "u:olu", 0 },	/* 13 */
-	{ "GetQueryUGCAdditionalPreview", "b:oluupupup", 0 },	/* 14 */
-	{ "GetQueryUGCNumKeyValueTags", "u:olu", 0 },	/* 15 */
-	{ "GetQueryUGCKeyValueTag", "b:oluupupu", 0 },	/* 16 */
-	{ "GetQueryUGCKeyValueTag", "b:oluppu", 0 },	/* 17 */
-	{ "ReleaseQueryUGCRequest", "b:ol", 0 },	/* 18 */
-	{ "AddRequiredTag", "b:olp", 0 },	/* 19 */
-	{ "AddRequiredTagGroup", "b:olX", 0 },	/* 20 */
-	{ "AddExcludedTag", "b:olp", 0 },	/* 21 */
-	{ "SetReturnOnlyIDs", "b:olB", 0 },	/* 22 */
-	{ "SetReturnKeyValueTags", "b:olB", 0 },	/* 23 */
-	{ "SetReturnLongDescription", "b:olB", 0 },	/* 24 */
-	{ "SetReturnMetadata", "b:olB", 0 },	/* 25 */
-	{ "SetReturnChildren", "b:olB", 0 },	/* 26 */
-	{ "SetReturnAdditionalPreviews", "b:olB", 0 },	/* 27 */
-	{ "SetReturnTotalOnly", "b:olB", 0 },	/* 28 */
-	{ "SetReturnPlaytimeStats", "b:olu", 0 },	/* 29 */
-	{ "SetLanguage", "b:olp", 0 },	/* 30 */
-	{ "SetAllowCachedResponse", "b:olu", 0 },	/* 31 */
-	{ "SetCloudFileNameFilter", "b:olp", 0 },	/* 32 */
-	{ "SetMatchAnyTag", "b:olB", 0 },	/* 33 */
-	{ "SetSearchText", "b:olp", 0 },	/* 34 */
-	{ "SetRankedByTrendDays", "b:olu", 0 },	/* 35 */
-	{ "AddRequiredKeyValueTag", "b:olpp", 0 },	/* 36 */
-	{ "RequestUGCDetails", "l:olu", 0 },	/* 37 */
-	{ "CreateItem", "l:oui", 0 },	/* 38 */
-	{ "StartItemUpdate", "l:oul", 0 },	/* 39 */
-	{ "SetItemTitle", "b:olp", 0 },	/* 40 */
-	{ "SetItemDescription", "b:olp", 0 },	/* 41 */
-	{ "SetItemUpdateLanguage", "b:olp", 0 },	/* 42 */
-	{ "SetItemMetadata", "b:olp", 0 },	/* 43 */
-	{ "SetItemVisibility", "b:oli", 0 },	/* 44 */
-	{ "SetItemTags", "b:olX", 0 },	/* 45 */
-	{ "SetItemContent", "b:olp", 0 },	/* 46 */
-	{ "SetItemPreview", "b:olp", 0 },	/* 47 */
-	{ "SetAllowLegacyUpload", "b:olB", 0 },	/* 48 */
-	{ "RemoveAllItemKeyValueTags", "b:ol", 0 },	/* 49 */
-	{ "RemoveItemKeyValueTags", "b:olp", 0 },	/* 50 */
-	{ "AddItemKeyValueTag", "b:olpp", 0 },	/* 51 */
-	{ "AddItemPreviewFile", "b:olpi", 0 },	/* 52 */
-	{ "AddItemPreviewVideo", "b:olp", 0 },	/* 53 */
-	{ "UpdateItemPreviewFile", "b:olup", 0 },	/* 54 */
-	{ "UpdateItemPreviewVideo", "b:olup", 0 },	/* 55 */
-	{ "RemoveItemPreview", "b:olu", 0 },	/* 56 */
-	{ "SubmitItemUpdate", "l:olp", 0 },	/* 57 */
-	{ "GetItemUpdateProgress", "i:olpp", 0 },	/* 58 */
-	{ "SetUserItemVote", "l:olB", 0 },	/* 59 */
-	{ "GetUserItemVote", "l:ol", 0 },	/* 60 */
-	{ "AddItemToFavorites", "l:oul", 0 },	/* 61 */
-	{ "RemoveItemFromFavorites", "l:oul", 0 },	/* 62 */
-	{ "SubscribeItem", "l:ol", 0 },	/* 63 */
-	{ "UnsubscribeItem", "l:ol", 0 },	/* 64 */
-	{ "GetNumSubscribedItems", "u:o", 0 },	/* 65 */
-	{ "GetSubscribedItems", "u:opu", 0 },	/* 66 */
-	{ "GetItemState", "u:ol", 0 },	/* 67 */
-	{ "GetItemInstallInfo", "b:olppup", 0 },	/* 68 */
-	{ "GetItemDownloadInfo", "b:olpp", 0 },	/* 69 */
-	{ "DownloadItem", "b:olB", 0 },	/* 70 */
-	{ "BInitWorkshopForGameServer", "b:oup", 0 },	/* 71 */
-	{ "SuspendDownloads", "v:oB", 0 },	/* 72 */
-	{ "StartPlaytimeTracking", "l:opu", 0 },	/* 73 */
-	{ "StopPlaytimeTracking", "l:opu", 0 },	/* 74 */
-	{ "StopPlaytimeTrackingForAllItems", "l:o", 0 },	/* 75 */
-	{ "AddDependency", "l:oll", 0 },	/* 76 */
-	{ "RemoveDependency", "l:oll", 0 },	/* 77 */
-	{ "AddAppDependency", "l:olu", 0 },	/* 78 */
-	{ "RemoveAppDependency", "l:olu", 0 },	/* 79 */
-	{ "GetAppDependencies", "l:ol", 0 },	/* 80 */
-	{ "DeleteItem", "l:ol", 0 },	/* 81 */
-	{ "ShowWorkshopEULA", "b:o", 0 },	/* 82 */
-	{ "GetWorkshopEULAStatus", "l:o", 0 },	/* 83 */
+	{ "CreateQueryUserUGCRequest", "SteamAPI_ISteamUGC_CreateQueryUserUGCRequest", "l:ouiiiuuu", 0, -1 },
+	{ "CreateQueryAllUGCRequest", "SteamAPI_ISteamUGC_CreateQueryAllUGCRequestPage", "l:oiiuuu", 0, -1 },
+	{ "CreateQueryAllUGCRequest", "SteamAPI_ISteamUGC_CreateQueryAllUGCRequestCursor", "l:oiiuup", 0, -1 },
+	{ "CreateQueryUGCDetailsRequest", "SteamAPI_ISteamUGC_CreateQueryUGCDetailsRequest", "l:opu", 0, -1 },
+	{ "SendQueryUGCRequest", "SteamAPI_ISteamUGC_SendQueryUGCRequest", "l:ol", 0, -1 },
+	{ "GetQueryUGCResult", "SteamAPI_ISteamUGC_GetQueryUGCResult", "b:olup", 0, -1 },
+	{ "GetQueryUGCNumTags", "SteamAPI_ISteamUGC_GetQueryUGCNumTags", "u:olu", 0, -1 },
+	{ "GetQueryUGCTag", "SteamAPI_ISteamUGC_GetQueryUGCTag", "b:oluupu", 0, -1 },
+	{ "GetQueryUGCTagDisplayName", "SteamAPI_ISteamUGC_GetQueryUGCTagDisplayName", "b:oluupu", 0, -1 },
+	{ "GetQueryUGCPreviewURL", "SteamAPI_ISteamUGC_GetQueryUGCPreviewURL", "b:olupu", 0, -1 },
+	{ "GetQueryUGCMetadata", "SteamAPI_ISteamUGC_GetQueryUGCMetadata", "b:olupu", 0, -1 },
+	{ "GetQueryUGCChildren", "SteamAPI_ISteamUGC_GetQueryUGCChildren", "b:olupu", 0, -1 },
+	{ "GetQueryUGCStatistic", "SteamAPI_ISteamUGC_GetQueryUGCStatistic", "b:oluip", 0, -1 },
+	{ "GetQueryUGCNumAdditionalPreviews", "SteamAPI_ISteamUGC_GetQueryUGCNumAdditionalPreviews", "u:olu", 0, -1 },
+	{ "GetQueryUGCAdditionalPreview", "SteamAPI_ISteamUGC_GetQueryUGCAdditionalPreview", "b:oluupupup", 0, -1 },
+	{ "GetQueryUGCNumKeyValueTags", "SteamAPI_ISteamUGC_GetQueryUGCNumKeyValueTags", "u:olu", 0, -1 },
+	{ "GetQueryUGCKeyValueTag", "SteamAPI_ISteamUGC_GetQueryUGCKeyValueTag", "b:oluupupu", 0, -1 },
+	{ "GetQueryUGCKeyValueTag", "SteamAPI_ISteamUGC_GetQueryFirstUGCKeyValueTag", "b:oluppu", 0, -1 },
+	{ "ReleaseQueryUGCRequest", "SteamAPI_ISteamUGC_ReleaseQueryUGCRequest", "b:ol", 0, -1 },
+	{ "AddRequiredTag", "SteamAPI_ISteamUGC_AddRequiredTag", "b:olp", 0, -1 },
+	{ "AddRequiredTagGroup", "SteamAPI_ISteamUGC_AddRequiredTagGroup", "b:olX", 0, -1 },
+	{ "AddExcludedTag", "SteamAPI_ISteamUGC_AddExcludedTag", "b:olp", 0, -1 },
+	{ "SetReturnOnlyIDs", "SteamAPI_ISteamUGC_SetReturnOnlyIDs", "b:olB", 0, -1 },
+	{ "SetReturnKeyValueTags", "SteamAPI_ISteamUGC_SetReturnKeyValueTags", "b:olB", 0, -1 },
+	{ "SetReturnLongDescription", "SteamAPI_ISteamUGC_SetReturnLongDescription", "b:olB", 0, -1 },
+	{ "SetReturnMetadata", "SteamAPI_ISteamUGC_SetReturnMetadata", "b:olB", 0, -1 },
+	{ "SetReturnChildren", "SteamAPI_ISteamUGC_SetReturnChildren", "b:olB", 0, -1 },
+	{ "SetReturnAdditionalPreviews", "SteamAPI_ISteamUGC_SetReturnAdditionalPreviews", "b:olB", 0, -1 },
+	{ "SetReturnTotalOnly", "SteamAPI_ISteamUGC_SetReturnTotalOnly", "b:olB", 0, -1 },
+	{ "SetReturnPlaytimeStats", "SteamAPI_ISteamUGC_SetReturnPlaytimeStats", "b:olu", 0, -1 },
+	{ "SetLanguage", "SteamAPI_ISteamUGC_SetLanguage", "b:olp", 0, -1 },
+	{ "SetAllowCachedResponse", "SteamAPI_ISteamUGC_SetAllowCachedResponse", "b:olu", 0, -1 },
+	{ "SetCloudFileNameFilter", "SteamAPI_ISteamUGC_SetCloudFileNameFilter", "b:olp", 0, -1 },
+	{ "SetMatchAnyTag", "SteamAPI_ISteamUGC_SetMatchAnyTag", "b:olB", 0, -1 },
+	{ "SetSearchText", "SteamAPI_ISteamUGC_SetSearchText", "b:olp", 0, -1 },
+	{ "SetRankedByTrendDays", "SteamAPI_ISteamUGC_SetRankedByTrendDays", "b:olu", 0, -1 },
+	{ "AddRequiredKeyValueTag", "SteamAPI_ISteamUGC_AddRequiredKeyValueTag", "b:olpp", 0, -1 },
+	{ "RequestUGCDetails", "SteamAPI_ISteamUGC_RequestUGCDetails", "l:olu", 0, -1 },
+	{ "CreateItem", "SteamAPI_ISteamUGC_CreateItem", "l:oui", 0, -1 },
+	{ "StartItemUpdate", "SteamAPI_ISteamUGC_StartItemUpdate", "l:oul", 0, -1 },
+	{ "SetItemTitle", "SteamAPI_ISteamUGC_SetItemTitle", "b:olp", 0, -1 },
+	{ "SetItemDescription", "SteamAPI_ISteamUGC_SetItemDescription", "b:olp", 0, -1 },
+	{ "SetItemUpdateLanguage", "SteamAPI_ISteamUGC_SetItemUpdateLanguage", "b:olp", 0, -1 },
+	{ "SetItemMetadata", "SteamAPI_ISteamUGC_SetItemMetadata", "b:olp", 0, -1 },
+	{ "SetItemVisibility", "SteamAPI_ISteamUGC_SetItemVisibility", "b:oli", 0, -1 },
+	{ "SetItemTags", "SteamAPI_ISteamUGC_SetItemTags", "b:olX", 0, -1 },
+	{ "SetItemContent", "SteamAPI_ISteamUGC_SetItemContent", "b:olp", 0, -1 },
+	{ "SetItemPreview", "SteamAPI_ISteamUGC_SetItemPreview", "b:olp", 0, -1 },
+	{ "SetAllowLegacyUpload", "SteamAPI_ISteamUGC_SetAllowLegacyUpload", "b:olB", 0, -1 },
+	{ "RemoveAllItemKeyValueTags", "SteamAPI_ISteamUGC_RemoveAllItemKeyValueTags", "b:ol", 0, -1 },
+	{ "RemoveItemKeyValueTags", "SteamAPI_ISteamUGC_RemoveItemKeyValueTags", "b:olp", 0, -1 },
+	{ "AddItemKeyValueTag", "SteamAPI_ISteamUGC_AddItemKeyValueTag", "b:olpp", 0, -1 },
+	{ "AddItemPreviewFile", "SteamAPI_ISteamUGC_AddItemPreviewFile", "b:olpi", 0, -1 },
+	{ "AddItemPreviewVideo", "SteamAPI_ISteamUGC_AddItemPreviewVideo", "b:olp", 0, -1 },
+	{ "UpdateItemPreviewFile", "SteamAPI_ISteamUGC_UpdateItemPreviewFile", "b:olup", 0, -1 },
+	{ "UpdateItemPreviewVideo", "SteamAPI_ISteamUGC_UpdateItemPreviewVideo", "b:olup", 0, -1 },
+	{ "RemoveItemPreview", "SteamAPI_ISteamUGC_RemoveItemPreview", "b:olu", 0, -1 },
+	{ "SubmitItemUpdate", "SteamAPI_ISteamUGC_SubmitItemUpdate", "l:olp", 0, -1 },
+	{ "GetItemUpdateProgress", "SteamAPI_ISteamUGC_GetItemUpdateProgress", "i:olpp", 0, -1 },
+	{ "SetUserItemVote", "SteamAPI_ISteamUGC_SetUserItemVote", "l:olB", 0, -1 },
+	{ "GetUserItemVote", "SteamAPI_ISteamUGC_GetUserItemVote", "l:ol", 0, -1 },
+	{ "AddItemToFavorites", "SteamAPI_ISteamUGC_AddItemToFavorites", "l:oul", 0, -1 },
+	{ "RemoveItemFromFavorites", "SteamAPI_ISteamUGC_RemoveItemFromFavorites", "l:oul", 0, -1 },
+	{ "SubscribeItem", "SteamAPI_ISteamUGC_SubscribeItem", "l:ol", 0, -1 },
+	{ "UnsubscribeItem", "SteamAPI_ISteamUGC_UnsubscribeItem", "l:ol", 0, -1 },
+	{ "GetNumSubscribedItems", "SteamAPI_ISteamUGC_GetNumSubscribedItems", "u:o", 0, -1 },
+	{ "GetSubscribedItems", "SteamAPI_ISteamUGC_GetSubscribedItems", "u:opu", 0, -1 },
+	{ "GetItemState", "SteamAPI_ISteamUGC_GetItemState", "u:ol", 0, -1 },
+	{ "GetItemInstallInfo", "SteamAPI_ISteamUGC_GetItemInstallInfo", "b:olppup", 0, -1 },
+	{ "GetItemDownloadInfo", "SteamAPI_ISteamUGC_GetItemDownloadInfo", "b:olpp", 0, -1 },
+	{ "DownloadItem", "SteamAPI_ISteamUGC_DownloadItem", "b:olB", 0, -1 },
+	{ "BInitWorkshopForGameServer", "SteamAPI_ISteamUGC_BInitWorkshopForGameServer", "b:oup", 0, -1 },
+	{ "SuspendDownloads", "SteamAPI_ISteamUGC_SuspendDownloads", "v:oB", 0, -1 },
+	{ "StartPlaytimeTracking", "SteamAPI_ISteamUGC_StartPlaytimeTracking", "l:opu", 0, -1 },
+	{ "StopPlaytimeTracking", "SteamAPI_ISteamUGC_StopPlaytimeTracking", "l:opu", 0, -1 },
+	{ "StopPlaytimeTrackingForAllItems", "SteamAPI_ISteamUGC_StopPlaytimeTrackingForAllItems", "l:o", 0, -1 },
+	{ "AddDependency", "SteamAPI_ISteamUGC_AddDependency", "l:oll", 0, -1 },
+	{ "RemoveDependency", "SteamAPI_ISteamUGC_RemoveDependency", "l:oll", 0, -1 },
+	{ "AddAppDependency", "SteamAPI_ISteamUGC_AddAppDependency", "l:olu", 0, -1 },
+	{ "RemoveAppDependency", "SteamAPI_ISteamUGC_RemoveAppDependency", "l:olu", 0, -1 },
+	{ "GetAppDependencies", "SteamAPI_ISteamUGC_GetAppDependencies", "l:ol", 0, -1 },
+	{ "DeleteItem", "SteamAPI_ISteamUGC_DeleteItem", "l:ol", 0, -1 },
+	{ "ShowWorkshopEULA", "SteamAPI_ISteamUGC_ShowWorkshopEULA", "b:o", 0, -1 },
+	{ "GetWorkshopEULAStatus", "SteamAPI_ISteamUGC_GetWorkshopEULAStatus", "l:o", 0, -1 },
 };
 static const struct smethod m_STEAMUGC_INTERFACE_VERSION016[] = {
-	{ "CreateQueryUserUGCRequest", "l:ouiiiuuu", 0 },	/* 0 */
-	{ "CreateQueryAllUGCRequest", "l:oiiuuu", 0 },	/* 1 */
-	{ "CreateQueryAllUGCRequest", "l:oiiuup", 0 },	/* 2 */
-	{ "CreateQueryUGCDetailsRequest", "l:opu", 0 },	/* 3 */
-	{ "SendQueryUGCRequest", "l:ol", 0 },	/* 4 */
-	{ "GetQueryUGCResult", "b:olup", 0 },	/* 5 */
-	{ "GetQueryUGCNumTags", "u:olu", 0 },	/* 6 */
-	{ "GetQueryUGCTag", "b:oluupu", 0 },	/* 7 */
-	{ "GetQueryUGCTagDisplayName", "b:oluupu", 0 },	/* 8 */
-	{ "GetQueryUGCPreviewURL", "b:olupu", 0 },	/* 9 */
-	{ "GetQueryUGCMetadata", "b:olupu", 0 },	/* 10 */
-	{ "GetQueryUGCChildren", "b:olupu", 0 },	/* 11 */
-	{ "GetQueryUGCStatistic", "b:oluip", 0 },	/* 12 */
-	{ "GetQueryUGCNumAdditionalPreviews", "u:olu", 0 },	/* 13 */
-	{ "GetQueryUGCAdditionalPreview", "b:oluupupup", 0 },	/* 14 */
-	{ "GetQueryUGCNumKeyValueTags", "u:olu", 0 },	/* 15 */
-	{ "GetQueryUGCKeyValueTag", "b:oluupupu", 0 },	/* 16 */
-	{ "GetQueryUGCKeyValueTag", "b:oluppu", 0 },	/* 17 */
-	{ "ReleaseQueryUGCRequest", "b:ol", 0 },	/* 18 */
-	{ "AddRequiredTag", "b:olp", 0 },	/* 19 */
-	{ "AddRequiredTagGroup", "b:olX", 0 },	/* 20 */
-	{ "AddExcludedTag", "b:olp", 0 },	/* 21 */
-	{ "SetReturnOnlyIDs", "b:olB", 0 },	/* 22 */
-	{ "SetReturnKeyValueTags", "b:olB", 0 },	/* 23 */
-	{ "SetReturnLongDescription", "b:olB", 0 },	/* 24 */
-	{ "SetReturnMetadata", "b:olB", 0 },	/* 25 */
-	{ "SetReturnChildren", "b:olB", 0 },	/* 26 */
-	{ "SetReturnAdditionalPreviews", "b:olB", 0 },	/* 27 */
-	{ "SetReturnTotalOnly", "b:olB", 0 },	/* 28 */
-	{ "SetReturnPlaytimeStats", "b:olu", 0 },	/* 29 */
-	{ "SetLanguage", "b:olp", 0 },	/* 30 */
-	{ "SetAllowCachedResponse", "b:olu", 0 },	/* 31 */
-	{ "SetCloudFileNameFilter", "b:olp", 0 },	/* 32 */
-	{ "SetMatchAnyTag", "b:olB", 0 },	/* 33 */
-	{ "SetSearchText", "b:olp", 0 },	/* 34 */
-	{ "SetRankedByTrendDays", "b:olu", 0 },	/* 35 */
-	{ "SetTimeCreatedDateRange", "b:oluu", 0 },	/* 36 */
-	{ "SetTimeUpdatedDateRange", "b:oluu", 0 },	/* 37 */
-	{ "AddRequiredKeyValueTag", "b:olpp", 0 },	/* 38 */
-	{ "RequestUGCDetails", "l:olu", 0 },	/* 39 */
-	{ "CreateItem", "l:oui", 0 },	/* 40 */
-	{ "StartItemUpdate", "l:oul", 0 },	/* 41 */
-	{ "SetItemTitle", "b:olp", 0 },	/* 42 */
-	{ "SetItemDescription", "b:olp", 0 },	/* 43 */
-	{ "SetItemUpdateLanguage", "b:olp", 0 },	/* 44 */
-	{ "SetItemMetadata", "b:olp", 0 },	/* 45 */
-	{ "SetItemVisibility", "b:oli", 0 },	/* 46 */
-	{ "SetItemTags", "b:olX", 0 },	/* 47 */
-	{ "SetItemContent", "b:olp", 0 },	/* 48 */
-	{ "SetItemPreview", "b:olp", 0 },	/* 49 */
-	{ "SetAllowLegacyUpload", "b:olB", 0 },	/* 50 */
-	{ "RemoveAllItemKeyValueTags", "b:ol", 0 },	/* 51 */
-	{ "RemoveItemKeyValueTags", "b:olp", 0 },	/* 52 */
-	{ "AddItemKeyValueTag", "b:olpp", 0 },	/* 53 */
-	{ "AddItemPreviewFile", "b:olpi", 0 },	/* 54 */
-	{ "AddItemPreviewVideo", "b:olp", 0 },	/* 55 */
-	{ "UpdateItemPreviewFile", "b:olup", 0 },	/* 56 */
-	{ "UpdateItemPreviewVideo", "b:olup", 0 },	/* 57 */
-	{ "RemoveItemPreview", "b:olu", 0 },	/* 58 */
-	{ "SubmitItemUpdate", "l:olp", 0 },	/* 59 */
-	{ "GetItemUpdateProgress", "i:olpp", 0 },	/* 60 */
-	{ "SetUserItemVote", "l:olB", 0 },	/* 61 */
-	{ "GetUserItemVote", "l:ol", 0 },	/* 62 */
-	{ "AddItemToFavorites", "l:oul", 0 },	/* 63 */
-	{ "RemoveItemFromFavorites", "l:oul", 0 },	/* 64 */
-	{ "SubscribeItem", "l:ol", 0 },	/* 65 */
-	{ "UnsubscribeItem", "l:ol", 0 },	/* 66 */
-	{ "GetNumSubscribedItems", "u:o", 0 },	/* 67 */
-	{ "GetSubscribedItems", "u:opu", 0 },	/* 68 */
-	{ "GetItemState", "u:ol", 0 },	/* 69 */
-	{ "GetItemInstallInfo", "b:olppup", 0 },	/* 70 */
-	{ "GetItemDownloadInfo", "b:olpp", 0 },	/* 71 */
-	{ "DownloadItem", "b:olB", 0 },	/* 72 */
-	{ "BInitWorkshopForGameServer", "b:oup", 0 },	/* 73 */
-	{ "SuspendDownloads", "v:oB", 0 },	/* 74 */
-	{ "StartPlaytimeTracking", "l:opu", 0 },	/* 75 */
-	{ "StopPlaytimeTracking", "l:opu", 0 },	/* 76 */
-	{ "StopPlaytimeTrackingForAllItems", "l:o", 0 },	/* 77 */
-	{ "AddDependency", "l:oll", 0 },	/* 78 */
-	{ "RemoveDependency", "l:oll", 0 },	/* 79 */
-	{ "AddAppDependency", "l:olu", 0 },	/* 80 */
-	{ "RemoveAppDependency", "l:olu", 0 },	/* 81 */
-	{ "GetAppDependencies", "l:ol", 0 },	/* 82 */
-	{ "DeleteItem", "l:ol", 0 },	/* 83 */
-	{ "ShowWorkshopEULA", "b:o", 0 },	/* 84 */
-	{ "GetWorkshopEULAStatus", "l:o", 0 },	/* 85 */
+	{ "CreateQueryUserUGCRequest", "SteamAPI_ISteamUGC_CreateQueryUserUGCRequest", "l:ouiiiuuu", 0, -1 },
+	{ "CreateQueryAllUGCRequest", "SteamAPI_ISteamUGC_CreateQueryAllUGCRequestPage", "l:oiiuuu", 0, -1 },
+	{ "CreateQueryAllUGCRequest", "SteamAPI_ISteamUGC_CreateQueryAllUGCRequestCursor", "l:oiiuup", 0, -1 },
+	{ "CreateQueryUGCDetailsRequest", "SteamAPI_ISteamUGC_CreateQueryUGCDetailsRequest", "l:opu", 0, -1 },
+	{ "SendQueryUGCRequest", "SteamAPI_ISteamUGC_SendQueryUGCRequest", "l:ol", 0, -1 },
+	{ "GetQueryUGCResult", "SteamAPI_ISteamUGC_GetQueryUGCResult", "b:olup", 0, -1 },
+	{ "GetQueryUGCNumTags", "SteamAPI_ISteamUGC_GetQueryUGCNumTags", "u:olu", 0, -1 },
+	{ "GetQueryUGCTag", "SteamAPI_ISteamUGC_GetQueryUGCTag", "b:oluupu", 0, -1 },
+	{ "GetQueryUGCTagDisplayName", "SteamAPI_ISteamUGC_GetQueryUGCTagDisplayName", "b:oluupu", 0, -1 },
+	{ "GetQueryUGCPreviewURL", "SteamAPI_ISteamUGC_GetQueryUGCPreviewURL", "b:olupu", 0, -1 },
+	{ "GetQueryUGCMetadata", "SteamAPI_ISteamUGC_GetQueryUGCMetadata", "b:olupu", 0, -1 },
+	{ "GetQueryUGCChildren", "SteamAPI_ISteamUGC_GetQueryUGCChildren", "b:olupu", 0, -1 },
+	{ "GetQueryUGCStatistic", "SteamAPI_ISteamUGC_GetQueryUGCStatistic", "b:oluip", 0, -1 },
+	{ "GetQueryUGCNumAdditionalPreviews", "SteamAPI_ISteamUGC_GetQueryUGCNumAdditionalPreviews", "u:olu", 0, -1 },
+	{ "GetQueryUGCAdditionalPreview", "SteamAPI_ISteamUGC_GetQueryUGCAdditionalPreview", "b:oluupupup", 0, -1 },
+	{ "GetQueryUGCNumKeyValueTags", "SteamAPI_ISteamUGC_GetQueryUGCNumKeyValueTags", "u:olu", 0, -1 },
+	{ "GetQueryUGCKeyValueTag", "SteamAPI_ISteamUGC_GetQueryUGCKeyValueTag", "b:oluupupu", 0, -1 },
+	{ "GetQueryUGCKeyValueTag", "SteamAPI_ISteamUGC_GetQueryFirstUGCKeyValueTag", "b:oluppu", 0, -1 },
+	{ "ReleaseQueryUGCRequest", "SteamAPI_ISteamUGC_ReleaseQueryUGCRequest", "b:ol", 0, -1 },
+	{ "AddRequiredTag", "SteamAPI_ISteamUGC_AddRequiredTag", "b:olp", 0, -1 },
+	{ "AddRequiredTagGroup", "SteamAPI_ISteamUGC_AddRequiredTagGroup", "b:olX", 0, -1 },
+	{ "AddExcludedTag", "SteamAPI_ISteamUGC_AddExcludedTag", "b:olp", 0, -1 },
+	{ "SetReturnOnlyIDs", "SteamAPI_ISteamUGC_SetReturnOnlyIDs", "b:olB", 0, -1 },
+	{ "SetReturnKeyValueTags", "SteamAPI_ISteamUGC_SetReturnKeyValueTags", "b:olB", 0, -1 },
+	{ "SetReturnLongDescription", "SteamAPI_ISteamUGC_SetReturnLongDescription", "b:olB", 0, -1 },
+	{ "SetReturnMetadata", "SteamAPI_ISteamUGC_SetReturnMetadata", "b:olB", 0, -1 },
+	{ "SetReturnChildren", "SteamAPI_ISteamUGC_SetReturnChildren", "b:olB", 0, -1 },
+	{ "SetReturnAdditionalPreviews", "SteamAPI_ISteamUGC_SetReturnAdditionalPreviews", "b:olB", 0, -1 },
+	{ "SetReturnTotalOnly", "SteamAPI_ISteamUGC_SetReturnTotalOnly", "b:olB", 0, -1 },
+	{ "SetReturnPlaytimeStats", "SteamAPI_ISteamUGC_SetReturnPlaytimeStats", "b:olu", 0, -1 },
+	{ "SetLanguage", "SteamAPI_ISteamUGC_SetLanguage", "b:olp", 0, -1 },
+	{ "SetAllowCachedResponse", "SteamAPI_ISteamUGC_SetAllowCachedResponse", "b:olu", 0, -1 },
+	{ "SetCloudFileNameFilter", "SteamAPI_ISteamUGC_SetCloudFileNameFilter", "b:olp", 0, -1 },
+	{ "SetMatchAnyTag", "SteamAPI_ISteamUGC_SetMatchAnyTag", "b:olB", 0, -1 },
+	{ "SetSearchText", "SteamAPI_ISteamUGC_SetSearchText", "b:olp", 0, -1 },
+	{ "SetRankedByTrendDays", "SteamAPI_ISteamUGC_SetRankedByTrendDays", "b:olu", 0, -1 },
+	{ "SetTimeCreatedDateRange", "SteamAPI_ISteamUGC_SetTimeCreatedDateRange", "b:oluu", 0, -1 },
+	{ "SetTimeUpdatedDateRange", "SteamAPI_ISteamUGC_SetTimeUpdatedDateRange", "b:oluu", 0, -1 },
+	{ "AddRequiredKeyValueTag", "SteamAPI_ISteamUGC_AddRequiredKeyValueTag", "b:olpp", 0, -1 },
+	{ "RequestUGCDetails", "SteamAPI_ISteamUGC_RequestUGCDetails", "l:olu", 0, -1 },
+	{ "CreateItem", "SteamAPI_ISteamUGC_CreateItem", "l:oui", 0, -1 },
+	{ "StartItemUpdate", "SteamAPI_ISteamUGC_StartItemUpdate", "l:oul", 0, -1 },
+	{ "SetItemTitle", "SteamAPI_ISteamUGC_SetItemTitle", "b:olp", 0, -1 },
+	{ "SetItemDescription", "SteamAPI_ISteamUGC_SetItemDescription", "b:olp", 0, -1 },
+	{ "SetItemUpdateLanguage", "SteamAPI_ISteamUGC_SetItemUpdateLanguage", "b:olp", 0, -1 },
+	{ "SetItemMetadata", "SteamAPI_ISteamUGC_SetItemMetadata", "b:olp", 0, -1 },
+	{ "SetItemVisibility", "SteamAPI_ISteamUGC_SetItemVisibility", "b:oli", 0, -1 },
+	{ "SetItemTags", "SteamAPI_ISteamUGC_SetItemTags", "b:olX", 0, -1 },
+	{ "SetItemContent", "SteamAPI_ISteamUGC_SetItemContent", "b:olp", 0, -1 },
+	{ "SetItemPreview", "SteamAPI_ISteamUGC_SetItemPreview", "b:olp", 0, -1 },
+	{ "SetAllowLegacyUpload", "SteamAPI_ISteamUGC_SetAllowLegacyUpload", "b:olB", 0, -1 },
+	{ "RemoveAllItemKeyValueTags", "SteamAPI_ISteamUGC_RemoveAllItemKeyValueTags", "b:ol", 0, -1 },
+	{ "RemoveItemKeyValueTags", "SteamAPI_ISteamUGC_RemoveItemKeyValueTags", "b:olp", 0, -1 },
+	{ "AddItemKeyValueTag", "SteamAPI_ISteamUGC_AddItemKeyValueTag", "b:olpp", 0, -1 },
+	{ "AddItemPreviewFile", "SteamAPI_ISteamUGC_AddItemPreviewFile", "b:olpi", 0, -1 },
+	{ "AddItemPreviewVideo", "SteamAPI_ISteamUGC_AddItemPreviewVideo", "b:olp", 0, -1 },
+	{ "UpdateItemPreviewFile", "SteamAPI_ISteamUGC_UpdateItemPreviewFile", "b:olup", 0, -1 },
+	{ "UpdateItemPreviewVideo", "SteamAPI_ISteamUGC_UpdateItemPreviewVideo", "b:olup", 0, -1 },
+	{ "RemoveItemPreview", "SteamAPI_ISteamUGC_RemoveItemPreview", "b:olu", 0, -1 },
+	{ "SubmitItemUpdate", "SteamAPI_ISteamUGC_SubmitItemUpdate", "l:olp", 0, -1 },
+	{ "GetItemUpdateProgress", "SteamAPI_ISteamUGC_GetItemUpdateProgress", "i:olpp", 0, -1 },
+	{ "SetUserItemVote", "SteamAPI_ISteamUGC_SetUserItemVote", "l:olB", 0, -1 },
+	{ "GetUserItemVote", "SteamAPI_ISteamUGC_GetUserItemVote", "l:ol", 0, -1 },
+	{ "AddItemToFavorites", "SteamAPI_ISteamUGC_AddItemToFavorites", "l:oul", 0, -1 },
+	{ "RemoveItemFromFavorites", "SteamAPI_ISteamUGC_RemoveItemFromFavorites", "l:oul", 0, -1 },
+	{ "SubscribeItem", "SteamAPI_ISteamUGC_SubscribeItem", "l:ol", 0, -1 },
+	{ "UnsubscribeItem", "SteamAPI_ISteamUGC_UnsubscribeItem", "l:ol", 0, -1 },
+	{ "GetNumSubscribedItems", "SteamAPI_ISteamUGC_GetNumSubscribedItems", "u:o", 0, -1 },
+	{ "GetSubscribedItems", "SteamAPI_ISteamUGC_GetSubscribedItems", "u:opu", 0, -1 },
+	{ "GetItemState", "SteamAPI_ISteamUGC_GetItemState", "u:ol", 0, -1 },
+	{ "GetItemInstallInfo", "SteamAPI_ISteamUGC_GetItemInstallInfo", "b:olppup", 0, -1 },
+	{ "GetItemDownloadInfo", "SteamAPI_ISteamUGC_GetItemDownloadInfo", "b:olpp", 0, -1 },
+	{ "DownloadItem", "SteamAPI_ISteamUGC_DownloadItem", "b:olB", 0, -1 },
+	{ "BInitWorkshopForGameServer", "SteamAPI_ISteamUGC_BInitWorkshopForGameServer", "b:oup", 0, -1 },
+	{ "SuspendDownloads", "SteamAPI_ISteamUGC_SuspendDownloads", "v:oB", 0, -1 },
+	{ "StartPlaytimeTracking", "SteamAPI_ISteamUGC_StartPlaytimeTracking", "l:opu", 0, -1 },
+	{ "StopPlaytimeTracking", "SteamAPI_ISteamUGC_StopPlaytimeTracking", "l:opu", 0, -1 },
+	{ "StopPlaytimeTrackingForAllItems", "SteamAPI_ISteamUGC_StopPlaytimeTrackingForAllItems", "l:o", 0, -1 },
+	{ "AddDependency", "SteamAPI_ISteamUGC_AddDependency", "l:oll", 0, -1 },
+	{ "RemoveDependency", "SteamAPI_ISteamUGC_RemoveDependency", "l:oll", 0, -1 },
+	{ "AddAppDependency", "SteamAPI_ISteamUGC_AddAppDependency", "l:olu", 0, -1 },
+	{ "RemoveAppDependency", "SteamAPI_ISteamUGC_RemoveAppDependency", "l:olu", 0, -1 },
+	{ "GetAppDependencies", "SteamAPI_ISteamUGC_GetAppDependencies", "l:ol", 0, -1 },
+	{ "DeleteItem", "SteamAPI_ISteamUGC_DeleteItem", "l:ol", 0, -1 },
+	{ "ShowWorkshopEULA", "SteamAPI_ISteamUGC_ShowWorkshopEULA", "b:o", 0, -1 },
+	{ "GetWorkshopEULAStatus", "SteamAPI_ISteamUGC_GetWorkshopEULAStatus", "l:o", 0, -1 },
 };
 static const struct smethod m_STEAMUSERSTATS_INTERFACE_VERSION012[] = {
-	{ "RequestCurrentStats", "b:o", 0 },	/* 0 */
-	{ "GetStat", "b:opp", 0 },	/* 1 */
-	{ "GetStat", "b:opp", 0 },	/* 2 */
-	{ "SetStat", "b:opi", 0 },	/* 3 */
-	{ "SetStat", "b:opf", 0 },	/* 4 */
-	{ "UpdateAvgRateStat", "b:opfd", 0 },	/* 5 */
-	{ "GetAchievement", "b:opp", 0 },	/* 6 */
-	{ "SetAchievement", "b:op", 0 },	/* 7 */
-	{ "ClearAchievement", "b:op", 0 },	/* 8 */
-	{ "GetAchievementAndUnlockTime", "b:oppp", 0 },	/* 9 */
-	{ "StoreStats", "b:o", 0 },	/* 10 */
-	{ "GetAchievementIcon", "i:op", 0 },	/* 11 */
-	{ "GetAchievementDisplayAttribute", "S:opp", 0 },	/* 12 */
-	{ "IndicateAchievementProgress", "b:opuu", 0 },	/* 13 */
-	{ "GetNumAchievements", "u:o", 0 },	/* 14 */
-	{ "GetAchievementName", "S:ou", 0 },	/* 15 */
-	{ "RequestUserStats", "l:ol", 0 },	/* 16 */
-	{ "GetUserStat", "b:olpp", 0 },	/* 17 */
-	{ "GetUserStat", "b:olpp", 0 },	/* 18 */
-	{ "GetUserAchievement", "b:olpp", 0 },	/* 19 */
-	{ "GetUserAchievementAndUnlockTime", "b:olppp", 0 },	/* 20 */
-	{ "ResetAllStats", "b:oB", 0 },	/* 21 */
-	{ "FindOrCreateLeaderboard", "l:opii", 0 },	/* 22 */
-	{ "FindLeaderboard", "l:op", 0 },	/* 23 */
-	{ "GetLeaderboardName", "S:ol", 0 },	/* 24 */
-	{ "GetLeaderboardEntryCount", "i:ol", 0 },	/* 25 */
-	{ "GetLeaderboardSortMethod", "i:ol", 0 },	/* 26 */
-	{ "GetLeaderboardDisplayType", "i:ol", 0 },	/* 27 */
-	{ "DownloadLeaderboardEntries", "l:oliii", 0 },	/* 28 */
-	{ "DownloadLeaderboardEntriesForUsers", "l:olpi", 0 },	/* 29 */
-	{ "GetDownloadedLeaderboardEntry", "b:olippi", 0 },	/* 30 */
-	{ "UploadLeaderboardScore", "l:oliipi", 0 },	/* 31 */
-	{ "AttachLeaderboardUGC", "l:oll", 0 },	/* 32 */
-	{ "GetNumberOfCurrentPlayers", "l:o", 0 },	/* 33 */
-	{ "RequestGlobalAchievementPercentages", "l:o", 0 },	/* 34 */
-	{ "GetMostAchievedAchievementInfo", "i:opupp", 0 },	/* 35 */
-	{ "GetNextMostAchievedAchievementInfo", "i:oipupp", 0 },	/* 36 */
-	{ "GetAchievementAchievedPercent", "b:opp", 0 },	/* 37 */
-	{ "RequestGlobalStats", "l:oi", 0 },	/* 38 */
-	{ "GetGlobalStat", "b:opp", 0 },	/* 39 */
-	{ "GetGlobalStat", "b:opp", 0 },	/* 40 */
-	{ "GetGlobalStatHistory", "i:oppu", 0 },	/* 41 */
-	{ "GetGlobalStatHistory", "i:oppu", 0 },	/* 42 */
-	{ "GetAchievementProgressLimits", "b:oppp", 0 },	/* 43 */
-	{ "GetAchievementProgressLimits", "b:oppp", 0 },	/* 44 */
+	{ "RequestCurrentStats", "SteamAPI_ISteamUserStats_RequestCurrentStats", "b:o", 0, -1 },
+	{ "GetStat", "SteamAPI_ISteamUserStats_GetStatInt32", "b:opp", 0, -1 },
+	{ "GetStat", "SteamAPI_ISteamUserStats_GetStatFloat", "b:opp", 0, -1 },
+	{ "SetStat", "SteamAPI_ISteamUserStats_SetStatInt32", "b:opi", 0, -1 },
+	{ "SetStat", "SteamAPI_ISteamUserStats_SetStatFloat", "b:opf", 0, -1 },
+	{ "UpdateAvgRateStat", "SteamAPI_ISteamUserStats_UpdateAvgRateStat", "b:opfd", 0, -1 },
+	{ "GetAchievement", "SteamAPI_ISteamUserStats_GetAchievement", "b:opp", 0, -1 },
+	{ "SetAchievement", "SteamAPI_ISteamUserStats_SetAchievement", "b:op", 0, -1 },
+	{ "ClearAchievement", "SteamAPI_ISteamUserStats_ClearAchievement", "b:op", 0, -1 },
+	{ "GetAchievementAndUnlockTime", "SteamAPI_ISteamUserStats_GetAchievementAndUnlockTime", "b:oppp", 0, -1 },
+	{ "StoreStats", "SteamAPI_ISteamUserStats_StoreStats", "b:o", 0, -1 },
+	{ "GetAchievementIcon", "SteamAPI_ISteamUserStats_GetAchievementIcon", "i:op", 0, -1 },
+	{ "GetAchievementDisplayAttribute", "SteamAPI_ISteamUserStats_GetAchievementDisplayAttribute", "S:opp", 0, -1 },
+	{ "IndicateAchievementProgress", "SteamAPI_ISteamUserStats_IndicateAchievementProgress", "b:opuu", 0, -1 },
+	{ "GetNumAchievements", "SteamAPI_ISteamUserStats_GetNumAchievements", "u:o", 0, -1 },
+	{ "GetAchievementName", "SteamAPI_ISteamUserStats_GetAchievementName", "S:ou", 0, -1 },
+	{ "RequestUserStats", "SteamAPI_ISteamUserStats_RequestUserStats", "l:ol", 0, -1 },
+	{ "GetUserStat", "SteamAPI_ISteamUserStats_GetUserStatInt32", "b:olpp", 0, -1 },
+	{ "GetUserStat", "SteamAPI_ISteamUserStats_GetUserStatFloat", "b:olpp", 0, -1 },
+	{ "GetUserAchievement", "SteamAPI_ISteamUserStats_GetUserAchievement", "b:olpp", 0, -1 },
+	{ "GetUserAchievementAndUnlockTime", "SteamAPI_ISteamUserStats_GetUserAchievementAndUnlockTime", "b:olppp", 0, -1 },
+	{ "ResetAllStats", "SteamAPI_ISteamUserStats_ResetAllStats", "b:oB", 0, -1 },
+	{ "FindOrCreateLeaderboard", "SteamAPI_ISteamUserStats_FindOrCreateLeaderboard", "l:opii", 0, -1 },
+	{ "FindLeaderboard", "SteamAPI_ISteamUserStats_FindLeaderboard", "l:op", 0, -1 },
+	{ "GetLeaderboardName", "SteamAPI_ISteamUserStats_GetLeaderboardName", "S:ol", 0, -1 },
+	{ "GetLeaderboardEntryCount", "SteamAPI_ISteamUserStats_GetLeaderboardEntryCount", "i:ol", 0, -1 },
+	{ "GetLeaderboardSortMethod", "SteamAPI_ISteamUserStats_GetLeaderboardSortMethod", "i:ol", 0, -1 },
+	{ "GetLeaderboardDisplayType", "SteamAPI_ISteamUserStats_GetLeaderboardDisplayType", "i:ol", 0, -1 },
+	{ "DownloadLeaderboardEntries", "SteamAPI_ISteamUserStats_DownloadLeaderboardEntries", "l:oliii", 0, -1 },
+	{ "DownloadLeaderboardEntriesForUsers", "SteamAPI_ISteamUserStats_DownloadLeaderboardEntriesForUsers", "l:olpi", 0, -1 },
+	{ "GetDownloadedLeaderboardEntry", "SteamAPI_ISteamUserStats_GetDownloadedLeaderboardEntry", "b:olippi", 0, -1 },
+	{ "UploadLeaderboardScore", "SteamAPI_ISteamUserStats_UploadLeaderboardScore", "l:oliipi", 0, -1 },
+	{ "AttachLeaderboardUGC", "SteamAPI_ISteamUserStats_AttachLeaderboardUGC", "l:oll", 0, -1 },
+	{ "GetNumberOfCurrentPlayers", "SteamAPI_ISteamUserStats_GetNumberOfCurrentPlayers", "l:o", 0, -1 },
+	{ "RequestGlobalAchievementPercentages", "SteamAPI_ISteamUserStats_RequestGlobalAchievementPercentages", "l:o", 0, -1 },
+	{ "GetMostAchievedAchievementInfo", "SteamAPI_ISteamUserStats_GetMostAchievedAchievementInfo", "i:opupp", 0, -1 },
+	{ "GetNextMostAchievedAchievementInfo", "SteamAPI_ISteamUserStats_GetNextMostAchievedAchievementInfo", "i:oipupp", 0, -1 },
+	{ "GetAchievementAchievedPercent", "SteamAPI_ISteamUserStats_GetAchievementAchievedPercent", "b:opp", 0, -1 },
+	{ "RequestGlobalStats", "SteamAPI_ISteamUserStats_RequestGlobalStats", "l:oi", 0, -1 },
+	{ "GetGlobalStat", "SteamAPI_ISteamUserStats_GetGlobalStatInt64", "b:opp", 0, -1 },
+	{ "GetGlobalStat", "SteamAPI_ISteamUserStats_GetGlobalStatDouble", "b:opp", 0, -1 },
+	{ "GetGlobalStatHistory", "SteamAPI_ISteamUserStats_GetGlobalStatHistoryInt64", "i:oppu", 0, -1 },
+	{ "GetGlobalStatHistory", "SteamAPI_ISteamUserStats_GetGlobalStatHistoryDouble", "i:oppu", 0, -1 },
+	{ "GetAchievementProgressLimits", "SteamAPI_ISteamUserStats_GetAchievementProgressLimitsInt32", "b:oppp", 0, -1 },
+	{ "GetAchievementProgressLimits", "SteamAPI_ISteamUserStats_GetAchievementProgressLimitsFloat", "b:oppp", 0, -1 },
 };
 static const struct smethod m_STEAMVIDEO_INTERFACE_V002[] = {
-	{ "GetVideoURL", "v:ou", 0 },	/* 0 */
-	{ "IsBroadcasting", "b:op", 0 },	/* 1 */
-	{ "GetOPFSettings", "v:ou", 0 },	/* 2 */
-	{ "GetOPFStringForApp", "b:oupp", 0 },	/* 3 */
+	{ "GetVideoURL", "SteamAPI_ISteamVideo_GetVideoURL", "v:ou", 0, -1 },
+	{ "IsBroadcasting", "SteamAPI_ISteamVideo_IsBroadcasting", "b:op", 0, -1 },
+	{ "GetOPFSettings", "SteamAPI_ISteamVideo_GetOPFSettings", "v:ou", 0, -1 },
+	{ "GetOPFStringForApp", "SteamAPI_ISteamVideo_GetOPFStringForApp", "b:oupp", 0, -1 },
 };
 static const struct smethod m_SteamClient020[] = {
-	{ "CreateSteamPipe", "i:o", 0 },	/* 0 */
-	{ "BReleaseSteamPipe", "b:oi", 0 },	/* 1 */
-	{ "ConnectToGlobalUser", "i:oi", 0 },	/* 2 */
-	{ "CreateLocalUser", "i:opi", 0 },	/* 3 */
-	{ "ReleaseUser", "v:oii", 0 },	/* 4 */
-	{ "GetISteamUser", "I:oiip", 3 },	/* 5 */
-	{ "GetISteamGameServer", "I:oiip", 3 },	/* 6 */
-	{ "SetLocalIPBinding", "v:opu", 0 },	/* 7 */
-	{ "GetISteamFriends", "I:oiip", 3 },	/* 8 */
-	{ "GetISteamUtils", "I:oip", 2 },	/* 9 */
-	{ "GetISteamMatchmaking", "I:oiip", 3 },	/* 10 */
-	{ "GetISteamMatchmakingServers", "I:oiip", 3 },	/* 11 */
-	{ "GetISteamGenericInterface", "I:oiip", 3 },	/* 12 */
-	{ "GetISteamUserStats", "I:oiip", 3 },	/* 13 */
-	{ "GetISteamGameServerStats", "I:oiip", 3 },	/* 14 */
-	{ "GetISteamApps", "I:oiip", 3 },	/* 15 */
-	{ "GetISteamNetworking", "I:oiip", 3 },	/* 16 */
-	{ "GetISteamRemoteStorage", "I:oiip", 3 },	/* 17 */
-	{ "GetISteamScreenshots", "I:oiip", 3 },	/* 18 */
-	{ "GetISteamGameSearch", "I:oiip", 3 },	/* 19 */
-	{ "RunFrame", "v:o", 0 },	/* 20 */
-	{ "GetIPCCallCount", "u:o", 0 },	/* 21 */
-	{ "SetWarningMessageHook", "v:oF", 0 },	/* 22 */
-	{ "BShutdownIfAllPipesClosed", "b:o", 0 },	/* 23 */
-	{ "GetISteamHTTP", "I:oiip", 3 },	/* 24 */
-	{ "DEPRECATED_GetISteamUnifiedMessages", "I:oiip", 3 },	/* 25 */
-	{ "GetISteamController", "I:oiip", 3 },	/* 26 */
-	{ "GetISteamUGC", "I:oiip", 3 },	/* 27 */
-	{ "GetISteamAppList", "I:oiip", 3 },	/* 28 */
-	{ "GetISteamMusic", "I:oiip", 3 },	/* 29 */
-	{ "GetISteamMusicRemote", "I:oiip", 3 },	/* 30 */
-	{ "GetISteamHTMLSurface", "I:oiip", 3 },	/* 31 */
-	{ "DEPRECATED_Set_SteamAPI_CPostAPIResultInProcess", "v:oF", 0 },	/* 32 */
-	{ "DEPRECATED_Remove_SteamAPI_CPostAPIResultInProcess", "v:oF", 0 },	/* 33 */
-	{ "Set_SteamAPI_CCheckCallbackRegisteredInProcess", "v:oF", 0 },	/* 34 */
-	{ "GetISteamInventory", "I:oiip", 3 },	/* 35 */
-	{ "GetISteamVideo", "I:oiip", 3 },	/* 36 */
-	{ "GetISteamParentalSettings", "I:oiip", 3 },	/* 37 */
-	{ "GetISteamInput", "I:oiip", 3 },	/* 38 */
-	{ "GetISteamParties", "I:oiip", 3 },	/* 39 */
-	{ "GetISteamRemotePlay", "I:oiip", 3 },	/* 40 */
-	{ "DestroyAllInterfaces", "v:o", 0 },	/* 41 */
+	{ "CreateSteamPipe", "SteamAPI_ISteamClient_CreateSteamPipe", "i:o", 0, -1 },
+	{ "BReleaseSteamPipe", "SteamAPI_ISteamClient_BReleaseSteamPipe", "b:oi", 0, -1 },
+	{ "ConnectToGlobalUser", "SteamAPI_ISteamClient_ConnectToGlobalUser", "i:oi", 0, -1 },
+	{ "CreateLocalUser", "SteamAPI_ISteamClient_CreateLocalUser", "i:opi", 0, -1 },
+	{ "ReleaseUser", "SteamAPI_ISteamClient_ReleaseUser", "v:oii", 0, -1 },
+	{ "GetISteamUser", "SteamAPI_ISteamClient_GetISteamUser", "I:oiip", 3, -1 },
+	{ "GetISteamGameServer", "SteamAPI_ISteamClient_GetISteamGameServer", "I:oiip", 3, -1 },
+	{ "SetLocalIPBinding", "SteamAPI_ISteamClient_SetLocalIPBinding", "v:opu", 0, -1 },
+	{ "GetISteamFriends", "SteamAPI_ISteamClient_GetISteamFriends", "I:oiip", 3, -1 },
+	{ "GetISteamUtils", "SteamAPI_ISteamClient_GetISteamUtils", "I:oip", 2, -1 },
+	{ "GetISteamMatchmaking", "SteamAPI_ISteamClient_GetISteamMatchmaking", "I:oiip", 3, -1 },
+	{ "GetISteamMatchmakingServers", "SteamAPI_ISteamClient_GetISteamMatchmakingServers", "I:oiip", 3, -1 },
+	{ "GetISteamGenericInterface", "SteamAPI_ISteamClient_GetISteamGenericInterface", "I:oiip", 3, -1 },
+	{ "GetISteamUserStats", "SteamAPI_ISteamClient_GetISteamUserStats", "I:oiip", 3, -1 },
+	{ "GetISteamGameServerStats", "SteamAPI_ISteamClient_GetISteamGameServerStats", "I:oiip", 3, -1 },
+	{ "GetISteamApps", "SteamAPI_ISteamClient_GetISteamApps", "I:oiip", 3, -1 },
+	{ "GetISteamNetworking", "SteamAPI_ISteamClient_GetISteamNetworking", "I:oiip", 3, -1 },
+	{ "GetISteamRemoteStorage", "SteamAPI_ISteamClient_GetISteamRemoteStorage", "I:oiip", 3, -1 },
+	{ "GetISteamScreenshots", "SteamAPI_ISteamClient_GetISteamScreenshots", "I:oiip", 3, -1 },
+	{ "GetISteamGameSearch", "SteamAPI_ISteamClient_GetISteamGameSearch", "I:oiip", 3, -1 },
+	{ "GetIPCCallCount", "SteamAPI_ISteamClient_GetIPCCallCount", "u:o", 0, -1 },
+	{ "SetWarningMessageHook", "SteamAPI_ISteamClient_SetWarningMessageHook", "v:oF", 0, -1 },
+	{ "BShutdownIfAllPipesClosed", "SteamAPI_ISteamClient_BShutdownIfAllPipesClosed", "b:o", 0, -1 },
+	{ "GetISteamHTTP", "SteamAPI_ISteamClient_GetISteamHTTP", "I:oiip", 3, -1 },
+	{ "GetISteamController", "SteamAPI_ISteamClient_GetISteamController", "I:oiip", 3, -1 },
+	{ "GetISteamUGC", "SteamAPI_ISteamClient_GetISteamUGC", "I:oiip", 3, -1 },
+	{ "GetISteamAppList", "SteamAPI_ISteamClient_GetISteamAppList", "I:oiip", 3, -1 },
+	{ "GetISteamMusic", "SteamAPI_ISteamClient_GetISteamMusic", "I:oiip", 3, -1 },
+	{ "GetISteamMusicRemote", "SteamAPI_ISteamClient_GetISteamMusicRemote", "I:oiip", 3, -1 },
+	{ "GetISteamHTMLSurface", "SteamAPI_ISteamClient_GetISteamHTMLSurface", "I:oiip", 3, -1 },
+	{ "GetISteamInventory", "SteamAPI_ISteamClient_GetISteamInventory", "I:oiip", 3, -1 },
+	{ "GetISteamVideo", "SteamAPI_ISteamClient_GetISteamVideo", "I:oiip", 3, -1 },
+	{ "GetISteamParentalSettings", "SteamAPI_ISteamClient_GetISteamParentalSettings", "I:oiip", 3, -1 },
+	{ "GetISteamInput", "SteamAPI_ISteamClient_GetISteamInput", "I:oiip", 3, -1 },
+	{ "GetISteamParties", "SteamAPI_ISteamClient_GetISteamParties", "I:oiip", 3, -1 },
+	{ "GetISteamRemotePlay", "SteamAPI_ISteamClient_GetISteamRemotePlay", "I:oiip", 3, -1 },
+	{ "RunFrame", NULL, "v:o", 0, 20 },
+	{ "DEPRECATED_GetISteamUnifiedMessages", NULL, "I:oiip", 3, 25 },
+	{ "DEPRECATED_Set_SteamAPI_CPostAPIResultInProcess", NULL, "v:oF", 0, 32 },
+	{ "DEPRECATED_Remove_SteamAPI_CPostAPIResultInProcess", NULL, "v:oF", 0, 33 },
+	{ "Set_SteamAPI_CCheckCallbackRegisteredInProcess", NULL, "v:oF", 0, 34 },
+	{ "DestroyAllInterfaces", NULL, "v:o", 0, 41 },
 };
 static const struct smethod m_SteamController008[] = {
-	{ "Init", "b:o", 0 },	/* 0 */
-	{ "Shutdown", "b:o", 0 },	/* 1 */
-	{ "RunFrame", "v:o", 0 },	/* 2 */
-	{ "GetConnectedControllers", "i:op", 0 },	/* 3 */
-	{ "GetActionSetHandle", "l:op", 0 },	/* 4 */
-	{ "ActivateActionSet", "v:oll", 0 },	/* 5 */
-	{ "GetCurrentActionSet", "l:ol", 0 },	/* 6 */
-	{ "ActivateActionSetLayer", "v:oll", 0 },	/* 7 */
-	{ "DeactivateActionSetLayer", "v:oll", 0 },	/* 8 */
-	{ "DeactivateAllActionSetLayers", "v:ol", 0 },	/* 9 */
-	{ "GetActiveActionSetLayers", "i:olp", 0 },	/* 10 */
-	{ "GetDigitalActionHandle", "l:op", 0 },	/* 11 */
-	{ "GetDigitalActionData", "X:oll", 0 },	/* 12 */
-	{ "GetDigitalActionOrigins", "i:olllp", 0 },	/* 13 */
-	{ "GetAnalogActionHandle", "l:op", 0 },	/* 14 */
-	{ "GetAnalogActionData", "X:oll", 0 },	/* 15 */
-	{ "GetAnalogActionOrigins", "i:olllp", 0 },	/* 16 */
-	{ "GetGlyphForActionOrigin", "S:oi", 0 },	/* 17 */
-	{ "GetStringForActionOrigin", "S:oi", 0 },	/* 18 */
-	{ "StopAnalogActionMomentum", "v:oll", 0 },	/* 19 */
-	{ "GetMotionData", "X:ol", 0 },	/* 20 */
-	{ "TriggerHapticPulse", "v:oliu", 0 },	/* 21 */
-	{ "TriggerRepeatedHapticPulse", "v:oliuuuu", 0 },	/* 22 */
-	{ "TriggerVibration", "v:oluu", 0 },	/* 23 */
-	{ "SetLEDColor", "v:oluuuu", 0 },	/* 24 */
-	{ "ShowBindingPanel", "b:ol", 0 },	/* 25 */
-	{ "GetInputTypeForHandle", "i:ol", 0 },	/* 26 */
-	{ "GetControllerForGamepadIndex", "l:oi", 0 },	/* 27 */
-	{ "GetGamepadIndexForController", "i:ol", 0 },	/* 28 */
-	{ "GetStringForXboxOrigin", "S:oi", 0 },	/* 29 */
-	{ "GetGlyphForXboxOrigin", "S:oi", 0 },	/* 30 */
-	{ "GetActionOriginFromXboxOrigin", "i:oli", 0 },	/* 31 */
-	{ "TranslateActionOrigin", "i:oii", 0 },	/* 32 */
-	{ "GetControllerBindingRevision", "b:olpp", 0 },	/* 33 */
+	{ "Init", "SteamAPI_ISteamController_Init", "b:o", 0, -1 },
+	{ "Shutdown", "SteamAPI_ISteamController_Shutdown", "b:o", 0, -1 },
+	{ "RunFrame", "SteamAPI_ISteamController_RunFrame", "v:o", 0, -1 },
+	{ "GetConnectedControllers", "SteamAPI_ISteamController_GetConnectedControllers", "i:op", 0, -1 },
+	{ "GetActionSetHandle", "SteamAPI_ISteamController_GetActionSetHandle", "l:op", 0, -1 },
+	{ "ActivateActionSet", "SteamAPI_ISteamController_ActivateActionSet", "v:oll", 0, -1 },
+	{ "GetCurrentActionSet", "SteamAPI_ISteamController_GetCurrentActionSet", "l:ol", 0, -1 },
+	{ "ActivateActionSetLayer", "SteamAPI_ISteamController_ActivateActionSetLayer", "v:oll", 0, -1 },
+	{ "DeactivateActionSetLayer", "SteamAPI_ISteamController_DeactivateActionSetLayer", "v:oll", 0, -1 },
+	{ "DeactivateAllActionSetLayers", "SteamAPI_ISteamController_DeactivateAllActionSetLayers", "v:ol", 0, -1 },
+	{ "GetActiveActionSetLayers", "SteamAPI_ISteamController_GetActiveActionSetLayers", "i:olp", 0, -1 },
+	{ "GetDigitalActionHandle", "SteamAPI_ISteamController_GetDigitalActionHandle", "l:op", 0, -1 },
+	{ "GetDigitalActionData", "SteamAPI_ISteamController_GetDigitalActionData", "X:oll", 0, -1 },
+	{ "GetDigitalActionOrigins", "SteamAPI_ISteamController_GetDigitalActionOrigins", "i:olllp", 0, -1 },
+	{ "GetAnalogActionHandle", "SteamAPI_ISteamController_GetAnalogActionHandle", "l:op", 0, -1 },
+	{ "GetAnalogActionData", "SteamAPI_ISteamController_GetAnalogActionData", "X:oll", 0, -1 },
+	{ "GetAnalogActionOrigins", "SteamAPI_ISteamController_GetAnalogActionOrigins", "i:olllp", 0, -1 },
+	{ "GetGlyphForActionOrigin", "SteamAPI_ISteamController_GetGlyphForActionOrigin", "S:oi", 0, -1 },
+	{ "GetStringForActionOrigin", "SteamAPI_ISteamController_GetStringForActionOrigin", "S:oi", 0, -1 },
+	{ "StopAnalogActionMomentum", "SteamAPI_ISteamController_StopAnalogActionMomentum", "v:oll", 0, -1 },
+	{ "GetMotionData", "SteamAPI_ISteamController_GetMotionData", "X:ol", 0, -1 },
+	{ "TriggerHapticPulse", "SteamAPI_ISteamController_TriggerHapticPulse", "v:oliu", 0, -1 },
+	{ "TriggerRepeatedHapticPulse", "SteamAPI_ISteamController_TriggerRepeatedHapticPulse", "v:oliuuuu", 0, -1 },
+	{ "TriggerVibration", "SteamAPI_ISteamController_TriggerVibration", "v:oluu", 0, -1 },
+	{ "SetLEDColor", "SteamAPI_ISteamController_SetLEDColor", "v:oluuuu", 0, -1 },
+	{ "ShowBindingPanel", "SteamAPI_ISteamController_ShowBindingPanel", "b:ol", 0, -1 },
+	{ "GetInputTypeForHandle", "SteamAPI_ISteamController_GetInputTypeForHandle", "i:ol", 0, -1 },
+	{ "GetControllerForGamepadIndex", "SteamAPI_ISteamController_GetControllerForGamepadIndex", "l:oi", 0, -1 },
+	{ "GetGamepadIndexForController", "SteamAPI_ISteamController_GetGamepadIndexForController", "i:ol", 0, -1 },
+	{ "GetStringForXboxOrigin", "SteamAPI_ISteamController_GetStringForXboxOrigin", "S:oi", 0, -1 },
+	{ "GetGlyphForXboxOrigin", "SteamAPI_ISteamController_GetGlyphForXboxOrigin", "S:oi", 0, -1 },
+	{ "GetActionOriginFromXboxOrigin", "SteamAPI_ISteamController_GetActionOriginFromXboxOrigin", "i:oli", 0, -1 },
+	{ "TranslateActionOrigin", "SteamAPI_ISteamController_TranslateActionOrigin", "i:oii", 0, -1 },
+	{ "GetControllerBindingRevision", "SteamAPI_ISteamController_GetControllerBindingRevision", "b:olpp", 0, -1 },
 };
 static const struct smethod m_SteamFriends017[] = {
-	{ "GetPersonaName", "S:o", 0 },	/* 0 */
-	{ "SetPersonaName", "l:op", 0 },	/* 1 */
-	{ "GetPersonaState", "i:o", 0 },	/* 2 */
-	{ "GetFriendCount", "i:oi", 0 },	/* 3 */
-	{ "GetFriendByIndex", "l:oii", 0 },	/* 4 */
-	{ "GetFriendRelationship", "i:ol", 0 },	/* 5 */
-	{ "GetFriendPersonaState", "i:ol", 0 },	/* 6 */
-	{ "GetFriendPersonaName", "S:ol", 0 },	/* 7 */
-	{ "GetFriendGamePlayed", "b:olp", 0 },	/* 8 */
-	{ "GetFriendPersonaNameHistory", "S:oli", 0 },	/* 9 */
-	{ "GetFriendSteamLevel", "i:ol", 0 },	/* 10 */
-	{ "GetPlayerNickname", "S:ol", 0 },	/* 11 */
-	{ "GetFriendsGroupCount", "i:o", 0 },	/* 12 */
-	{ "GetFriendsGroupIDByIndex", "i:oi", 0 },	/* 13 */
-	{ "GetFriendsGroupName", "S:oi", 0 },	/* 14 */
-	{ "GetFriendsGroupMembersCount", "i:oi", 0 },	/* 15 */
-	{ "GetFriendsGroupMembersList", "v:oipi", 0 },	/* 16 */
-	{ "HasFriend", "b:oli", 0 },	/* 17 */
-	{ "GetClanCount", "i:o", 0 },	/* 18 */
-	{ "GetClanByIndex", "l:oi", 0 },	/* 19 */
-	{ "GetClanName", "S:ol", 0 },	/* 20 */
-	{ "GetClanTag", "S:ol", 0 },	/* 21 */
-	{ "GetClanActivityCounts", "b:olppp", 0 },	/* 22 */
-	{ "DownloadClanActivityCounts", "l:opi", 0 },	/* 23 */
-	{ "GetFriendCountFromSource", "i:ol", 0 },	/* 24 */
-	{ "GetFriendFromSourceByIndex", "l:oli", 0 },	/* 25 */
-	{ "IsUserInSource", "b:oll", 0 },	/* 26 */
-	{ "SetInGameVoiceSpeaking", "v:olB", 0 },	/* 27 */
-	{ "ActivateGameOverlay", "v:op", 0 },	/* 28 */
-	{ "ActivateGameOverlayToUser", "v:opl", 0 },	/* 29 */
-	{ "ActivateGameOverlayToWebPage", "v:opi", 0 },	/* 30 */
-	{ "ActivateGameOverlayToStore", "v:oui", 0 },	/* 31 */
-	{ "SetPlayedWith", "v:ol", 0 },	/* 32 */
-	{ "ActivateGameOverlayInviteDialog", "v:ol", 0 },	/* 33 */
-	{ "GetSmallFriendAvatar", "i:ol", 0 },	/* 34 */
-	{ "GetMediumFriendAvatar", "i:ol", 0 },	/* 35 */
-	{ "GetLargeFriendAvatar", "i:ol", 0 },	/* 36 */
-	{ "RequestUserInformation", "b:olB", 0 },	/* 37 */
-	{ "RequestClanOfficerList", "l:ol", 0 },	/* 38 */
-	{ "GetClanOwner", "l:ol", 0 },	/* 39 */
-	{ "GetClanOfficerCount", "i:ol", 0 },	/* 40 */
-	{ "GetClanOfficerByIndex", "l:oli", 0 },	/* 41 */
-	{ "GetUserRestrictions", "u:o", 0 },	/* 42 */
-	{ "SetRichPresence", "b:opp", 0 },	/* 43 */
-	{ "ClearRichPresence", "v:o", 0 },	/* 44 */
-	{ "GetFriendRichPresence", "S:olp", 0 },	/* 45 */
-	{ "GetFriendRichPresenceKeyCount", "i:ol", 0 },	/* 46 */
-	{ "GetFriendRichPresenceKeyByIndex", "S:oli", 0 },	/* 47 */
-	{ "RequestFriendRichPresence", "v:ol", 0 },	/* 48 */
-	{ "InviteUserToGame", "b:olp", 0 },	/* 49 */
-	{ "GetCoplayFriendCount", "i:o", 0 },	/* 50 */
-	{ "GetCoplayFriend", "l:oi", 0 },	/* 51 */
-	{ "GetFriendCoplayTime", "i:ol", 0 },	/* 52 */
-	{ "GetFriendCoplayGame", "u:ol", 0 },	/* 53 */
-	{ "JoinClanChatRoom", "l:ol", 0 },	/* 54 */
-	{ "LeaveClanChatRoom", "b:ol", 0 },	/* 55 */
-	{ "GetClanChatMemberCount", "i:ol", 0 },	/* 56 */
-	{ "GetChatMemberByIndex", "l:oli", 0 },	/* 57 */
-	{ "SendClanChatMessage", "b:olp", 0 },	/* 58 */
-	{ "GetClanChatMessage", "i:olipipp", 0 },	/* 59 */
-	{ "IsClanChatAdmin", "b:oll", 0 },	/* 60 */
-	{ "IsClanChatWindowOpenInSteam", "b:ol", 0 },	/* 61 */
-	{ "OpenClanChatWindowInSteam", "b:ol", 0 },	/* 62 */
-	{ "CloseClanChatWindowInSteam", "b:ol", 0 },	/* 63 */
-	{ "SetListenForFriendsMessages", "b:oB", 0 },	/* 64 */
-	{ "ReplyToFriendMessage", "b:olp", 0 },	/* 65 */
-	{ "GetFriendMessage", "i:olipip", 0 },	/* 66 */
-	{ "GetFollowerCount", "l:ol", 0 },	/* 67 */
-	{ "IsFollowing", "l:ol", 0 },	/* 68 */
-	{ "EnumerateFollowingList", "l:ou", 0 },	/* 69 */
-	{ "IsClanPublic", "b:ol", 0 },	/* 70 */
-	{ "IsClanOfficialGameGroup", "b:ol", 0 },	/* 71 */
-	{ "GetNumChatsWithUnreadPriorityMessages", "i:o", 0 },	/* 72 */
-	{ "ActivateGameOverlayRemotePlayTogetherInviteDialog", "v:ol", 0 },	/* 73 */
-	{ "RegisterProtocolInOverlayBrowser", "b:op", 0 },	/* 74 */
-	{ "ActivateGameOverlayInviteDialogConnectString", "v:op", 0 },	/* 75 */
+	{ "GetPersonaName", "SteamAPI_ISteamFriends_GetPersonaName", "S:o", 0, -1 },
+	{ "SetPersonaName", "SteamAPI_ISteamFriends_SetPersonaName", "l:op", 0, -1 },
+	{ "GetPersonaState", "SteamAPI_ISteamFriends_GetPersonaState", "i:o", 0, -1 },
+	{ "GetFriendCount", "SteamAPI_ISteamFriends_GetFriendCount", "i:oi", 0, -1 },
+	{ "GetFriendByIndex", "SteamAPI_ISteamFriends_GetFriendByIndex", "l:oii", 0, -1 },
+	{ "GetFriendRelationship", "SteamAPI_ISteamFriends_GetFriendRelationship", "i:ol", 0, -1 },
+	{ "GetFriendPersonaState", "SteamAPI_ISteamFriends_GetFriendPersonaState", "i:ol", 0, -1 },
+	{ "GetFriendPersonaName", "SteamAPI_ISteamFriends_GetFriendPersonaName", "S:ol", 0, -1 },
+	{ "GetFriendGamePlayed", "SteamAPI_ISteamFriends_GetFriendGamePlayed", "b:olp", 0, -1 },
+	{ "GetFriendPersonaNameHistory", "SteamAPI_ISteamFriends_GetFriendPersonaNameHistory", "S:oli", 0, -1 },
+	{ "GetFriendSteamLevel", "SteamAPI_ISteamFriends_GetFriendSteamLevel", "i:ol", 0, -1 },
+	{ "GetPlayerNickname", "SteamAPI_ISteamFriends_GetPlayerNickname", "S:ol", 0, -1 },
+	{ "GetFriendsGroupCount", "SteamAPI_ISteamFriends_GetFriendsGroupCount", "i:o", 0, -1 },
+	{ "GetFriendsGroupIDByIndex", "SteamAPI_ISteamFriends_GetFriendsGroupIDByIndex", "i:oi", 0, -1 },
+	{ "GetFriendsGroupName", "SteamAPI_ISteamFriends_GetFriendsGroupName", "S:oi", 0, -1 },
+	{ "GetFriendsGroupMembersCount", "SteamAPI_ISteamFriends_GetFriendsGroupMembersCount", "i:oi", 0, -1 },
+	{ "GetFriendsGroupMembersList", "SteamAPI_ISteamFriends_GetFriendsGroupMembersList", "v:oipi", 0, -1 },
+	{ "HasFriend", "SteamAPI_ISteamFriends_HasFriend", "b:oli", 0, -1 },
+	{ "GetClanCount", "SteamAPI_ISteamFriends_GetClanCount", "i:o", 0, -1 },
+	{ "GetClanByIndex", "SteamAPI_ISteamFriends_GetClanByIndex", "l:oi", 0, -1 },
+	{ "GetClanName", "SteamAPI_ISteamFriends_GetClanName", "S:ol", 0, -1 },
+	{ "GetClanTag", "SteamAPI_ISteamFriends_GetClanTag", "S:ol", 0, -1 },
+	{ "GetClanActivityCounts", "SteamAPI_ISteamFriends_GetClanActivityCounts", "b:olppp", 0, -1 },
+	{ "DownloadClanActivityCounts", "SteamAPI_ISteamFriends_DownloadClanActivityCounts", "l:opi", 0, -1 },
+	{ "GetFriendCountFromSource", "SteamAPI_ISteamFriends_GetFriendCountFromSource", "i:ol", 0, -1 },
+	{ "GetFriendFromSourceByIndex", "SteamAPI_ISteamFriends_GetFriendFromSourceByIndex", "l:oli", 0, -1 },
+	{ "IsUserInSource", "SteamAPI_ISteamFriends_IsUserInSource", "b:oll", 0, -1 },
+	{ "SetInGameVoiceSpeaking", "SteamAPI_ISteamFriends_SetInGameVoiceSpeaking", "v:olB", 0, -1 },
+	{ "ActivateGameOverlay", "SteamAPI_ISteamFriends_ActivateGameOverlay", "v:op", 0, -1 },
+	{ "ActivateGameOverlayToUser", "SteamAPI_ISteamFriends_ActivateGameOverlayToUser", "v:opl", 0, -1 },
+	{ "ActivateGameOverlayToWebPage", "SteamAPI_ISteamFriends_ActivateGameOverlayToWebPage", "v:opi", 0, -1 },
+	{ "ActivateGameOverlayToStore", "SteamAPI_ISteamFriends_ActivateGameOverlayToStore", "v:oui", 0, -1 },
+	{ "SetPlayedWith", "SteamAPI_ISteamFriends_SetPlayedWith", "v:ol", 0, -1 },
+	{ "ActivateGameOverlayInviteDialog", "SteamAPI_ISteamFriends_ActivateGameOverlayInviteDialog", "v:ol", 0, -1 },
+	{ "GetSmallFriendAvatar", "SteamAPI_ISteamFriends_GetSmallFriendAvatar", "i:ol", 0, -1 },
+	{ "GetMediumFriendAvatar", "SteamAPI_ISteamFriends_GetMediumFriendAvatar", "i:ol", 0, -1 },
+	{ "GetLargeFriendAvatar", "SteamAPI_ISteamFriends_GetLargeFriendAvatar", "i:ol", 0, -1 },
+	{ "RequestUserInformation", "SteamAPI_ISteamFriends_RequestUserInformation", "b:olB", 0, -1 },
+	{ "RequestClanOfficerList", "SteamAPI_ISteamFriends_RequestClanOfficerList", "l:ol", 0, -1 },
+	{ "GetClanOwner", "SteamAPI_ISteamFriends_GetClanOwner", "l:ol", 0, -1 },
+	{ "GetClanOfficerCount", "SteamAPI_ISteamFriends_GetClanOfficerCount", "i:ol", 0, -1 },
+	{ "GetClanOfficerByIndex", "SteamAPI_ISteamFriends_GetClanOfficerByIndex", "l:oli", 0, -1 },
+	{ "GetUserRestrictions", "SteamAPI_ISteamFriends_GetUserRestrictions", "u:o", 0, -1 },
+	{ "SetRichPresence", "SteamAPI_ISteamFriends_SetRichPresence", "b:opp", 0, -1 },
+	{ "ClearRichPresence", "SteamAPI_ISteamFriends_ClearRichPresence", "v:o", 0, -1 },
+	{ "GetFriendRichPresence", "SteamAPI_ISteamFriends_GetFriendRichPresence", "S:olp", 0, -1 },
+	{ "GetFriendRichPresenceKeyCount", "SteamAPI_ISteamFriends_GetFriendRichPresenceKeyCount", "i:ol", 0, -1 },
+	{ "GetFriendRichPresenceKeyByIndex", "SteamAPI_ISteamFriends_GetFriendRichPresenceKeyByIndex", "S:oli", 0, -1 },
+	{ "RequestFriendRichPresence", "SteamAPI_ISteamFriends_RequestFriendRichPresence", "v:ol", 0, -1 },
+	{ "InviteUserToGame", "SteamAPI_ISteamFriends_InviteUserToGame", "b:olp", 0, -1 },
+	{ "GetCoplayFriendCount", "SteamAPI_ISteamFriends_GetCoplayFriendCount", "i:o", 0, -1 },
+	{ "GetCoplayFriend", "SteamAPI_ISteamFriends_GetCoplayFriend", "l:oi", 0, -1 },
+	{ "GetFriendCoplayTime", "SteamAPI_ISteamFriends_GetFriendCoplayTime", "i:ol", 0, -1 },
+	{ "GetFriendCoplayGame", "SteamAPI_ISteamFriends_GetFriendCoplayGame", "u:ol", 0, -1 },
+	{ "JoinClanChatRoom", "SteamAPI_ISteamFriends_JoinClanChatRoom", "l:ol", 0, -1 },
+	{ "LeaveClanChatRoom", "SteamAPI_ISteamFriends_LeaveClanChatRoom", "b:ol", 0, -1 },
+	{ "GetClanChatMemberCount", "SteamAPI_ISteamFriends_GetClanChatMemberCount", "i:ol", 0, -1 },
+	{ "GetChatMemberByIndex", "SteamAPI_ISteamFriends_GetChatMemberByIndex", "l:oli", 0, -1 },
+	{ "SendClanChatMessage", "SteamAPI_ISteamFriends_SendClanChatMessage", "b:olp", 0, -1 },
+	{ "GetClanChatMessage", "SteamAPI_ISteamFriends_GetClanChatMessage", "i:olipipp", 0, -1 },
+	{ "IsClanChatAdmin", "SteamAPI_ISteamFriends_IsClanChatAdmin", "b:oll", 0, -1 },
+	{ "IsClanChatWindowOpenInSteam", "SteamAPI_ISteamFriends_IsClanChatWindowOpenInSteam", "b:ol", 0, -1 },
+	{ "OpenClanChatWindowInSteam", "SteamAPI_ISteamFriends_OpenClanChatWindowInSteam", "b:ol", 0, -1 },
+	{ "CloseClanChatWindowInSteam", "SteamAPI_ISteamFriends_CloseClanChatWindowInSteam", "b:ol", 0, -1 },
+	{ "SetListenForFriendsMessages", "SteamAPI_ISteamFriends_SetListenForFriendsMessages", "b:oB", 0, -1 },
+	{ "ReplyToFriendMessage", "SteamAPI_ISteamFriends_ReplyToFriendMessage", "b:olp", 0, -1 },
+	{ "GetFriendMessage", "SteamAPI_ISteamFriends_GetFriendMessage", "i:olipip", 0, -1 },
+	{ "GetFollowerCount", "SteamAPI_ISteamFriends_GetFollowerCount", "l:ol", 0, -1 },
+	{ "IsFollowing", "SteamAPI_ISteamFriends_IsFollowing", "l:ol", 0, -1 },
+	{ "EnumerateFollowingList", "SteamAPI_ISteamFriends_EnumerateFollowingList", "l:ou", 0, -1 },
+	{ "IsClanPublic", "SteamAPI_ISteamFriends_IsClanPublic", "b:ol", 0, -1 },
+	{ "IsClanOfficialGameGroup", "SteamAPI_ISteamFriends_IsClanOfficialGameGroup", "b:ol", 0, -1 },
+	{ "GetNumChatsWithUnreadPriorityMessages", "SteamAPI_ISteamFriends_GetNumChatsWithUnreadPriorityMessages", "i:o", 0, -1 },
+	{ "ActivateGameOverlayRemotePlayTogetherInviteDialog", "SteamAPI_ISteamFriends_ActivateGameOverlayRemotePlayTogetherInviteDialog", "v:ol", 0, -1 },
+	{ "RegisterProtocolInOverlayBrowser", "SteamAPI_ISteamFriends_RegisterProtocolInOverlayBrowser", "b:op", 0, -1 },
+	{ "ActivateGameOverlayInviteDialogConnectString", "SteamAPI_ISteamFriends_ActivateGameOverlayInviteDialogConnectString", "v:op", 0, -1 },
 };
 static const struct smethod m_SteamGameServer014[] = {
-	{ "InitGameServer", "b:ouuuuup", 0 },	/* 0 */
-	{ "SetProduct", "v:op", 0 },	/* 1 */
-	{ "SetGameDescription", "v:op", 0 },	/* 2 */
-	{ "SetModDir", "v:op", 0 },	/* 3 */
-	{ "SetDedicatedServer", "v:oB", 0 },	/* 4 */
-	{ "LogOn", "v:op", 0 },	/* 5 */
-	{ "LogOnAnonymous", "v:o", 0 },	/* 6 */
-	{ "LogOff", "v:o", 0 },	/* 7 */
-	{ "BLoggedOn", "b:o", 0 },	/* 8 */
-	{ "BSecure", "b:o", 0 },	/* 9 */
-	{ "GetSteamID", "l:o", 0 },	/* 10 */
-	{ "WasRestartRequested", "b:o", 0 },	/* 11 */
-	{ "SetMaxPlayerCount", "v:oi", 0 },	/* 12 */
-	{ "SetBotPlayerCount", "v:oi", 0 },	/* 13 */
-	{ "SetServerName", "v:op", 0 },	/* 14 */
-	{ "SetMapName", "v:op", 0 },	/* 15 */
-	{ "SetPasswordProtected", "v:oB", 0 },	/* 16 */
-	{ "SetSpectatorPort", "v:ou", 0 },	/* 17 */
-	{ "SetSpectatorServerName", "v:op", 0 },	/* 18 */
-	{ "ClearAllKeyValues", "v:o", 0 },	/* 19 */
-	{ "SetKeyValue", "v:opp", 0 },	/* 20 */
-	{ "SetGameTags", "v:op", 0 },	/* 21 */
-	{ "SetGameData", "v:op", 0 },	/* 22 */
-	{ "SetRegion", "v:op", 0 },	/* 23 */
-	{ "SetAdvertiseServerActive", "v:oB", 0 },	/* 24 */
-	{ "GetAuthSessionTicket", "u:opip", 0 },	/* 25 */
-	{ "BeginAuthSession", "i:opil", 0 },	/* 26 */
-	{ "EndAuthSession", "v:ol", 0 },	/* 27 */
-	{ "CancelAuthTicket", "v:ou", 0 },	/* 28 */
-	{ "UserHasLicenseForApp", "i:olu", 0 },	/* 29 */
-	{ "RequestUserGroupStatus", "b:oll", 0 },	/* 30 */
-	{ "GetGameplayStats", "v:o", 0 },	/* 31 */
-	{ "GetServerReputation", "l:o", 0 },	/* 32 */
-	{ "GetPublicIP", "X:o", 0 },	/* 33 */
-	{ "HandleIncomingPacket", "b:opiuu", 0 },	/* 34 */
-	{ "GetNextOutgoingPacket", "i:opipp", 0 },	/* 35 */
-	{ "AssociateWithClan", "l:ol", 0 },	/* 36 */
-	{ "ComputeNewPlayerCompatibility", "l:ol", 0 },	/* 37 */
-	{ "SendUserConnectAndAuthenticate_DEPRECATED", "b:oupup", 0 },	/* 38 */
-	{ "CreateUnauthenticatedUserConnection", "l:o", 0 },	/* 39 */
-	{ "SendUserDisconnect_DEPRECATED", "v:ol", 0 },	/* 40 */
-	{ "BUpdateUserData", "b:olpu", 0 },	/* 41 */
+	{ "SetProduct", "SteamAPI_ISteamGameServer_SetProduct", "v:op", 0, -1 },
+	{ "SetGameDescription", "SteamAPI_ISteamGameServer_SetGameDescription", "v:op", 0, -1 },
+	{ "SetModDir", "SteamAPI_ISteamGameServer_SetModDir", "v:op", 0, -1 },
+	{ "SetDedicatedServer", "SteamAPI_ISteamGameServer_SetDedicatedServer", "v:oB", 0, -1 },
+	{ "LogOn", "SteamAPI_ISteamGameServer_LogOn", "v:op", 0, -1 },
+	{ "LogOnAnonymous", "SteamAPI_ISteamGameServer_LogOnAnonymous", "v:o", 0, -1 },
+	{ "LogOff", "SteamAPI_ISteamGameServer_LogOff", "v:o", 0, -1 },
+	{ "BLoggedOn", "SteamAPI_ISteamGameServer_BLoggedOn", "b:o", 0, -1 },
+	{ "BSecure", "SteamAPI_ISteamGameServer_BSecure", "b:o", 0, -1 },
+	{ "GetSteamID", "SteamAPI_ISteamGameServer_GetSteamID", "l:o", 0, -1 },
+	{ "WasRestartRequested", "SteamAPI_ISteamGameServer_WasRestartRequested", "b:o", 0, -1 },
+	{ "SetMaxPlayerCount", "SteamAPI_ISteamGameServer_SetMaxPlayerCount", "v:oi", 0, -1 },
+	{ "SetBotPlayerCount", "SteamAPI_ISteamGameServer_SetBotPlayerCount", "v:oi", 0, -1 },
+	{ "SetServerName", "SteamAPI_ISteamGameServer_SetServerName", "v:op", 0, -1 },
+	{ "SetMapName", "SteamAPI_ISteamGameServer_SetMapName", "v:op", 0, -1 },
+	{ "SetPasswordProtected", "SteamAPI_ISteamGameServer_SetPasswordProtected", "v:oB", 0, -1 },
+	{ "SetSpectatorPort", "SteamAPI_ISteamGameServer_SetSpectatorPort", "v:ou", 0, -1 },
+	{ "SetSpectatorServerName", "SteamAPI_ISteamGameServer_SetSpectatorServerName", "v:op", 0, -1 },
+	{ "ClearAllKeyValues", "SteamAPI_ISteamGameServer_ClearAllKeyValues", "v:o", 0, -1 },
+	{ "SetKeyValue", "SteamAPI_ISteamGameServer_SetKeyValue", "v:opp", 0, -1 },
+	{ "SetGameTags", "SteamAPI_ISteamGameServer_SetGameTags", "v:op", 0, -1 },
+	{ "SetGameData", "SteamAPI_ISteamGameServer_SetGameData", "v:op", 0, -1 },
+	{ "SetRegion", "SteamAPI_ISteamGameServer_SetRegion", "v:op", 0, -1 },
+	{ "SetAdvertiseServerActive", "SteamAPI_ISteamGameServer_SetAdvertiseServerActive", "v:oB", 0, -1 },
+	{ "GetAuthSessionTicket", "SteamAPI_ISteamGameServer_GetAuthSessionTicket", "u:opip", 0, -1 },
+	{ "BeginAuthSession", "SteamAPI_ISteamGameServer_BeginAuthSession", "i:opil", 0, -1 },
+	{ "EndAuthSession", "SteamAPI_ISteamGameServer_EndAuthSession", "v:ol", 0, -1 },
+	{ "CancelAuthTicket", "SteamAPI_ISteamGameServer_CancelAuthTicket", "v:ou", 0, -1 },
+	{ "UserHasLicenseForApp", "SteamAPI_ISteamGameServer_UserHasLicenseForApp", "i:olu", 0, -1 },
+	{ "RequestUserGroupStatus", "SteamAPI_ISteamGameServer_RequestUserGroupStatus", "b:oll", 0, -1 },
+	{ "GetGameplayStats", "SteamAPI_ISteamGameServer_GetGameplayStats", "v:o", 0, -1 },
+	{ "GetServerReputation", "SteamAPI_ISteamGameServer_GetServerReputation", "l:o", 0, -1 },
+	{ "GetPublicIP", "SteamAPI_ISteamGameServer_GetPublicIP", "X:o", 0, -1 },
+	{ "HandleIncomingPacket", "SteamAPI_ISteamGameServer_HandleIncomingPacket", "b:opiuu", 0, -1 },
+	{ "GetNextOutgoingPacket", "SteamAPI_ISteamGameServer_GetNextOutgoingPacket", "i:opipp", 0, -1 },
+	{ "AssociateWithClan", "SteamAPI_ISteamGameServer_AssociateWithClan", "l:ol", 0, -1 },
+	{ "ComputeNewPlayerCompatibility", "SteamAPI_ISteamGameServer_ComputeNewPlayerCompatibility", "l:ol", 0, -1 },
+	{ "SendUserConnectAndAuthenticate_DEPRECATED", "SteamAPI_ISteamGameServer_SendUserConnectAndAuthenticate_DEPRECATED", "b:oupup", 0, -1 },
+	{ "CreateUnauthenticatedUserConnection", "SteamAPI_ISteamGameServer_CreateUnauthenticatedUserConnection", "l:o", 0, -1 },
+	{ "SendUserDisconnect_DEPRECATED", "SteamAPI_ISteamGameServer_SendUserDisconnect_DEPRECATED", "v:ol", 0, -1 },
+	{ "BUpdateUserData", "SteamAPI_ISteamGameServer_BUpdateUserData", "b:olpu", 0, -1 },
+	{ "InitGameServer", NULL, "b:ouuuuup", 0, 0 },
 };
 static const struct smethod m_SteamGameServerStats001[] = {
-	{ "RequestUserStats", "l:ol", 0 },	/* 0 */
-	{ "GetUserStat", "b:olpp", 0 },	/* 1 */
-	{ "GetUserStat", "b:olpp", 0 },	/* 2 */
-	{ "GetUserAchievement", "b:olpp", 0 },	/* 3 */
-	{ "SetUserStat", "b:olpi", 0 },	/* 4 */
-	{ "SetUserStat", "b:olpf", 0 },	/* 5 */
-	{ "UpdateUserAvgRateStat", "b:olpfd", 0 },	/* 6 */
-	{ "SetUserAchievement", "b:olp", 0 },	/* 7 */
-	{ "ClearUserAchievement", "b:olp", 0 },	/* 8 */
-	{ "StoreUserStats", "l:ol", 0 },	/* 9 */
+	{ "RequestUserStats", "SteamAPI_ISteamGameServerStats_RequestUserStats", "l:ol", 0, -1 },
+	{ "GetUserStat", "SteamAPI_ISteamGameServerStats_GetUserStatInt32", "b:olpp", 0, -1 },
+	{ "GetUserStat", "SteamAPI_ISteamGameServerStats_GetUserStatFloat", "b:olpp", 0, -1 },
+	{ "GetUserAchievement", "SteamAPI_ISteamGameServerStats_GetUserAchievement", "b:olpp", 0, -1 },
+	{ "SetUserStat", "SteamAPI_ISteamGameServerStats_SetUserStatInt32", "b:olpi", 0, -1 },
+	{ "SetUserStat", "SteamAPI_ISteamGameServerStats_SetUserStatFloat", "b:olpf", 0, -1 },
+	{ "UpdateUserAvgRateStat", "SteamAPI_ISteamGameServerStats_UpdateUserAvgRateStat", "b:olpfd", 0, -1 },
+	{ "SetUserAchievement", "SteamAPI_ISteamGameServerStats_SetUserAchievement", "b:olp", 0, -1 },
+	{ "ClearUserAchievement", "SteamAPI_ISteamGameServerStats_ClearUserAchievement", "b:olp", 0, -1 },
+	{ "StoreUserStats", "SteamAPI_ISteamGameServerStats_StoreUserStats", "l:ol", 0, -1 },
 };
 static const struct smethod m_SteamInput005[] = {
-	{ "Init", "b:oB", 0 },	/* 0 */
-	{ "Shutdown", "b:o", 0 },	/* 1 */
-	{ "SetInputActionManifestFilePath", "b:op", 0 },	/* 2 */
-	{ "RunFrame", "v:oB", 0 },	/* 3 */
-	{ "BWaitForData", "b:oBu", 0 },	/* 4 */
-	{ "BNewDataAvailable", "b:o", 0 },	/* 5 */
-	{ "GetConnectedControllers", "i:op", 0 },	/* 6 */
-	{ "EnableDeviceCallbacks", "v:o", 0 },	/* 7 */
-	{ "EnableActionEventCallbacks", "v:oX", 0 },	/* 8 */
-	{ "GetActionSetHandle", "l:op", 0 },	/* 9 */
-	{ "ActivateActionSet", "v:oll", 0 },	/* 10 */
-	{ "GetCurrentActionSet", "l:ol", 0 },	/* 11 */
-	{ "ActivateActionSetLayer", "v:oll", 0 },	/* 12 */
-	{ "DeactivateActionSetLayer", "v:oll", 0 },	/* 13 */
-	{ "DeactivateAllActionSetLayers", "v:ol", 0 },	/* 14 */
-	{ "GetActiveActionSetLayers", "i:olp", 0 },	/* 15 */
-	{ "GetDigitalActionHandle", "l:op", 0 },	/* 16 */
-	{ "GetDigitalActionData", "X:oll", 0 },	/* 17 */
-	{ "GetDigitalActionOrigins", "i:olllp", 0 },	/* 18 */
-	{ "GetStringForDigitalActionName", "S:ol", 0 },	/* 19 */
-	{ "GetAnalogActionHandle", "l:op", 0 },	/* 20 */
-	{ "GetAnalogActionData", "X:oll", 0 },	/* 21 */
-	{ "GetAnalogActionOrigins", "i:olllp", 0 },	/* 22 */
-	{ "GetGlyphPNGForActionOrigin", "S:oiiu", 0 },	/* 23 */
-	{ "GetGlyphSVGForActionOrigin", "S:oiu", 0 },	/* 24 */
-	{ "GetGlyphForActionOrigin_Legacy", "S:oi", 0 },	/* 25 */
-	{ "GetStringForActionOrigin", "S:oi", 0 },	/* 26 */
-	{ "GetStringForAnalogActionName", "S:ol", 0 },	/* 27 */
-	{ "StopAnalogActionMomentum", "v:oll", 0 },	/* 28 */
-	{ "GetMotionData", "X:ol", 0 },	/* 29 */
-	{ "TriggerVibration", "v:oluu", 0 },	/* 30 */
-	{ "TriggerVibrationExtended", "v:oluuuu", 0 },	/* 31 */
-	{ "TriggerSimpleHapticEvent", "v:oliuiui", 0 },	/* 32 */
-	{ "SetLEDColor", "v:oluuuu", 0 },	/* 33 */
-	{ "Legacy_TriggerHapticPulse", "v:oliu", 0 },	/* 34 */
-	{ "Legacy_TriggerRepeatedHapticPulse", "v:oliuuuu", 0 },	/* 35 */
-	{ "ShowBindingPanel", "b:ol", 0 },	/* 36 */
-	{ "GetInputTypeForHandle", "i:ol", 0 },	/* 37 */
-	{ "GetControllerForGamepadIndex", "l:oi", 0 },	/* 38 */
-	{ "GetGamepadIndexForController", "i:ol", 0 },	/* 39 */
-	{ "GetStringForXboxOrigin", "S:oi", 0 },	/* 40 */
-	{ "GetGlyphForXboxOrigin", "S:oi", 0 },	/* 41 */
-	{ "GetActionOriginFromXboxOrigin", "i:oli", 0 },	/* 42 */
-	{ "TranslateActionOrigin", "i:oii", 0 },	/* 43 */
-	{ "GetDeviceBindingRevision", "b:olpp", 0 },	/* 44 */
-	{ "GetRemotePlaySessionID", "u:ol", 0 },	/* 45 */
-	{ "GetSessionInputConfigurationSettings", "u:o", 0 },	/* 46 */
+	{ "Init", "SteamAPI_ISteamInput_Init", "b:oB", 0, -1 },
+	{ "Shutdown", "SteamAPI_ISteamInput_Shutdown", "b:o", 0, -1 },
+	{ "SetInputActionManifestFilePath", "SteamAPI_ISteamInput_SetInputActionManifestFilePath", "b:op", 0, -1 },
+	{ "RunFrame", "SteamAPI_ISteamInput_RunFrame", "v:oB", 0, -1 },
+	{ "BWaitForData", "SteamAPI_ISteamInput_BWaitForData", "b:oBu", 0, -1 },
+	{ "BNewDataAvailable", "SteamAPI_ISteamInput_BNewDataAvailable", "b:o", 0, -1 },
+	{ "GetConnectedControllers", "SteamAPI_ISteamInput_GetConnectedControllers", "i:op", 0, -1 },
+	{ "EnableDeviceCallbacks", "SteamAPI_ISteamInput_EnableDeviceCallbacks", "v:o", 0, -1 },
+	{ "EnableActionEventCallbacks", "SteamAPI_ISteamInput_EnableActionEventCallbacks", "v:oX", 0, -1 },
+	{ "GetActionSetHandle", "SteamAPI_ISteamInput_GetActionSetHandle", "l:op", 0, -1 },
+	{ "ActivateActionSet", "SteamAPI_ISteamInput_ActivateActionSet", "v:oll", 0, -1 },
+	{ "GetCurrentActionSet", "SteamAPI_ISteamInput_GetCurrentActionSet", "l:ol", 0, -1 },
+	{ "ActivateActionSetLayer", "SteamAPI_ISteamInput_ActivateActionSetLayer", "v:oll", 0, -1 },
+	{ "DeactivateActionSetLayer", "SteamAPI_ISteamInput_DeactivateActionSetLayer", "v:oll", 0, -1 },
+	{ "DeactivateAllActionSetLayers", "SteamAPI_ISteamInput_DeactivateAllActionSetLayers", "v:ol", 0, -1 },
+	{ "GetActiveActionSetLayers", "SteamAPI_ISteamInput_GetActiveActionSetLayers", "i:olp", 0, -1 },
+	{ "GetDigitalActionHandle", "SteamAPI_ISteamInput_GetDigitalActionHandle", "l:op", 0, -1 },
+	{ "GetDigitalActionData", "SteamAPI_ISteamInput_GetDigitalActionData", "X:oll", 0, -1 },
+	{ "GetDigitalActionOrigins", "SteamAPI_ISteamInput_GetDigitalActionOrigins", "i:olllp", 0, -1 },
+	{ "GetStringForDigitalActionName", "SteamAPI_ISteamInput_GetStringForDigitalActionName", "S:ol", 0, -1 },
+	{ "GetAnalogActionHandle", "SteamAPI_ISteamInput_GetAnalogActionHandle", "l:op", 0, -1 },
+	{ "GetAnalogActionData", "SteamAPI_ISteamInput_GetAnalogActionData", "X:oll", 0, -1 },
+	{ "GetAnalogActionOrigins", "SteamAPI_ISteamInput_GetAnalogActionOrigins", "i:olllp", 0, -1 },
+	{ "GetGlyphPNGForActionOrigin", "SteamAPI_ISteamInput_GetGlyphPNGForActionOrigin", "S:oiiu", 0, -1 },
+	{ "GetGlyphSVGForActionOrigin", "SteamAPI_ISteamInput_GetGlyphSVGForActionOrigin", "S:oiu", 0, -1 },
+	{ "GetGlyphForActionOrigin_Legacy", "SteamAPI_ISteamInput_GetGlyphForActionOrigin_Legacy", "S:oi", 0, -1 },
+	{ "GetStringForActionOrigin", "SteamAPI_ISteamInput_GetStringForActionOrigin", "S:oi", 0, -1 },
+	{ "GetStringForAnalogActionName", "SteamAPI_ISteamInput_GetStringForAnalogActionName", "S:ol", 0, -1 },
+	{ "StopAnalogActionMomentum", "SteamAPI_ISteamInput_StopAnalogActionMomentum", "v:oll", 0, -1 },
+	{ "GetMotionData", "SteamAPI_ISteamInput_GetMotionData", "X:ol", 0, -1 },
+	{ "TriggerVibration", "SteamAPI_ISteamInput_TriggerVibration", "v:oluu", 0, -1 },
+	{ "TriggerVibrationExtended", "SteamAPI_ISteamInput_TriggerVibrationExtended", "v:oluuuu", 0, -1 },
+	{ "TriggerSimpleHapticEvent", "SteamAPI_ISteamInput_TriggerSimpleHapticEvent", "v:oliuiui", 0, -1 },
+	{ "SetLEDColor", "SteamAPI_ISteamInput_SetLEDColor", "v:oluuuu", 0, -1 },
+	{ "Legacy_TriggerHapticPulse", "SteamAPI_ISteamInput_Legacy_TriggerHapticPulse", "v:oliu", 0, -1 },
+	{ "Legacy_TriggerRepeatedHapticPulse", "SteamAPI_ISteamInput_Legacy_TriggerRepeatedHapticPulse", "v:oliuuuu", 0, -1 },
+	{ "ShowBindingPanel", "SteamAPI_ISteamInput_ShowBindingPanel", "b:ol", 0, -1 },
+	{ "GetInputTypeForHandle", "SteamAPI_ISteamInput_GetInputTypeForHandle", "i:ol", 0, -1 },
+	{ "GetControllerForGamepadIndex", "SteamAPI_ISteamInput_GetControllerForGamepadIndex", "l:oi", 0, -1 },
+	{ "GetGamepadIndexForController", "SteamAPI_ISteamInput_GetGamepadIndexForController", "i:ol", 0, -1 },
+	{ "GetStringForXboxOrigin", "SteamAPI_ISteamInput_GetStringForXboxOrigin", "S:oi", 0, -1 },
+	{ "GetGlyphForXboxOrigin", "SteamAPI_ISteamInput_GetGlyphForXboxOrigin", "S:oi", 0, -1 },
+	{ "GetActionOriginFromXboxOrigin", "SteamAPI_ISteamInput_GetActionOriginFromXboxOrigin", "i:oli", 0, -1 },
+	{ "TranslateActionOrigin", "SteamAPI_ISteamInput_TranslateActionOrigin", "i:oii", 0, -1 },
+	{ "GetDeviceBindingRevision", "SteamAPI_ISteamInput_GetDeviceBindingRevision", "b:olpp", 0, -1 },
+	{ "GetRemotePlaySessionID", "SteamAPI_ISteamInput_GetRemotePlaySessionID", "u:ol", 0, -1 },
+	{ "GetSessionInputConfigurationSettings", "SteamAPI_ISteamInput_GetSessionInputConfigurationSettings", "u:o", 0, -1 },
 };
 static const struct smethod m_SteamInput006[] = {
-	{ "Init", "b:oB", 0 },	/* 0 */
-	{ "Shutdown", "b:o", 0 },	/* 1 */
-	{ "SetInputActionManifestFilePath", "b:op", 0 },	/* 2 */
-	{ "RunFrame", "v:oB", 0 },	/* 3 */
-	{ "BWaitForData", "b:oBu", 0 },	/* 4 */
-	{ "BNewDataAvailable", "b:o", 0 },	/* 5 */
-	{ "GetConnectedControllers", "i:op", 0 },	/* 6 */
-	{ "EnableDeviceCallbacks", "v:o", 0 },	/* 7 */
-	{ "EnableActionEventCallbacks", "v:oX", 0 },	/* 8 */
-	{ "GetActionSetHandle", "l:op", 0 },	/* 9 */
-	{ "ActivateActionSet", "v:oll", 0 },	/* 10 */
-	{ "GetCurrentActionSet", "l:ol", 0 },	/* 11 */
-	{ "ActivateActionSetLayer", "v:oll", 0 },	/* 12 */
-	{ "DeactivateActionSetLayer", "v:oll", 0 },	/* 13 */
-	{ "DeactivateAllActionSetLayers", "v:ol", 0 },	/* 14 */
-	{ "GetActiveActionSetLayers", "i:olp", 0 },	/* 15 */
-	{ "GetDigitalActionHandle", "l:op", 0 },	/* 16 */
-	{ "GetDigitalActionData", "X:oll", 0 },	/* 17 */
-	{ "GetDigitalActionOrigins", "i:olllp", 0 },	/* 18 */
-	{ "GetStringForDigitalActionName", "S:ol", 0 },	/* 19 */
-	{ "GetAnalogActionHandle", "l:op", 0 },	/* 20 */
-	{ "GetAnalogActionData", "X:oll", 0 },	/* 21 */
-	{ "GetAnalogActionOrigins", "i:olllp", 0 },	/* 22 */
-	{ "GetGlyphPNGForActionOrigin", "S:oiiu", 0 },	/* 23 */
-	{ "GetGlyphSVGForActionOrigin", "S:oiu", 0 },	/* 24 */
-	{ "GetGlyphForActionOrigin_Legacy", "S:oi", 0 },	/* 25 */
-	{ "GetStringForActionOrigin", "S:oi", 0 },	/* 26 */
-	{ "GetStringForAnalogActionName", "S:ol", 0 },	/* 27 */
-	{ "StopAnalogActionMomentum", "v:oll", 0 },	/* 28 */
-	{ "GetMotionData", "X:ol", 0 },	/* 29 */
-	{ "TriggerVibration", "v:oluu", 0 },	/* 30 */
-	{ "TriggerVibrationExtended", "v:oluuuu", 0 },	/* 31 */
-	{ "TriggerSimpleHapticEvent", "v:oliuiui", 0 },	/* 32 */
-	{ "SetLEDColor", "v:oluuuu", 0 },	/* 33 */
-	{ "Legacy_TriggerHapticPulse", "v:oliu", 0 },	/* 34 */
-	{ "Legacy_TriggerRepeatedHapticPulse", "v:oliuuuu", 0 },	/* 35 */
-	{ "ShowBindingPanel", "b:ol", 0 },	/* 36 */
-	{ "GetInputTypeForHandle", "i:ol", 0 },	/* 37 */
-	{ "GetControllerForGamepadIndex", "l:oi", 0 },	/* 38 */
-	{ "GetGamepadIndexForController", "i:ol", 0 },	/* 39 */
-	{ "GetStringForXboxOrigin", "S:oi", 0 },	/* 40 */
-	{ "GetGlyphForXboxOrigin", "S:oi", 0 },	/* 41 */
-	{ "GetActionOriginFromXboxOrigin", "i:oli", 0 },	/* 42 */
-	{ "TranslateActionOrigin", "i:oii", 0 },	/* 43 */
-	{ "GetDeviceBindingRevision", "b:olpp", 0 },	/* 44 */
-	{ "GetRemotePlaySessionID", "u:ol", 0 },	/* 45 */
-	{ "GetSessionInputConfigurationSettings", "u:o", 0 },	/* 46 */
+	{ "Init", "SteamAPI_ISteamInput_Init", "b:oB", 0, -1 },
+	{ "Shutdown", "SteamAPI_ISteamInput_Shutdown", "b:o", 0, -1 },
+	{ "SetInputActionManifestFilePath", "SteamAPI_ISteamInput_SetInputActionManifestFilePath", "b:op", 0, -1 },
+	{ "RunFrame", "SteamAPI_ISteamInput_RunFrame", "v:oB", 0, -1 },
+	{ "BWaitForData", "SteamAPI_ISteamInput_BWaitForData", "b:oBu", 0, -1 },
+	{ "BNewDataAvailable", "SteamAPI_ISteamInput_BNewDataAvailable", "b:o", 0, -1 },
+	{ "GetConnectedControllers", "SteamAPI_ISteamInput_GetConnectedControllers", "i:op", 0, -1 },
+	{ "EnableDeviceCallbacks", "SteamAPI_ISteamInput_EnableDeviceCallbacks", "v:o", 0, -1 },
+	{ "EnableActionEventCallbacks", "SteamAPI_ISteamInput_EnableActionEventCallbacks", "v:oX", 0, -1 },
+	{ "GetActionSetHandle", "SteamAPI_ISteamInput_GetActionSetHandle", "l:op", 0, -1 },
+	{ "ActivateActionSet", "SteamAPI_ISteamInput_ActivateActionSet", "v:oll", 0, -1 },
+	{ "GetCurrentActionSet", "SteamAPI_ISteamInput_GetCurrentActionSet", "l:ol", 0, -1 },
+	{ "ActivateActionSetLayer", "SteamAPI_ISteamInput_ActivateActionSetLayer", "v:oll", 0, -1 },
+	{ "DeactivateActionSetLayer", "SteamAPI_ISteamInput_DeactivateActionSetLayer", "v:oll", 0, -1 },
+	{ "DeactivateAllActionSetLayers", "SteamAPI_ISteamInput_DeactivateAllActionSetLayers", "v:ol", 0, -1 },
+	{ "GetActiveActionSetLayers", "SteamAPI_ISteamInput_GetActiveActionSetLayers", "i:olp", 0, -1 },
+	{ "GetDigitalActionHandle", "SteamAPI_ISteamInput_GetDigitalActionHandle", "l:op", 0, -1 },
+	{ "GetDigitalActionData", "SteamAPI_ISteamInput_GetDigitalActionData", "X:oll", 0, -1 },
+	{ "GetDigitalActionOrigins", "SteamAPI_ISteamInput_GetDigitalActionOrigins", "i:olllp", 0, -1 },
+	{ "GetStringForDigitalActionName", "SteamAPI_ISteamInput_GetStringForDigitalActionName", "S:ol", 0, -1 },
+	{ "GetAnalogActionHandle", "SteamAPI_ISteamInput_GetAnalogActionHandle", "l:op", 0, -1 },
+	{ "GetAnalogActionData", "SteamAPI_ISteamInput_GetAnalogActionData", "X:oll", 0, -1 },
+	{ "GetAnalogActionOrigins", "SteamAPI_ISteamInput_GetAnalogActionOrigins", "i:olllp", 0, -1 },
+	{ "GetGlyphPNGForActionOrigin", "SteamAPI_ISteamInput_GetGlyphPNGForActionOrigin", "S:oiiu", 0, -1 },
+	{ "GetGlyphSVGForActionOrigin", "SteamAPI_ISteamInput_GetGlyphSVGForActionOrigin", "S:oiu", 0, -1 },
+	{ "GetGlyphForActionOrigin_Legacy", "SteamAPI_ISteamInput_GetGlyphForActionOrigin_Legacy", "S:oi", 0, -1 },
+	{ "GetStringForActionOrigin", "SteamAPI_ISteamInput_GetStringForActionOrigin", "S:oi", 0, -1 },
+	{ "GetStringForAnalogActionName", "SteamAPI_ISteamInput_GetStringForAnalogActionName", "S:ol", 0, -1 },
+	{ "StopAnalogActionMomentum", "SteamAPI_ISteamInput_StopAnalogActionMomentum", "v:oll", 0, -1 },
+	{ "GetMotionData", "SteamAPI_ISteamInput_GetMotionData", "X:ol", 0, -1 },
+	{ "TriggerVibration", "SteamAPI_ISteamInput_TriggerVibration", "v:oluu", 0, -1 },
+	{ "TriggerVibrationExtended", "SteamAPI_ISteamInput_TriggerVibrationExtended", "v:oluuuu", 0, -1 },
+	{ "TriggerSimpleHapticEvent", "SteamAPI_ISteamInput_TriggerSimpleHapticEvent", "v:oliuiui", 0, -1 },
+	{ "SetLEDColor", "SteamAPI_ISteamInput_SetLEDColor", "v:oluuuu", 0, -1 },
+	{ "Legacy_TriggerHapticPulse", "SteamAPI_ISteamInput_Legacy_TriggerHapticPulse", "v:oliu", 0, -1 },
+	{ "Legacy_TriggerRepeatedHapticPulse", "SteamAPI_ISteamInput_Legacy_TriggerRepeatedHapticPulse", "v:oliuuuu", 0, -1 },
+	{ "ShowBindingPanel", "SteamAPI_ISteamInput_ShowBindingPanel", "b:ol", 0, -1 },
+	{ "GetInputTypeForHandle", "SteamAPI_ISteamInput_GetInputTypeForHandle", "i:ol", 0, -1 },
+	{ "GetControllerForGamepadIndex", "SteamAPI_ISteamInput_GetControllerForGamepadIndex", "l:oi", 0, -1 },
+	{ "GetGamepadIndexForController", "SteamAPI_ISteamInput_GetGamepadIndexForController", "i:ol", 0, -1 },
+	{ "GetStringForXboxOrigin", "SteamAPI_ISteamInput_GetStringForXboxOrigin", "S:oi", 0, -1 },
+	{ "GetGlyphForXboxOrigin", "SteamAPI_ISteamInput_GetGlyphForXboxOrigin", "S:oi", 0, -1 },
+	{ "GetActionOriginFromXboxOrigin", "SteamAPI_ISteamInput_GetActionOriginFromXboxOrigin", "i:oli", 0, -1 },
+	{ "TranslateActionOrigin", "SteamAPI_ISteamInput_TranslateActionOrigin", "i:oii", 0, -1 },
+	{ "GetDeviceBindingRevision", "SteamAPI_ISteamInput_GetDeviceBindingRevision", "b:olpp", 0, -1 },
+	{ "GetRemotePlaySessionID", "SteamAPI_ISteamInput_GetRemotePlaySessionID", "u:ol", 0, -1 },
+	{ "GetSessionInputConfigurationSettings", "SteamAPI_ISteamInput_GetSessionInputConfigurationSettings", "u:o", 0, -1 },
 };
 static const struct smethod m_SteamMatchGameSearch001[] = {
-	{ "AddGameSearchParams", "i:opp", 0 },	/* 0 */
-	{ "SearchForGameWithLobby", "i:olii", 0 },	/* 1 */
-	{ "SearchForGameSolo", "i:oii", 0 },	/* 2 */
-	{ "AcceptGame", "i:o", 0 },	/* 3 */
-	{ "DeclineGame", "i:o", 0 },	/* 4 */
-	{ "RetrieveConnectionDetails", "i:olpi", 0 },	/* 5 */
-	{ "EndGameSearch", "i:o", 0 },	/* 6 */
-	{ "SetGameHostParams", "i:opp", 0 },	/* 7 */
-	{ "SetConnectionDetails", "i:opi", 0 },	/* 8 */
-	{ "RequestPlayersForGame", "i:oiii", 0 },	/* 9 */
-	{ "HostConfirmGameStart", "i:ol", 0 },	/* 10 */
-	{ "CancelRequestPlayersForGame", "i:o", 0 },	/* 11 */
-	{ "SubmitPlayerResult", "i:olli", 0 },	/* 12 */
-	{ "EndGame", "i:ol", 0 },	/* 13 */
+	{ "AddGameSearchParams", "SteamAPI_ISteamGameSearch_AddGameSearchParams", "i:opp", 0, -1 },
+	{ "SearchForGameWithLobby", "SteamAPI_ISteamGameSearch_SearchForGameWithLobby", "i:olii", 0, -1 },
+	{ "SearchForGameSolo", "SteamAPI_ISteamGameSearch_SearchForGameSolo", "i:oii", 0, -1 },
+	{ "AcceptGame", "SteamAPI_ISteamGameSearch_AcceptGame", "i:o", 0, -1 },
+	{ "DeclineGame", "SteamAPI_ISteamGameSearch_DeclineGame", "i:o", 0, -1 },
+	{ "RetrieveConnectionDetails", "SteamAPI_ISteamGameSearch_RetrieveConnectionDetails", "i:olpi", 0, -1 },
+	{ "EndGameSearch", "SteamAPI_ISteamGameSearch_EndGameSearch", "i:o", 0, -1 },
+	{ "SetGameHostParams", "SteamAPI_ISteamGameSearch_SetGameHostParams", "i:opp", 0, -1 },
+	{ "SetConnectionDetails", "SteamAPI_ISteamGameSearch_SetConnectionDetails", "i:opi", 0, -1 },
+	{ "RequestPlayersForGame", "SteamAPI_ISteamGameSearch_RequestPlayersForGame", "i:oiii", 0, -1 },
+	{ "HostConfirmGameStart", "SteamAPI_ISteamGameSearch_HostConfirmGameStart", "i:ol", 0, -1 },
+	{ "CancelRequestPlayersForGame", "SteamAPI_ISteamGameSearch_CancelRequestPlayersForGame", "i:o", 0, -1 },
+	{ "SubmitPlayerResult", "SteamAPI_ISteamGameSearch_SubmitPlayerResult", "i:olli", 0, -1 },
+	{ "EndGame", "SteamAPI_ISteamGameSearch_EndGame", "i:ol", 0, -1 },
 };
 static const struct smethod m_SteamMatchMaking009[] = {
-	{ "GetFavoriteGameCount", "i:o", 0 },	/* 0 */
-	{ "GetFavoriteGame", "b:oipppppp", 0 },	/* 1 */
-	{ "AddFavoriteGame", "i:ouuuuuu", 0 },	/* 2 */
-	{ "RemoveFavoriteGame", "b:ouuuuu", 0 },	/* 3 */
-	{ "RequestLobbyList", "l:o", 0 },	/* 4 */
-	{ "AddRequestLobbyListStringFilter", "v:oppi", 0 },	/* 5 */
-	{ "AddRequestLobbyListNumericalFilter", "v:opii", 0 },	/* 6 */
-	{ "AddRequestLobbyListNearValueFilter", "v:opi", 0 },	/* 7 */
-	{ "AddRequestLobbyListFilterSlotsAvailable", "v:oi", 0 },	/* 8 */
-	{ "AddRequestLobbyListDistanceFilter", "v:oi", 0 },	/* 9 */
-	{ "AddRequestLobbyListResultCountFilter", "v:oi", 0 },	/* 10 */
-	{ "AddRequestLobbyListCompatibleMembersFilter", "v:ol", 0 },	/* 11 */
-	{ "GetLobbyByIndex", "l:oi", 0 },	/* 12 */
-	{ "CreateLobby", "l:oii", 0 },	/* 13 */
-	{ "JoinLobby", "l:ol", 0 },	/* 14 */
-	{ "LeaveLobby", "v:ol", 0 },	/* 15 */
-	{ "InviteUserToLobby", "b:oll", 0 },	/* 16 */
-	{ "GetNumLobbyMembers", "i:ol", 0 },	/* 17 */
-	{ "GetLobbyMemberByIndex", "l:oli", 0 },	/* 18 */
-	{ "GetLobbyData", "S:olp", 0 },	/* 19 */
-	{ "SetLobbyData", "b:olpp", 0 },	/* 20 */
-	{ "GetLobbyDataCount", "i:ol", 0 },	/* 21 */
-	{ "GetLobbyDataByIndex", "b:olipipi", 0 },	/* 22 */
-	{ "DeleteLobbyData", "b:olp", 0 },	/* 23 */
-	{ "GetLobbyMemberData", "S:ollp", 0 },	/* 24 */
-	{ "SetLobbyMemberData", "v:olpp", 0 },	/* 25 */
-	{ "SendLobbyChatMsg", "b:olpi", 0 },	/* 26 */
-	{ "GetLobbyChatEntry", "i:olippip", 0 },	/* 27 */
-	{ "RequestLobbyData", "b:ol", 0 },	/* 28 */
-	{ "SetLobbyGameServer", "v:oluul", 0 },	/* 29 */
-	{ "GetLobbyGameServer", "b:olppp", 0 },	/* 30 */
-	{ "SetLobbyMemberLimit", "b:oli", 0 },	/* 31 */
-	{ "GetLobbyMemberLimit", "i:ol", 0 },	/* 32 */
-	{ "SetLobbyType", "b:oli", 0 },	/* 33 */
-	{ "SetLobbyJoinable", "b:olB", 0 },	/* 34 */
-	{ "GetLobbyOwner", "l:ol", 0 },	/* 35 */
-	{ "SetLobbyOwner", "b:oll", 0 },	/* 36 */
-	{ "SetLinkedLobby", "b:oll", 0 },	/* 37 */
+	{ "GetFavoriteGameCount", "SteamAPI_ISteamMatchmaking_GetFavoriteGameCount", "i:o", 0, -1 },
+	{ "GetFavoriteGame", "SteamAPI_ISteamMatchmaking_GetFavoriteGame", "b:oipppppp", 0, -1 },
+	{ "AddFavoriteGame", "SteamAPI_ISteamMatchmaking_AddFavoriteGame", "i:ouuuuuu", 0, -1 },
+	{ "RemoveFavoriteGame", "SteamAPI_ISteamMatchmaking_RemoveFavoriteGame", "b:ouuuuu", 0, -1 },
+	{ "RequestLobbyList", "SteamAPI_ISteamMatchmaking_RequestLobbyList", "l:o", 0, -1 },
+	{ "AddRequestLobbyListStringFilter", "SteamAPI_ISteamMatchmaking_AddRequestLobbyListStringFilter", "v:oppi", 0, -1 },
+	{ "AddRequestLobbyListNumericalFilter", "SteamAPI_ISteamMatchmaking_AddRequestLobbyListNumericalFilter", "v:opii", 0, -1 },
+	{ "AddRequestLobbyListNearValueFilter", "SteamAPI_ISteamMatchmaking_AddRequestLobbyListNearValueFilter", "v:opi", 0, -1 },
+	{ "AddRequestLobbyListFilterSlotsAvailable", "SteamAPI_ISteamMatchmaking_AddRequestLobbyListFilterSlotsAvailable", "v:oi", 0, -1 },
+	{ "AddRequestLobbyListDistanceFilter", "SteamAPI_ISteamMatchmaking_AddRequestLobbyListDistanceFilter", "v:oi", 0, -1 },
+	{ "AddRequestLobbyListResultCountFilter", "SteamAPI_ISteamMatchmaking_AddRequestLobbyListResultCountFilter", "v:oi", 0, -1 },
+	{ "AddRequestLobbyListCompatibleMembersFilter", "SteamAPI_ISteamMatchmaking_AddRequestLobbyListCompatibleMembersFilter", "v:ol", 0, -1 },
+	{ "GetLobbyByIndex", "SteamAPI_ISteamMatchmaking_GetLobbyByIndex", "l:oi", 0, -1 },
+	{ "CreateLobby", "SteamAPI_ISteamMatchmaking_CreateLobby", "l:oii", 0, -1 },
+	{ "JoinLobby", "SteamAPI_ISteamMatchmaking_JoinLobby", "l:ol", 0, -1 },
+	{ "LeaveLobby", "SteamAPI_ISteamMatchmaking_LeaveLobby", "v:ol", 0, -1 },
+	{ "InviteUserToLobby", "SteamAPI_ISteamMatchmaking_InviteUserToLobby", "b:oll", 0, -1 },
+	{ "GetNumLobbyMembers", "SteamAPI_ISteamMatchmaking_GetNumLobbyMembers", "i:ol", 0, -1 },
+	{ "GetLobbyMemberByIndex", "SteamAPI_ISteamMatchmaking_GetLobbyMemberByIndex", "l:oli", 0, -1 },
+	{ "GetLobbyData", "SteamAPI_ISteamMatchmaking_GetLobbyData", "S:olp", 0, -1 },
+	{ "SetLobbyData", "SteamAPI_ISteamMatchmaking_SetLobbyData", "b:olpp", 0, -1 },
+	{ "GetLobbyDataCount", "SteamAPI_ISteamMatchmaking_GetLobbyDataCount", "i:ol", 0, -1 },
+	{ "GetLobbyDataByIndex", "SteamAPI_ISteamMatchmaking_GetLobbyDataByIndex", "b:olipipi", 0, -1 },
+	{ "DeleteLobbyData", "SteamAPI_ISteamMatchmaking_DeleteLobbyData", "b:olp", 0, -1 },
+	{ "GetLobbyMemberData", "SteamAPI_ISteamMatchmaking_GetLobbyMemberData", "S:ollp", 0, -1 },
+	{ "SetLobbyMemberData", "SteamAPI_ISteamMatchmaking_SetLobbyMemberData", "v:olpp", 0, -1 },
+	{ "SendLobbyChatMsg", "SteamAPI_ISteamMatchmaking_SendLobbyChatMsg", "b:olpi", 0, -1 },
+	{ "GetLobbyChatEntry", "SteamAPI_ISteamMatchmaking_GetLobbyChatEntry", "i:olippip", 0, -1 },
+	{ "RequestLobbyData", "SteamAPI_ISteamMatchmaking_RequestLobbyData", "b:ol", 0, -1 },
+	{ "SetLobbyGameServer", "SteamAPI_ISteamMatchmaking_SetLobbyGameServer", "v:oluul", 0, -1 },
+	{ "GetLobbyGameServer", "SteamAPI_ISteamMatchmaking_GetLobbyGameServer", "b:olppp", 0, -1 },
+	{ "SetLobbyMemberLimit", "SteamAPI_ISteamMatchmaking_SetLobbyMemberLimit", "b:oli", 0, -1 },
+	{ "GetLobbyMemberLimit", "SteamAPI_ISteamMatchmaking_GetLobbyMemberLimit", "i:ol", 0, -1 },
+	{ "SetLobbyType", "SteamAPI_ISteamMatchmaking_SetLobbyType", "b:oli", 0, -1 },
+	{ "SetLobbyJoinable", "SteamAPI_ISteamMatchmaking_SetLobbyJoinable", "b:olB", 0, -1 },
+	{ "GetLobbyOwner", "SteamAPI_ISteamMatchmaking_GetLobbyOwner", "l:ol", 0, -1 },
+	{ "SetLobbyOwner", "SteamAPI_ISteamMatchmaking_SetLobbyOwner", "b:oll", 0, -1 },
+	{ "SetLinkedLobby", "SteamAPI_ISteamMatchmaking_SetLinkedLobby", "b:oll", 0, -1 },
 };
 static const struct smethod m_SteamMatchMakingServers002[] = {
-	{ "RequestInternetServerList", "X:ouXuX", 0 },	/* 0 */
-	{ "RequestLANServerList", "X:ouX", 0 },	/* 1 */
-	{ "RequestFriendsServerList", "X:ouXuX", 0 },	/* 2 */
-	{ "RequestFavoritesServerList", "X:ouXuX", 0 },	/* 3 */
-	{ "RequestHistoryServerList", "X:ouXuX", 0 },	/* 4 */
-	{ "RequestSpectatorServerList", "X:ouXuX", 0 },	/* 5 */
-	{ "ReleaseRequest", "v:oX", 0 },	/* 6 */
-	{ "GetServerDetails", "X:oXi", 0 },	/* 7 */
-	{ "CancelQuery", "v:oX", 0 },	/* 8 */
-	{ "RefreshQuery", "v:oX", 0 },	/* 9 */
-	{ "IsRefreshing", "b:oX", 0 },	/* 10 */
-	{ "GetServerCount", "i:oX", 0 },	/* 11 */
-	{ "RefreshServer", "v:oXi", 0 },	/* 12 */
-	{ "PingServer", "i:ouuX", 0 },	/* 13 */
-	{ "PlayerDetails", "i:ouuX", 0 },	/* 14 */
-	{ "ServerRules", "i:ouuX", 0 },	/* 15 */
-	{ "CancelServerQuery", "v:oi", 0 },	/* 16 */
+	{ "RequestInternetServerList", "SteamAPI_ISteamMatchmakingServers_RequestInternetServerList", "X:ouXuX", 0, -1 },
+	{ "RequestLANServerList", "SteamAPI_ISteamMatchmakingServers_RequestLANServerList", "X:ouX", 0, -1 },
+	{ "RequestFriendsServerList", "SteamAPI_ISteamMatchmakingServers_RequestFriendsServerList", "X:ouXuX", 0, -1 },
+	{ "RequestFavoritesServerList", "SteamAPI_ISteamMatchmakingServers_RequestFavoritesServerList", "X:ouXuX", 0, -1 },
+	{ "RequestHistoryServerList", "SteamAPI_ISteamMatchmakingServers_RequestHistoryServerList", "X:ouXuX", 0, -1 },
+	{ "RequestSpectatorServerList", "SteamAPI_ISteamMatchmakingServers_RequestSpectatorServerList", "X:ouXuX", 0, -1 },
+	{ "ReleaseRequest", "SteamAPI_ISteamMatchmakingServers_ReleaseRequest", "v:oX", 0, -1 },
+	{ "GetServerDetails", "SteamAPI_ISteamMatchmakingServers_GetServerDetails", "X:oXi", 0, -1 },
+	{ "CancelQuery", "SteamAPI_ISteamMatchmakingServers_CancelQuery", "v:oX", 0, -1 },
+	{ "RefreshQuery", "SteamAPI_ISteamMatchmakingServers_RefreshQuery", "v:oX", 0, -1 },
+	{ "IsRefreshing", "SteamAPI_ISteamMatchmakingServers_IsRefreshing", "b:oX", 0, -1 },
+	{ "GetServerCount", "SteamAPI_ISteamMatchmakingServers_GetServerCount", "i:oX", 0, -1 },
+	{ "RefreshServer", "SteamAPI_ISteamMatchmakingServers_RefreshServer", "v:oXi", 0, -1 },
+	{ "PingServer", "SteamAPI_ISteamMatchmakingServers_PingServer", "i:ouuX", 0, -1 },
+	{ "PlayerDetails", "SteamAPI_ISteamMatchmakingServers_PlayerDetails", "i:ouuX", 0, -1 },
+	{ "ServerRules", "SteamAPI_ISteamMatchmakingServers_ServerRules", "i:ouuX", 0, -1 },
+	{ "CancelServerQuery", "SteamAPI_ISteamMatchmakingServers_CancelServerQuery", "v:oi", 0, -1 },
 };
 static const struct smethod m_SteamNetworking006[] = {
-	{ "SendP2PPacket", "b:olpuii", 0 },	/* 0 */
-	{ "IsP2PPacketAvailable", "b:opi", 0 },	/* 1 */
-	{ "ReadP2PPacket", "b:opuppi", 0 },	/* 2 */
-	{ "AcceptP2PSessionWithUser", "b:ol", 0 },	/* 3 */
-	{ "CloseP2PSessionWithUser", "b:ol", 0 },	/* 4 */
-	{ "CloseP2PChannelWithUser", "b:oli", 0 },	/* 5 */
-	{ "GetP2PSessionState", "b:olp", 0 },	/* 6 */
-	{ "AllowP2PPacketRelay", "b:oB", 0 },	/* 7 */
-	{ "CreateListenSocket", "u:oiXuB", 0 },	/* 8 */
-	{ "CreateP2PConnectionSocket", "u:oliiB", 0 },	/* 9 */
-	{ "CreateConnectionSocket", "u:oXui", 0 },	/* 10 */
-	{ "DestroySocket", "b:ouB", 0 },	/* 11 */
-	{ "DestroyListenSocket", "b:ouB", 0 },	/* 12 */
-	{ "SendDataOnSocket", "b:oupuB", 0 },	/* 13 */
-	{ "IsDataAvailableOnSocket", "b:oup", 0 },	/* 14 */
-	{ "RetrieveDataFromSocket", "b:oupup", 0 },	/* 15 */
-	{ "IsDataAvailable", "b:oupp", 0 },	/* 16 */
-	{ "RetrieveData", "b:oupupp", 0 },	/* 17 */
-	{ "GetSocketInfo", "b:oupppp", 0 },	/* 18 */
-	{ "GetListenSocketInfo", "b:oupp", 0 },	/* 19 */
-	{ "GetSocketConnectionType", "i:ou", 0 },	/* 20 */
-	{ "GetMaxPacketSize", "i:ou", 0 },	/* 21 */
+	{ "SendP2PPacket", "SteamAPI_ISteamNetworking_SendP2PPacket", "b:olpuii", 0, -1 },
+	{ "IsP2PPacketAvailable", "SteamAPI_ISteamNetworking_IsP2PPacketAvailable", "b:opi", 0, -1 },
+	{ "ReadP2PPacket", "SteamAPI_ISteamNetworking_ReadP2PPacket", "b:opuppi", 0, -1 },
+	{ "AcceptP2PSessionWithUser", "SteamAPI_ISteamNetworking_AcceptP2PSessionWithUser", "b:ol", 0, -1 },
+	{ "CloseP2PSessionWithUser", "SteamAPI_ISteamNetworking_CloseP2PSessionWithUser", "b:ol", 0, -1 },
+	{ "CloseP2PChannelWithUser", "SteamAPI_ISteamNetworking_CloseP2PChannelWithUser", "b:oli", 0, -1 },
+	{ "GetP2PSessionState", "SteamAPI_ISteamNetworking_GetP2PSessionState", "b:olp", 0, -1 },
+	{ "AllowP2PPacketRelay", "SteamAPI_ISteamNetworking_AllowP2PPacketRelay", "b:oB", 0, -1 },
+	{ "CreateListenSocket", "SteamAPI_ISteamNetworking_CreateListenSocket", "u:oiXuB", 0, -1 },
+	{ "CreateP2PConnectionSocket", "SteamAPI_ISteamNetworking_CreateP2PConnectionSocket", "u:oliiB", 0, -1 },
+	{ "CreateConnectionSocket", "SteamAPI_ISteamNetworking_CreateConnectionSocket", "u:oXui", 0, -1 },
+	{ "DestroySocket", "SteamAPI_ISteamNetworking_DestroySocket", "b:ouB", 0, -1 },
+	{ "DestroyListenSocket", "SteamAPI_ISteamNetworking_DestroyListenSocket", "b:ouB", 0, -1 },
+	{ "SendDataOnSocket", "SteamAPI_ISteamNetworking_SendDataOnSocket", "b:oupuB", 0, -1 },
+	{ "IsDataAvailableOnSocket", "SteamAPI_ISteamNetworking_IsDataAvailableOnSocket", "b:oup", 0, -1 },
+	{ "RetrieveDataFromSocket", "SteamAPI_ISteamNetworking_RetrieveDataFromSocket", "b:oupup", 0, -1 },
+	{ "IsDataAvailable", "SteamAPI_ISteamNetworking_IsDataAvailable", "b:oupp", 0, -1 },
+	{ "RetrieveData", "SteamAPI_ISteamNetworking_RetrieveData", "b:oupupp", 0, -1 },
+	{ "GetSocketInfo", "SteamAPI_ISteamNetworking_GetSocketInfo", "b:oupppp", 0, -1 },
+	{ "GetListenSocketInfo", "SteamAPI_ISteamNetworking_GetListenSocketInfo", "b:oupp", 0, -1 },
+	{ "GetSocketConnectionType", "SteamAPI_ISteamNetworking_GetSocketConnectionType", "i:ou", 0, -1 },
+	{ "GetMaxPacketSize", "SteamAPI_ISteamNetworking_GetMaxPacketSize", "i:ou", 0, -1 },
 };
 static const struct smethod m_SteamNetworkingMessages002[] = {
-	{ "SendMessageToUser", "i:oppuii", 0 },	/* 0 */
-	{ "ReceiveMessagesOnChannel", "i:oiXi", 0 },	/* 1 */
-	{ "AcceptSessionWithUser", "b:op", 0 },	/* 2 */
-	{ "CloseSessionWithUser", "b:op", 0 },	/* 3 */
-	{ "CloseChannelWithUser", "b:opi", 0 },	/* 4 */
-	{ "GetSessionConnectionInfo", "i:oppp", 0 },	/* 5 */
+	{ "SendMessageToUser", "SteamAPI_ISteamNetworkingMessages_SendMessageToUser", "i:oppuii", 0, -1 },
+	{ "ReceiveMessagesOnChannel", "SteamAPI_ISteamNetworkingMessages_ReceiveMessagesOnChannel", "i:oiXi", 0, -1 },
+	{ "AcceptSessionWithUser", "SteamAPI_ISteamNetworkingMessages_AcceptSessionWithUser", "b:op", 0, -1 },
+	{ "CloseSessionWithUser", "SteamAPI_ISteamNetworkingMessages_CloseSessionWithUser", "b:op", 0, -1 },
+	{ "CloseChannelWithUser", "SteamAPI_ISteamNetworkingMessages_CloseChannelWithUser", "b:opi", 0, -1 },
+	{ "GetSessionConnectionInfo", "SteamAPI_ISteamNetworkingMessages_GetSessionConnectionInfo", "i:oppp", 0, -1 },
 };
 static const struct smethod m_SteamNetworkingSockets011[] = {
-	{ "CreateListenSocketIP", "u:opip", 0 },	/* 0 */
-	{ "ConnectByIPAddress", "u:opip", 0 },	/* 1 */
-	{ "CreateListenSocketP2P", "u:oiip", 0 },	/* 2 */
-	{ "ConnectP2P", "u:opiip", 0 },	/* 3 */
-	{ "AcceptConnection", "i:ou", 0 },	/* 4 */
-	{ "CloseConnection", "b:ouipB", 0 },	/* 5 */
-	{ "CloseListenSocket", "b:ou", 0 },	/* 6 */
-	{ "SetConnectionUserData", "b:oul", 0 },	/* 7 */
-	{ "GetConnectionUserData", "l:ou", 0 },	/* 8 */
-	{ "SetConnectionName", "v:oup", 0 },	/* 9 */
-	{ "GetConnectionName", "b:oupi", 0 },	/* 10 */
-	{ "SendMessageToConnection", "i:oupuip", 0 },	/* 11 */
-	{ "SendMessages", "v:oiXp", 0 },	/* 12 */
-	{ "FlushMessagesOnConnection", "i:ou", 0 },	/* 13 */
-	{ "ReceiveMessagesOnConnection", "i:ouXi", 0 },	/* 14 */
-	{ "GetConnectionInfo", "b:oup", 0 },	/* 15 */
-	{ "GetQuickConnectionStatus", "b:oup", 0 },	/* 16 */
-	{ "GetDetailedConnectionStatus", "i:oupi", 0 },	/* 17 */
-	{ "GetListenSocketAddress", "b:oup", 0 },	/* 18 */
-	{ "CreateSocketPair", "b:oppBpp", 0 },	/* 19 */
-	{ "GetIdentity", "b:op", 0 },	/* 20 */
-	{ "InitAuthentication", "i:o", 0 },	/* 21 */
-	{ "GetAuthenticationStatus", "i:op", 0 },	/* 22 */
-	{ "CreatePollGroup", "u:o", 0 },	/* 23 */
-	{ "DestroyPollGroup", "b:ou", 0 },	/* 24 */
-	{ "SetConnectionPollGroup", "b:ouu", 0 },	/* 25 */
-	{ "ReceiveMessagesOnPollGroup", "i:ouXi", 0 },	/* 26 */
-	{ "ReceivedRelayAuthTicket", "b:opip", 0 },	/* 27 */
-	{ "FindRelayAuthTicketForServer", "i:opip", 0 },	/* 28 */
-	{ "ConnectToHostedDedicatedServer", "u:opiip", 0 },	/* 29 */
-	{ "GetHostedDedicatedServerPort", "u:o", 0 },	/* 30 */
-	{ "GetHostedDedicatedServerPOPID", "u:o", 0 },	/* 31 */
-	{ "GetHostedDedicatedServerAddress", "i:op", 0 },	/* 32 */
-	{ "CreateHostedDedicatedServerListenSocket", "u:oiip", 0 },	/* 33 */
-	{ "GetGameCoordinatorServerLogin", "i:oppp", 0 },	/* 34 */
-	{ "ConnectP2PCustomSignaling", "u:oXpiip", 0 },	/* 35 */
-	{ "ReceivedP2PCustomSignal", "b:opiX", 0 },	/* 36 */
-	{ "GetCertificateRequest", "b:oppp", 0 },	/* 37 */
-	{ "SetCertificate", "b:opip", 0 },	/* 38 */
-	{ "ResetIdentity", "v:op", 0 },	/* 39 */
-	{ "RunCallbacks", "v:o", 0 },	/* 40 */
+	{ "CreateListenSocketIP", "SteamAPI_ISteamNetworkingSockets_CreateListenSocketIP", "u:opip", 0, -1 },
+	{ "ConnectByIPAddress", "SteamAPI_ISteamNetworkingSockets_ConnectByIPAddress", "u:opip", 0, -1 },
+	{ "CreateListenSocketP2P", "SteamAPI_ISteamNetworkingSockets_CreateListenSocketP2P", "u:oiip", 0, -1 },
+	{ "ConnectP2P", "SteamAPI_ISteamNetworkingSockets_ConnectP2P", "u:opiip", 0, -1 },
+	{ "AcceptConnection", "SteamAPI_ISteamNetworkingSockets_AcceptConnection", "i:ou", 0, -1 },
+	{ "CloseConnection", "SteamAPI_ISteamNetworkingSockets_CloseConnection", "b:ouipB", 0, -1 },
+	{ "CloseListenSocket", "SteamAPI_ISteamNetworkingSockets_CloseListenSocket", "b:ou", 0, -1 },
+	{ "SetConnectionUserData", "SteamAPI_ISteamNetworkingSockets_SetConnectionUserData", "b:oul", 0, -1 },
+	{ "GetConnectionUserData", "SteamAPI_ISteamNetworkingSockets_GetConnectionUserData", "l:ou", 0, -1 },
+	{ "SetConnectionName", "SteamAPI_ISteamNetworkingSockets_SetConnectionName", "v:oup", 0, -1 },
+	{ "GetConnectionName", "SteamAPI_ISteamNetworkingSockets_GetConnectionName", "b:oupi", 0, -1 },
+	{ "SendMessageToConnection", "SteamAPI_ISteamNetworkingSockets_SendMessageToConnection", "i:oupuip", 0, -1 },
+	{ "SendMessages", "SteamAPI_ISteamNetworkingSockets_SendMessages", "v:oiXp", 0, -1 },
+	{ "FlushMessagesOnConnection", "SteamAPI_ISteamNetworkingSockets_FlushMessagesOnConnection", "i:ou", 0, -1 },
+	{ "ReceiveMessagesOnConnection", "SteamAPI_ISteamNetworkingSockets_ReceiveMessagesOnConnection", "i:ouXi", 0, -1 },
+	{ "GetConnectionInfo", "SteamAPI_ISteamNetworkingSockets_GetConnectionInfo", "b:oup", 0, -1 },
+	{ "GetQuickConnectionStatus", "SteamAPI_ISteamNetworkingSockets_GetQuickConnectionStatus", "b:oup", 0, -1 },
+	{ "GetDetailedConnectionStatus", "SteamAPI_ISteamNetworkingSockets_GetDetailedConnectionStatus", "i:oupi", 0, -1 },
+	{ "GetListenSocketAddress", "SteamAPI_ISteamNetworkingSockets_GetListenSocketAddress", "b:oup", 0, -1 },
+	{ "CreateSocketPair", "SteamAPI_ISteamNetworkingSockets_CreateSocketPair", "b:oppBpp", 0, -1 },
+	{ "GetIdentity", "SteamAPI_ISteamNetworkingSockets_GetIdentity", "b:op", 0, -1 },
+	{ "InitAuthentication", "SteamAPI_ISteamNetworkingSockets_InitAuthentication", "i:o", 0, -1 },
+	{ "GetAuthenticationStatus", "SteamAPI_ISteamNetworkingSockets_GetAuthenticationStatus", "i:op", 0, -1 },
+	{ "CreatePollGroup", "SteamAPI_ISteamNetworkingSockets_CreatePollGroup", "u:o", 0, -1 },
+	{ "DestroyPollGroup", "SteamAPI_ISteamNetworkingSockets_DestroyPollGroup", "b:ou", 0, -1 },
+	{ "SetConnectionPollGroup", "SteamAPI_ISteamNetworkingSockets_SetConnectionPollGroup", "b:ouu", 0, -1 },
+	{ "ReceiveMessagesOnPollGroup", "SteamAPI_ISteamNetworkingSockets_ReceiveMessagesOnPollGroup", "i:ouXi", 0, -1 },
+	{ "ReceivedRelayAuthTicket", "SteamAPI_ISteamNetworkingSockets_ReceivedRelayAuthTicket", "b:opip", 0, -1 },
+	{ "FindRelayAuthTicketForServer", "SteamAPI_ISteamNetworkingSockets_FindRelayAuthTicketForServer", "i:opip", 0, -1 },
+	{ "ConnectToHostedDedicatedServer", "SteamAPI_ISteamNetworkingSockets_ConnectToHostedDedicatedServer", "u:opiip", 0, -1 },
+	{ "GetHostedDedicatedServerPort", "SteamAPI_ISteamNetworkingSockets_GetHostedDedicatedServerPort", "u:o", 0, -1 },
+	{ "GetHostedDedicatedServerPOPID", "SteamAPI_ISteamNetworkingSockets_GetHostedDedicatedServerPOPID", "u:o", 0, -1 },
+	{ "GetHostedDedicatedServerAddress", "SteamAPI_ISteamNetworkingSockets_GetHostedDedicatedServerAddress", "i:op", 0, -1 },
+	{ "CreateHostedDedicatedServerListenSocket", "SteamAPI_ISteamNetworkingSockets_CreateHostedDedicatedServerListenSocket", "u:oiip", 0, -1 },
+	{ "GetGameCoordinatorServerLogin", "SteamAPI_ISteamNetworkingSockets_GetGameCoordinatorServerLogin", "i:oppp", 0, -1 },
+	{ "ConnectP2PCustomSignaling", "SteamAPI_ISteamNetworkingSockets_ConnectP2PCustomSignaling", "u:oXpiip", 0, -1 },
+	{ "ReceivedP2PCustomSignal", "SteamAPI_ISteamNetworkingSockets_ReceivedP2PCustomSignal", "b:opiX", 0, -1 },
+	{ "GetCertificateRequest", "SteamAPI_ISteamNetworkingSockets_GetCertificateRequest", "b:oppp", 0, -1 },
+	{ "SetCertificate", "SteamAPI_ISteamNetworkingSockets_SetCertificate", "b:opip", 0, -1 },
+	{ "ResetIdentity", "SteamAPI_ISteamNetworkingSockets_ResetIdentity", "v:op", 0, -1 },
+	{ "RunCallbacks", "SteamAPI_ISteamNetworkingSockets_RunCallbacks", "v:o", 0, -1 },
 };
 static const struct smethod m_SteamNetworkingSockets012[] = {
-	{ "CreateListenSocketIP", "u:opip", 0 },	/* 0 */
-	{ "ConnectByIPAddress", "u:opip", 0 },	/* 1 */
-	{ "CreateListenSocketP2P", "u:oiip", 0 },	/* 2 */
-	{ "ConnectP2P", "u:opiip", 0 },	/* 3 */
-	{ "AcceptConnection", "i:ou", 0 },	/* 4 */
-	{ "CloseConnection", "b:ouipB", 0 },	/* 5 */
-	{ "CloseListenSocket", "b:ou", 0 },	/* 6 */
-	{ "SetConnectionUserData", "b:oul", 0 },	/* 7 */
-	{ "GetConnectionUserData", "l:ou", 0 },	/* 8 */
-	{ "SetConnectionName", "v:oup", 0 },	/* 9 */
-	{ "GetConnectionName", "b:oupi", 0 },	/* 10 */
-	{ "SendMessageToConnection", "i:oupuip", 0 },	/* 11 */
-	{ "SendMessages", "v:oiXp", 0 },	/* 12 */
-	{ "FlushMessagesOnConnection", "i:ou", 0 },	/* 13 */
-	{ "ReceiveMessagesOnConnection", "i:ouXi", 0 },	/* 14 */
-	{ "GetConnectionInfo", "b:oup", 0 },	/* 15 */
-	{ "GetConnectionRealTimeStatus", "i:oupip", 0 },	/* 16 */
-	{ "GetDetailedConnectionStatus", "i:oupi", 0 },	/* 17 */
-	{ "GetListenSocketAddress", "b:oup", 0 },	/* 18 */
-	{ "CreateSocketPair", "b:oppBpp", 0 },	/* 19 */
-	{ "ConfigureConnectionLanes", "i:ouipp", 0 },	/* 20 */
-	{ "GetIdentity", "b:op", 0 },	/* 21 */
-	{ "InitAuthentication", "i:o", 0 },	/* 22 */
-	{ "GetAuthenticationStatus", "i:op", 0 },	/* 23 */
-	{ "CreatePollGroup", "u:o", 0 },	/* 24 */
-	{ "DestroyPollGroup", "b:ou", 0 },	/* 25 */
-	{ "SetConnectionPollGroup", "b:ouu", 0 },	/* 26 */
-	{ "ReceiveMessagesOnPollGroup", "i:ouXi", 0 },	/* 27 */
-	{ "ReceivedRelayAuthTicket", "b:opip", 0 },	/* 28 */
-	{ "FindRelayAuthTicketForServer", "i:opip", 0 },	/* 29 */
-	{ "ConnectToHostedDedicatedServer", "u:opiip", 0 },	/* 30 */
-	{ "GetHostedDedicatedServerPort", "u:o", 0 },	/* 31 */
-	{ "GetHostedDedicatedServerPOPID", "u:o", 0 },	/* 32 */
-	{ "GetHostedDedicatedServerAddress", "i:op", 0 },	/* 33 */
-	{ "CreateHostedDedicatedServerListenSocket", "u:oiip", 0 },	/* 34 */
-	{ "GetGameCoordinatorServerLogin", "i:oppp", 0 },	/* 35 */
-	{ "ConnectP2PCustomSignaling", "u:oXpiip", 0 },	/* 36 */
-	{ "ReceivedP2PCustomSignal", "b:opiX", 0 },	/* 37 */
-	{ "GetCertificateRequest", "b:oppp", 0 },	/* 38 */
-	{ "SetCertificate", "b:opip", 0 },	/* 39 */
-	{ "ResetIdentity", "v:op", 0 },	/* 40 */
-	{ "RunCallbacks", "v:o", 0 },	/* 41 */
-	{ "BeginAsyncRequestFakeIP", "b:oi", 0 },	/* 42 */
-	{ "GetFakeIP", "v:oip", 0 },	/* 43 */
-	{ "CreateListenSocketP2PFakeIP", "u:oiip", 0 },	/* 44 */
-	{ "GetRemoteFakeIPForConnection", "i:oup", 0 },	/* 45 */
-	{ "CreateFakeUDPPort", "I:oi", 0 },	/* 46 */
+	{ "CreateListenSocketIP", "SteamAPI_ISteamNetworkingSockets_CreateListenSocketIP", "u:opip", 0, -1 },
+	{ "ConnectByIPAddress", "SteamAPI_ISteamNetworkingSockets_ConnectByIPAddress", "u:opip", 0, -1 },
+	{ "CreateListenSocketP2P", "SteamAPI_ISteamNetworkingSockets_CreateListenSocketP2P", "u:oiip", 0, -1 },
+	{ "ConnectP2P", "SteamAPI_ISteamNetworkingSockets_ConnectP2P", "u:opiip", 0, -1 },
+	{ "AcceptConnection", "SteamAPI_ISteamNetworkingSockets_AcceptConnection", "i:ou", 0, -1 },
+	{ "CloseConnection", "SteamAPI_ISteamNetworkingSockets_CloseConnection", "b:ouipB", 0, -1 },
+	{ "CloseListenSocket", "SteamAPI_ISteamNetworkingSockets_CloseListenSocket", "b:ou", 0, -1 },
+	{ "SetConnectionUserData", "SteamAPI_ISteamNetworkingSockets_SetConnectionUserData", "b:oul", 0, -1 },
+	{ "GetConnectionUserData", "SteamAPI_ISteamNetworkingSockets_GetConnectionUserData", "l:ou", 0, -1 },
+	{ "SetConnectionName", "SteamAPI_ISteamNetworkingSockets_SetConnectionName", "v:oup", 0, -1 },
+	{ "GetConnectionName", "SteamAPI_ISteamNetworkingSockets_GetConnectionName", "b:oupi", 0, -1 },
+	{ "SendMessageToConnection", "SteamAPI_ISteamNetworkingSockets_SendMessageToConnection", "i:oupuip", 0, -1 },
+	{ "SendMessages", "SteamAPI_ISteamNetworkingSockets_SendMessages", "v:oiXp", 0, -1 },
+	{ "FlushMessagesOnConnection", "SteamAPI_ISteamNetworkingSockets_FlushMessagesOnConnection", "i:ou", 0, -1 },
+	{ "ReceiveMessagesOnConnection", "SteamAPI_ISteamNetworkingSockets_ReceiveMessagesOnConnection", "i:ouXi", 0, -1 },
+	{ "GetConnectionInfo", "SteamAPI_ISteamNetworkingSockets_GetConnectionInfo", "b:oup", 0, -1 },
+	{ "GetConnectionRealTimeStatus", "SteamAPI_ISteamNetworkingSockets_GetConnectionRealTimeStatus", "i:oupip", 0, -1 },
+	{ "GetDetailedConnectionStatus", "SteamAPI_ISteamNetworkingSockets_GetDetailedConnectionStatus", "i:oupi", 0, -1 },
+	{ "GetListenSocketAddress", "SteamAPI_ISteamNetworkingSockets_GetListenSocketAddress", "b:oup", 0, -1 },
+	{ "CreateSocketPair", "SteamAPI_ISteamNetworkingSockets_CreateSocketPair", "b:oppBpp", 0, -1 },
+	{ "ConfigureConnectionLanes", "SteamAPI_ISteamNetworkingSockets_ConfigureConnectionLanes", "i:ouipp", 0, -1 },
+	{ "GetIdentity", "SteamAPI_ISteamNetworkingSockets_GetIdentity", "b:op", 0, -1 },
+	{ "InitAuthentication", "SteamAPI_ISteamNetworkingSockets_InitAuthentication", "i:o", 0, -1 },
+	{ "GetAuthenticationStatus", "SteamAPI_ISteamNetworkingSockets_GetAuthenticationStatus", "i:op", 0, -1 },
+	{ "CreatePollGroup", "SteamAPI_ISteamNetworkingSockets_CreatePollGroup", "u:o", 0, -1 },
+	{ "DestroyPollGroup", "SteamAPI_ISteamNetworkingSockets_DestroyPollGroup", "b:ou", 0, -1 },
+	{ "SetConnectionPollGroup", "SteamAPI_ISteamNetworkingSockets_SetConnectionPollGroup", "b:ouu", 0, -1 },
+	{ "ReceiveMessagesOnPollGroup", "SteamAPI_ISteamNetworkingSockets_ReceiveMessagesOnPollGroup", "i:ouXi", 0, -1 },
+	{ "ReceivedRelayAuthTicket", "SteamAPI_ISteamNetworkingSockets_ReceivedRelayAuthTicket", "b:opip", 0, -1 },
+	{ "FindRelayAuthTicketForServer", "SteamAPI_ISteamNetworkingSockets_FindRelayAuthTicketForServer", "i:opip", 0, -1 },
+	{ "ConnectToHostedDedicatedServer", "SteamAPI_ISteamNetworkingSockets_ConnectToHostedDedicatedServer", "u:opiip", 0, -1 },
+	{ "GetHostedDedicatedServerPort", "SteamAPI_ISteamNetworkingSockets_GetHostedDedicatedServerPort", "u:o", 0, -1 },
+	{ "GetHostedDedicatedServerPOPID", "SteamAPI_ISteamNetworkingSockets_GetHostedDedicatedServerPOPID", "u:o", 0, -1 },
+	{ "GetHostedDedicatedServerAddress", "SteamAPI_ISteamNetworkingSockets_GetHostedDedicatedServerAddress", "i:op", 0, -1 },
+	{ "CreateHostedDedicatedServerListenSocket", "SteamAPI_ISteamNetworkingSockets_CreateHostedDedicatedServerListenSocket", "u:oiip", 0, -1 },
+	{ "GetGameCoordinatorServerLogin", "SteamAPI_ISteamNetworkingSockets_GetGameCoordinatorServerLogin", "i:oppp", 0, -1 },
+	{ "ConnectP2PCustomSignaling", "SteamAPI_ISteamNetworkingSockets_ConnectP2PCustomSignaling", "u:oXpiip", 0, -1 },
+	{ "ReceivedP2PCustomSignal", "SteamAPI_ISteamNetworkingSockets_ReceivedP2PCustomSignal", "b:opiX", 0, -1 },
+	{ "GetCertificateRequest", "SteamAPI_ISteamNetworkingSockets_GetCertificateRequest", "b:oppp", 0, -1 },
+	{ "SetCertificate", "SteamAPI_ISteamNetworkingSockets_SetCertificate", "b:opip", 0, -1 },
+	{ "ResetIdentity", "SteamAPI_ISteamNetworkingSockets_ResetIdentity", "v:op", 0, -1 },
+	{ "RunCallbacks", "SteamAPI_ISteamNetworkingSockets_RunCallbacks", "v:o", 0, -1 },
+	{ "BeginAsyncRequestFakeIP", "SteamAPI_ISteamNetworkingSockets_BeginAsyncRequestFakeIP", "b:oi", 0, -1 },
+	{ "GetFakeIP", "SteamAPI_ISteamNetworkingSockets_GetFakeIP", "v:oip", 0, -1 },
+	{ "CreateListenSocketP2PFakeIP", "SteamAPI_ISteamNetworkingSockets_CreateListenSocketP2PFakeIP", "u:oiip", 0, -1 },
+	{ "GetRemoteFakeIPForConnection", "SteamAPI_ISteamNetworkingSockets_GetRemoteFakeIPForConnection", "i:oup", 0, -1 },
+	{ "CreateFakeUDPPort", "SteamAPI_ISteamNetworkingSockets_CreateFakeUDPPort", "I:oi", 0, -1 },
 };
 static const struct smethod m_SteamNetworkingUtils004[] = {
-	{ "AllocateMessage", "X:oi", 0 },	/* 0 */
-	{ "GetRelayNetworkStatus", "i:op", 0 },	/* 1 */
-	{ "GetLocalPingLocation", "f:op", 0 },	/* 2 */
-	{ "EstimatePingTimeBetweenTwoLocations", "i:opp", 0 },	/* 3 */
-	{ "EstimatePingTimeFromLocalHost", "i:op", 0 },	/* 4 */
-	{ "ConvertPingLocationToString", "v:oppi", 0 },	/* 5 */
-	{ "ParsePingLocationString", "b:opp", 0 },	/* 6 */
-	{ "CheckPingDataUpToDate", "b:of", 0 },	/* 7 */
-	{ "GetPingToDataCenter", "i:oup", 0 },	/* 8 */
-	{ "GetDirectPingToPOP", "i:ou", 0 },	/* 9 */
-	{ "GetPOPCount", "i:o", 0 },	/* 10 */
-	{ "GetPOPList", "i:opi", 0 },	/* 11 */
-	{ "GetLocalTimestamp", "l:o", 0 },	/* 12 */
-	{ "SetDebugOutputFunction", "v:oiX", 0 },	/* 13 */
-	{ "GetIPv4FakeIPType", "i:ou", 0 },	/* 14 */
-	{ "GetRealIdentityForFakeIP", "i:opp", 0 },	/* 15 */
-	{ "SetConfigValue", "b:oiiiip", 0 },	/* 16 */
-	{ "GetConfigValue", "i:oiiippp", 0 },	/* 17 */
-	{ "GetConfigValueInfo", "S:oipp", 0 },	/* 18 */
-	{ "IterateGenericEditableConfigValues", "i:oiB", 0 },	/* 19 */
-	{ "SteamNetworkingIPAddr_ToString", "v:oppuB", 0 },	/* 20 */
-	{ "SteamNetworkingIPAddr_ParseString", "b:opp", 0 },	/* 21 */
-	{ "SteamNetworkingIPAddr_GetFakeIPType", "i:op", 0 },	/* 22 */
-	{ "SteamNetworkingIdentity_ToString", "v:oppu", 0 },	/* 23 */
-	{ "SteamNetworkingIdentity_ParseString", "b:opp", 0 },	/* 24 */
-	{ "private_25", "X:o", 0 },	/* 25 */
-	{ "private_26", "X:o", 0 },	/* 26 */
-	{ "private_27", "X:o", 0 },	/* 27 */
-	{ "private_28", "X:o", 0 },	/* 28 */
-	{ "private_29", "X:o", 0 },	/* 29 */
-	{ "private_30", "X:o", 0 },	/* 30 */
-	{ "private_31", "X:o", 0 },	/* 31 */
-	{ "SetConfigValueStruct", "b:opii", 0 },	/* 32 */
+	{ "AllocateMessage", "SteamAPI_ISteamNetworkingUtils_AllocateMessage", "X:oi", 0, -1 },
+	{ "InitRelayNetworkAccess", "SteamAPI_ISteamNetworkingUtils_InitRelayNetworkAccess", "v:o", 0, -1 },
+	{ "GetRelayNetworkStatus", "SteamAPI_ISteamNetworkingUtils_GetRelayNetworkStatus", "i:op", 0, -1 },
+	{ "GetLocalPingLocation", "SteamAPI_ISteamNetworkingUtils_GetLocalPingLocation", "f:op", 0, -1 },
+	{ "EstimatePingTimeBetweenTwoLocations", "SteamAPI_ISteamNetworkingUtils_EstimatePingTimeBetweenTwoLocations", "i:opp", 0, -1 },
+	{ "EstimatePingTimeFromLocalHost", "SteamAPI_ISteamNetworkingUtils_EstimatePingTimeFromLocalHost", "i:op", 0, -1 },
+	{ "ConvertPingLocationToString", "SteamAPI_ISteamNetworkingUtils_ConvertPingLocationToString", "v:oppi", 0, -1 },
+	{ "ParsePingLocationString", "SteamAPI_ISteamNetworkingUtils_ParsePingLocationString", "b:opp", 0, -1 },
+	{ "CheckPingDataUpToDate", "SteamAPI_ISteamNetworkingUtils_CheckPingDataUpToDate", "b:of", 0, -1 },
+	{ "GetPingToDataCenter", "SteamAPI_ISteamNetworkingUtils_GetPingToDataCenter", "i:oup", 0, -1 },
+	{ "GetDirectPingToPOP", "SteamAPI_ISteamNetworkingUtils_GetDirectPingToPOP", "i:ou", 0, -1 },
+	{ "GetPOPCount", "SteamAPI_ISteamNetworkingUtils_GetPOPCount", "i:o", 0, -1 },
+	{ "GetPOPList", "SteamAPI_ISteamNetworkingUtils_GetPOPList", "i:opi", 0, -1 },
+	{ "GetLocalTimestamp", "SteamAPI_ISteamNetworkingUtils_GetLocalTimestamp", "l:o", 0, -1 },
+	{ "SetDebugOutputFunction", "SteamAPI_ISteamNetworkingUtils_SetDebugOutputFunction", "v:oiX", 0, -1 },
+	{ "IsFakeIPv4", "SteamAPI_ISteamNetworkingUtils_IsFakeIPv4", "b:ou", 0, -1 },
+	{ "GetIPv4FakeIPType", "SteamAPI_ISteamNetworkingUtils_GetIPv4FakeIPType", "i:ou", 0, -1 },
+	{ "GetRealIdentityForFakeIP", "SteamAPI_ISteamNetworkingUtils_GetRealIdentityForFakeIP", "i:opp", 0, -1 },
+	{ "SetGlobalConfigValueInt32", "SteamAPI_ISteamNetworkingUtils_SetGlobalConfigValueInt32", "b:oii", 0, -1 },
+	{ "SetGlobalConfigValueFloat", "SteamAPI_ISteamNetworkingUtils_SetGlobalConfigValueFloat", "b:oif", 0, -1 },
+	{ "SetGlobalConfigValueString", "SteamAPI_ISteamNetworkingUtils_SetGlobalConfigValueString", "b:oip", 0, -1 },
+	{ "SetGlobalConfigValuePtr", "SteamAPI_ISteamNetworkingUtils_SetGlobalConfigValuePtr", "b:oip", 0, -1 },
+	{ "SetConnectionConfigValueInt32", "SteamAPI_ISteamNetworkingUtils_SetConnectionConfigValueInt32", "b:ouii", 0, -1 },
+	{ "SetConnectionConfigValueFloat", "SteamAPI_ISteamNetworkingUtils_SetConnectionConfigValueFloat", "b:ouif", 0, -1 },
+	{ "SetConnectionConfigValueString", "SteamAPI_ISteamNetworkingUtils_SetConnectionConfigValueString", "b:ouip", 0, -1 },
+	{ "SetGlobalCallback_SteamNetConnectionStatusChanged", "SteamAPI_ISteamNetworkingUtils_SetGlobalCallback_SteamNetConnectionStatusChanged", "b:oX", 0, -1 },
+	{ "SetGlobalCallback_SteamNetAuthenticationStatusChanged", "SteamAPI_ISteamNetworkingUtils_SetGlobalCallback_SteamNetAuthenticationStatusChanged", "b:oX", 0, -1 },
+	{ "SetGlobalCallback_SteamRelayNetworkStatusChanged", "SteamAPI_ISteamNetworkingUtils_SetGlobalCallback_SteamRelayNetworkStatusChanged", "b:oX", 0, -1 },
+	{ "SetGlobalCallback_FakeIPResult", "SteamAPI_ISteamNetworkingUtils_SetGlobalCallback_FakeIPResult", "b:oX", 0, -1 },
+	{ "SetGlobalCallback_MessagesSessionRequest", "SteamAPI_ISteamNetworkingUtils_SetGlobalCallback_MessagesSessionRequest", "b:oX", 0, -1 },
+	{ "SetGlobalCallback_MessagesSessionFailed", "SteamAPI_ISteamNetworkingUtils_SetGlobalCallback_MessagesSessionFailed", "b:oX", 0, -1 },
+	{ "SetConfigValue", "SteamAPI_ISteamNetworkingUtils_SetConfigValue", "b:oiiiip", 0, -1 },
+	{ "SetConfigValueStruct", "SteamAPI_ISteamNetworkingUtils_SetConfigValueStruct", "b:opii", 0, -1 },
+	{ "GetConfigValue", "SteamAPI_ISteamNetworkingUtils_GetConfigValue", "i:oiiippp", 0, -1 },
+	{ "GetConfigValueInfo", "SteamAPI_ISteamNetworkingUtils_GetConfigValueInfo", "S:oipp", 0, -1 },
+	{ "IterateGenericEditableConfigValues", "SteamAPI_ISteamNetworkingUtils_IterateGenericEditableConfigValues", "i:oiB", 0, -1 },
+	{ "SteamNetworkingIPAddr_ToString", "SteamAPI_ISteamNetworkingUtils_SteamNetworkingIPAddr_ToString", "v:oppuB", 0, -1 },
+	{ "SteamNetworkingIPAddr_ParseString", "SteamAPI_ISteamNetworkingUtils_SteamNetworkingIPAddr_ParseString", "b:opp", 0, -1 },
+	{ "SteamNetworkingIPAddr_GetFakeIPType", "SteamAPI_ISteamNetworkingUtils_SteamNetworkingIPAddr_GetFakeIPType", "i:op", 0, -1 },
+	{ "SteamNetworkingIdentity_ToString", "SteamAPI_ISteamNetworkingUtils_SteamNetworkingIdentity_ToString", "v:oppu", 0, -1 },
+	{ "SteamNetworkingIdentity_ParseString", "SteamAPI_ISteamNetworkingUtils_SteamNetworkingIdentity_ParseString", "b:opp", 0, -1 },
 };
 static const struct smethod m_SteamParties002[] = {
-	{ "GetNumActiveBeacons", "u:o", 0 },	/* 0 */
-	{ "GetBeaconByIndex", "l:ou", 0 },	/* 1 */
-	{ "GetBeaconDetails", "b:olpppi", 0 },	/* 2 */
-	{ "JoinParty", "l:ol", 0 },	/* 3 */
-	{ "GetNumAvailableBeaconLocations", "b:op", 0 },	/* 4 */
-	{ "GetAvailableBeaconLocations", "b:opu", 0 },	/* 5 */
-	{ "CreateBeacon", "l:ouppp", 0 },	/* 6 */
-	{ "OnReservationCompleted", "v:oll", 0 },	/* 7 */
-	{ "CancelReservation", "v:oll", 0 },	/* 8 */
-	{ "ChangeNumOpenSlots", "l:olu", 0 },	/* 9 */
-	{ "DestroyBeacon", "b:ol", 0 },	/* 10 */
-	{ "GetBeaconLocationData", "b:oXipi", 0 },	/* 11 */
+	{ "GetNumActiveBeacons", "SteamAPI_ISteamParties_GetNumActiveBeacons", "u:o", 0, -1 },
+	{ "GetBeaconByIndex", "SteamAPI_ISteamParties_GetBeaconByIndex", "l:ou", 0, -1 },
+	{ "GetBeaconDetails", "SteamAPI_ISteamParties_GetBeaconDetails", "b:olpppi", 0, -1 },
+	{ "JoinParty", "SteamAPI_ISteamParties_JoinParty", "l:ol", 0, -1 },
+	{ "GetNumAvailableBeaconLocations", "SteamAPI_ISteamParties_GetNumAvailableBeaconLocations", "b:op", 0, -1 },
+	{ "GetAvailableBeaconLocations", "SteamAPI_ISteamParties_GetAvailableBeaconLocations", "b:opu", 0, -1 },
+	{ "CreateBeacon", "SteamAPI_ISteamParties_CreateBeacon", "l:ouppp", 0, -1 },
+	{ "OnReservationCompleted", "SteamAPI_ISteamParties_OnReservationCompleted", "v:oll", 0, -1 },
+	{ "CancelReservation", "SteamAPI_ISteamParties_CancelReservation", "v:oll", 0, -1 },
+	{ "ChangeNumOpenSlots", "SteamAPI_ISteamParties_ChangeNumOpenSlots", "l:olu", 0, -1 },
+	{ "DestroyBeacon", "SteamAPI_ISteamParties_DestroyBeacon", "b:ol", 0, -1 },
+	{ "GetBeaconLocationData", "SteamAPI_ISteamParties_GetBeaconLocationData", "b:oXipi", 0, -1 },
 };
 static const struct smethod m_SteamUser021[] = {
-	{ "GetHSteamUser", "i:o", 0 },	/* 0 */
-	{ "BLoggedOn", "b:o", 0 },	/* 1 */
-	{ "GetSteamID", "l:o", 0 },	/* 2 */
-	{ "InitiateGameConnection_DEPRECATED", "i:opiluuB", 0 },	/* 3 */
-	{ "TerminateGameConnection_DEPRECATED", "v:ouu", 0 },	/* 4 */
-	{ "TrackAppUsageEvent", "v:olip", 0 },	/* 5 */
-	{ "GetUserDataFolder", "b:opi", 0 },	/* 6 */
-	{ "StartVoiceRecording", "v:o", 0 },	/* 7 */
-	{ "StopVoiceRecording", "v:o", 0 },	/* 8 */
-	{ "GetAvailableVoice", "i:oppu", 0 },	/* 9 */
-	{ "GetVoice", "i:oBpupBpupu", 0 },	/* 10 */
-	{ "DecompressVoice", "i:opupupu", 0 },	/* 11 */
-	{ "GetVoiceOptimalSampleRate", "u:o", 0 },	/* 12 */
-	{ "GetAuthSessionTicket", "u:opip", 0 },	/* 13 */
-	{ "BeginAuthSession", "i:opil", 0 },	/* 14 */
-	{ "EndAuthSession", "v:ol", 0 },	/* 15 */
-	{ "CancelAuthTicket", "v:ou", 0 },	/* 16 */
-	{ "UserHasLicenseForApp", "i:olu", 0 },	/* 17 */
-	{ "BIsBehindNAT", "b:o", 0 },	/* 18 */
-	{ "AdvertiseGame", "v:oluu", 0 },	/* 19 */
-	{ "RequestEncryptedAppTicket", "l:opi", 0 },	/* 20 */
-	{ "GetEncryptedAppTicket", "b:opip", 0 },	/* 21 */
-	{ "GetGameBadgeLevel", "i:oiB", 0 },	/* 22 */
-	{ "GetPlayerSteamLevel", "i:o", 0 },	/* 23 */
-	{ "RequestStoreAuthURL", "l:op", 0 },	/* 24 */
-	{ "BIsPhoneVerified", "b:o", 0 },	/* 25 */
-	{ "BIsTwoFactorEnabled", "b:o", 0 },	/* 26 */
-	{ "BIsPhoneIdentifying", "b:o", 0 },	/* 27 */
-	{ "BIsPhoneRequiringVerification", "b:o", 0 },	/* 28 */
-	{ "GetMarketEligibility", "l:o", 0 },	/* 29 */
-	{ "GetDurationControl", "l:o", 0 },	/* 30 */
-	{ "BSetDurationControlOnlineState", "b:oi", 0 },	/* 31 */
+	{ "GetHSteamUser", "SteamAPI_ISteamUser_GetHSteamUser", "i:o", 0, -1 },
+	{ "BLoggedOn", "SteamAPI_ISteamUser_BLoggedOn", "b:o", 0, -1 },
+	{ "GetSteamID", "SteamAPI_ISteamUser_GetSteamID", "l:o", 0, -1 },
+	{ "InitiateGameConnection_DEPRECATED", "SteamAPI_ISteamUser_InitiateGameConnection_DEPRECATED", "i:opiluuB", 0, -1 },
+	{ "TerminateGameConnection_DEPRECATED", "SteamAPI_ISteamUser_TerminateGameConnection_DEPRECATED", "v:ouu", 0, -1 },
+	{ "TrackAppUsageEvent", "SteamAPI_ISteamUser_TrackAppUsageEvent", "v:olip", 0, -1 },
+	{ "GetUserDataFolder", "SteamAPI_ISteamUser_GetUserDataFolder", "b:opi", 0, -1 },
+	{ "StartVoiceRecording", "SteamAPI_ISteamUser_StartVoiceRecording", "v:o", 0, -1 },
+	{ "StopVoiceRecording", "SteamAPI_ISteamUser_StopVoiceRecording", "v:o", 0, -1 },
+	{ "GetAvailableVoice", "SteamAPI_ISteamUser_GetAvailableVoice", "i:oppu", 0, -1 },
+	{ "GetVoice", "SteamAPI_ISteamUser_GetVoice", "i:oBpupBpupu", 0, -1 },
+	{ "DecompressVoice", "SteamAPI_ISteamUser_DecompressVoice", "i:opupupu", 0, -1 },
+	{ "GetVoiceOptimalSampleRate", "SteamAPI_ISteamUser_GetVoiceOptimalSampleRate", "u:o", 0, -1 },
+	{ "GetAuthSessionTicket", "SteamAPI_ISteamUser_GetAuthSessionTicket", "u:opip", 0, -1 },
+	{ "BeginAuthSession", "SteamAPI_ISteamUser_BeginAuthSession", "i:opil", 0, -1 },
+	{ "EndAuthSession", "SteamAPI_ISteamUser_EndAuthSession", "v:ol", 0, -1 },
+	{ "CancelAuthTicket", "SteamAPI_ISteamUser_CancelAuthTicket", "v:ou", 0, -1 },
+	{ "UserHasLicenseForApp", "SteamAPI_ISteamUser_UserHasLicenseForApp", "i:olu", 0, -1 },
+	{ "BIsBehindNAT", "SteamAPI_ISteamUser_BIsBehindNAT", "b:o", 0, -1 },
+	{ "AdvertiseGame", "SteamAPI_ISteamUser_AdvertiseGame", "v:oluu", 0, -1 },
+	{ "RequestEncryptedAppTicket", "SteamAPI_ISteamUser_RequestEncryptedAppTicket", "l:opi", 0, -1 },
+	{ "GetEncryptedAppTicket", "SteamAPI_ISteamUser_GetEncryptedAppTicket", "b:opip", 0, -1 },
+	{ "GetGameBadgeLevel", "SteamAPI_ISteamUser_GetGameBadgeLevel", "i:oiB", 0, -1 },
+	{ "GetPlayerSteamLevel", "SteamAPI_ISteamUser_GetPlayerSteamLevel", "i:o", 0, -1 },
+	{ "RequestStoreAuthURL", "SteamAPI_ISteamUser_RequestStoreAuthURL", "l:op", 0, -1 },
+	{ "BIsPhoneVerified", "SteamAPI_ISteamUser_BIsPhoneVerified", "b:o", 0, -1 },
+	{ "BIsTwoFactorEnabled", "SteamAPI_ISteamUser_BIsTwoFactorEnabled", "b:o", 0, -1 },
+	{ "BIsPhoneIdentifying", "SteamAPI_ISteamUser_BIsPhoneIdentifying", "b:o", 0, -1 },
+	{ "BIsPhoneRequiringVerification", "SteamAPI_ISteamUser_BIsPhoneRequiringVerification", "b:o", 0, -1 },
+	{ "GetMarketEligibility", "SteamAPI_ISteamUser_GetMarketEligibility", "l:o", 0, -1 },
+	{ "GetDurationControl", "SteamAPI_ISteamUser_GetDurationControl", "l:o", 0, -1 },
+	{ "BSetDurationControlOnlineState", "SteamAPI_ISteamUser_BSetDurationControlOnlineState", "b:oi", 0, -1 },
 };
 static const struct smethod m_SteamUtils010[] = {
-	{ "GetSecondsSinceAppActive", "u:o", 0 },	/* 0 */
-	{ "GetSecondsSinceComputerActive", "u:o", 0 },	/* 1 */
-	{ "GetConnectedUniverse", "i:o", 0 },	/* 2 */
-	{ "GetServerRealTime", "u:o", 0 },	/* 3 */
-	{ "GetIPCountry", "S:o", 0 },	/* 4 */
-	{ "GetImageSize", "b:oipp", 0 },	/* 5 */
-	{ "GetImageRGBA", "b:oipi", 0 },	/* 6 */
-	{ "GetCSERIPPort", "b:opp", 0 },	/* 7 */
-	{ "GetCurrentBatteryPower", "u:o", 0 },	/* 8 */
-	{ "GetAppID", "u:o", 0 },	/* 9 */
-	{ "SetOverlayNotificationPosition", "v:oi", 0 },	/* 10 */
-	{ "IsAPICallCompleted", "b:olp", 0 },	/* 11 */
-	{ "GetAPICallFailureReason", "i:ol", 0 },	/* 12 */
-	{ "GetAPICallResult", "b:olpiip", 0 },	/* 13 */
-	{ "RunFrame", "v:o", 0 },	/* 14 */
-	{ "GetIPCCallCount", "u:o", 0 },	/* 15 */
-	{ "SetWarningMessageHook", "v:oF", 0 },	/* 16 */
-	{ "IsOverlayEnabled", "b:o", 0 },	/* 17 */
-	{ "BOverlayNeedsPresent", "b:o", 0 },	/* 18 */
-	{ "CheckFileSignature", "l:op", 0 },	/* 19 */
-	{ "ShowGamepadTextInput", "b:oiipup", 0 },	/* 20 */
-	{ "GetEnteredGamepadTextLength", "u:o", 0 },	/* 21 */
-	{ "GetEnteredGamepadTextInput", "b:opu", 0 },	/* 22 */
-	{ "GetSteamUILanguage", "S:o", 0 },	/* 23 */
-	{ "IsSteamRunningInVR", "b:o", 0 },	/* 24 */
-	{ "SetOverlayNotificationInset", "v:oii", 0 },	/* 25 */
-	{ "IsSteamInBigPictureMode", "b:o", 0 },	/* 26 */
-	{ "StartVRDashboard", "v:o", 0 },	/* 27 */
-	{ "IsVRHeadsetStreamingEnabled", "b:o", 0 },	/* 28 */
-	{ "SetVRHeadsetStreamingEnabled", "v:oB", 0 },	/* 29 */
-	{ "IsSteamChinaLauncher", "b:o", 0 },	/* 30 */
-	{ "InitFilterText", "b:ou", 0 },	/* 31 */
-	{ "FilterText", "i:oilppu", 0 },	/* 32 */
-	{ "GetIPv6ConnectivityState", "i:oi", 0 },	/* 33 */
-	{ "IsSteamRunningOnSteamDeck", "b:o", 0 },	/* 34 */
-	{ "ShowFloatingGamepadTextInput", "b:oiiiii", 0 },	/* 35 */
-	{ "SetGameLauncherMode", "v:oB", 0 },	/* 36 */
-	{ "DismissFloatingGamepadTextInput", "b:o", 0 },	/* 37 */
+	{ "GetSecondsSinceAppActive", "SteamAPI_ISteamUtils_GetSecondsSinceAppActive", "u:o", 0, -1 },
+	{ "GetSecondsSinceComputerActive", "SteamAPI_ISteamUtils_GetSecondsSinceComputerActive", "u:o", 0, -1 },
+	{ "GetConnectedUniverse", "SteamAPI_ISteamUtils_GetConnectedUniverse", "i:o", 0, -1 },
+	{ "GetServerRealTime", "SteamAPI_ISteamUtils_GetServerRealTime", "u:o", 0, -1 },
+	{ "GetIPCountry", "SteamAPI_ISteamUtils_GetIPCountry", "S:o", 0, -1 },
+	{ "GetImageSize", "SteamAPI_ISteamUtils_GetImageSize", "b:oipp", 0, -1 },
+	{ "GetImageRGBA", "SteamAPI_ISteamUtils_GetImageRGBA", "b:oipi", 0, -1 },
+	{ "GetCurrentBatteryPower", "SteamAPI_ISteamUtils_GetCurrentBatteryPower", "u:o", 0, -1 },
+	{ "GetAppID", "SteamAPI_ISteamUtils_GetAppID", "u:o", 0, -1 },
+	{ "SetOverlayNotificationPosition", "SteamAPI_ISteamUtils_SetOverlayNotificationPosition", "v:oi", 0, -1 },
+	{ "IsAPICallCompleted", "SteamAPI_ISteamUtils_IsAPICallCompleted", "b:olp", 0, -1 },
+	{ "GetAPICallFailureReason", "SteamAPI_ISteamUtils_GetAPICallFailureReason", "i:ol", 0, -1 },
+	{ "GetAPICallResult", "SteamAPI_ISteamUtils_GetAPICallResult", "b:olpiip", 0, -1 },
+	{ "GetIPCCallCount", "SteamAPI_ISteamUtils_GetIPCCallCount", "u:o", 0, -1 },
+	{ "SetWarningMessageHook", "SteamAPI_ISteamUtils_SetWarningMessageHook", "v:oF", 0, -1 },
+	{ "IsOverlayEnabled", "SteamAPI_ISteamUtils_IsOverlayEnabled", "b:o", 0, -1 },
+	{ "BOverlayNeedsPresent", "SteamAPI_ISteamUtils_BOverlayNeedsPresent", "b:o", 0, -1 },
+	{ "CheckFileSignature", "SteamAPI_ISteamUtils_CheckFileSignature", "l:op", 0, -1 },
+	{ "ShowGamepadTextInput", "SteamAPI_ISteamUtils_ShowGamepadTextInput", "b:oiipup", 0, -1 },
+	{ "GetEnteredGamepadTextLength", "SteamAPI_ISteamUtils_GetEnteredGamepadTextLength", "u:o", 0, -1 },
+	{ "GetEnteredGamepadTextInput", "SteamAPI_ISteamUtils_GetEnteredGamepadTextInput", "b:opu", 0, -1 },
+	{ "GetSteamUILanguage", "SteamAPI_ISteamUtils_GetSteamUILanguage", "S:o", 0, -1 },
+	{ "IsSteamRunningInVR", "SteamAPI_ISteamUtils_IsSteamRunningInVR", "b:o", 0, -1 },
+	{ "SetOverlayNotificationInset", "SteamAPI_ISteamUtils_SetOverlayNotificationInset", "v:oii", 0, -1 },
+	{ "IsSteamInBigPictureMode", "SteamAPI_ISteamUtils_IsSteamInBigPictureMode", "b:o", 0, -1 },
+	{ "StartVRDashboard", "SteamAPI_ISteamUtils_StartVRDashboard", "v:o", 0, -1 },
+	{ "IsVRHeadsetStreamingEnabled", "SteamAPI_ISteamUtils_IsVRHeadsetStreamingEnabled", "b:o", 0, -1 },
+	{ "SetVRHeadsetStreamingEnabled", "SteamAPI_ISteamUtils_SetVRHeadsetStreamingEnabled", "v:oB", 0, -1 },
+	{ "IsSteamChinaLauncher", "SteamAPI_ISteamUtils_IsSteamChinaLauncher", "b:o", 0, -1 },
+	{ "InitFilterText", "SteamAPI_ISteamUtils_InitFilterText", "b:ou", 0, -1 },
+	{ "FilterText", "SteamAPI_ISteamUtils_FilterText", "i:oilppu", 0, -1 },
+	{ "GetIPv6ConnectivityState", "SteamAPI_ISteamUtils_GetIPv6ConnectivityState", "i:oi", 0, -1 },
+	{ "IsSteamRunningOnSteamDeck", "SteamAPI_ISteamUtils_IsSteamRunningOnSteamDeck", "b:o", 0, -1 },
+	{ "ShowFloatingGamepadTextInput", "SteamAPI_ISteamUtils_ShowFloatingGamepadTextInput", "b:oiiiii", 0, -1 },
+	{ "SetGameLauncherMode", "SteamAPI_ISteamUtils_SetGameLauncherMode", "v:oB", 0, -1 },
+	{ "DismissFloatingGamepadTextInput", "SteamAPI_ISteamUtils_DismissFloatingGamepadTextInput", "b:o", 0, -1 },
+	{ "GetCSERIPPort", NULL, "b:opp", 0, 7 },
+	{ "RunFrame", NULL, "v:o", 0, 14 },
 };
 static const struct smethod m_SteamGameCoordinator001[] = {
-	{ "SendMessage", "i:oupu", 0 },
-	{ "IsMessageAvailable", "b:op", 0 },
-	{ "RetrieveMessage", "i:oppup", 0 },
+	{ "SendMessage", NULL, "i:oupu", 0, 0 },
+	{ "IsMessageAvailable", NULL, "b:op", 0, 1 },
+	{ "RetrieveMessage", NULL, "i:oppup", 0, 2 },
 };
 static const struct smethod m_SteamGameStats001[] = {
-	{ "GetNewSession", "l:oiiiu", 0 },
-	{ "EndSession", "l:olui", 0 },
-	{ "AddSessionAttributeInt", "i:olpi", 0 },
-	{ "AddSessionAttributeString", "i:olpp", 0 },
-	{ "AddSessionAttributeFloat", "i:olpf", 0 },
-	{ "AddNewRow", "i:oplp", 0 },
-	{ "CommitRow", "i:ol", 0 },
-	{ "CommitOutstandingRows", "i:ol", 0 },
-	{ "AddRowAttributeInt", "i:olpi", 0 },
-	{ "AddRowAtributeString", "i:olpp", 0 },
-	{ "AddRowAttributeFloat", "i:olpf", 0 },
-	{ "AddSessionAttributeInt64", "i:olpl", 0 },
-	{ "AddRowAttributeInt64", "i:olpl", 0 },
+	{ "GetNewSession", NULL, "l:oiiiu", 0, 0 },
+	{ "EndSession", NULL, "l:olui", 0, 1 },
+	{ "AddSessionAttributeInt", NULL, "i:olpi", 0, 2 },
+	{ "AddSessionAttributeString", NULL, "i:olpp", 0, 3 },
+	{ "AddSessionAttributeFloat", NULL, "i:olpf", 0, 4 },
+	{ "AddNewRow", NULL, "i:oplp", 0, 5 },
+	{ "CommitRow", NULL, "i:ol", 0, 6 },
+	{ "CommitOutstandingRows", NULL, "i:ol", 0, 7 },
+	{ "AddRowAttributeInt", NULL, "i:olpi", 0, 8 },
+	{ "AddRowAtributeString", NULL, "i:olpp", 0, 9 },
+	{ "AddRowAttributeFloat", NULL, "i:olpf", 0, 10 },
+	{ "AddSessionAttributeInt64", NULL, "i:olpl", 0, 11 },
+	{ "AddRowAttributeInt64", NULL, "i:olpl", 0, 12 },
 };
 const struct siface steam_ifaces[] = {
-	{ "ISteamAppList", "STEAMAPPLIST_INTERFACE_VERSION001", 5, m_STEAMAPPLIST_INTERFACE_VERSION001, 1 },
-	{ "ISteamApps", "STEAMAPPS_INTERFACE_VERSION008", 29, m_STEAMAPPS_INTERFACE_VERSION008, 1 },
-	{ "ISteamHTMLSurface", "STEAMHTMLSURFACE_INTERFACE_VERSION_005", 37, m_STEAMHTMLSURFACE_INTERFACE_VERSION_005, 0 },
-	{ "ISteamHTTP", "STEAMHTTP_INTERFACE_VERSION003", 25, m_STEAMHTTP_INTERFACE_VERSION003, 1 },
-	{ "ISteamInventory", "STEAMINVENTORY_INTERFACE_V003", 38, m_STEAMINVENTORY_INTERFACE_V003, 0 },
-	{ "ISteamMusicRemote", "STEAMMUSICREMOTE_INTERFACE_VERSION001", 32, m_STEAMMUSICREMOTE_INTERFACE_VERSION001, 1 },
-	{ "ISteamMusic", "STEAMMUSIC_INTERFACE_VERSION001", 9, m_STEAMMUSIC_INTERFACE_VERSION001, 1 },
-	{ "ISteamParentalSettings", "STEAMPARENTALSETTINGS_INTERFACE_VERSION001", 6, m_STEAMPARENTALSETTINGS_INTERFACE_VERSION001, 1 },
-	{ "ISteamRemotePlay", "STEAMREMOTEPLAY_INTERFACE_VERSION001", 7, m_STEAMREMOTEPLAY_INTERFACE_VERSION001, 1 },
-	{ "ISteamRemoteStorage", "STEAMREMOTESTORAGE_INTERFACE_VERSION016", 59, m_STEAMREMOTESTORAGE_INTERFACE_VERSION016, 1 },
-	{ "ISteamScreenshots", "STEAMSCREENSHOTS_INTERFACE_VERSION003", 9, m_STEAMSCREENSHOTS_INTERFACE_VERSION003, 1 },
-	{ "ISteamUGC", "STEAMUGC_INTERFACE_VERSION015", 84, m_STEAMUGC_INTERFACE_VERSION015, 0 },
-	{ "ISteamUGC", "STEAMUGC_INTERFACE_VERSION016", 86, m_STEAMUGC_INTERFACE_VERSION016, 1 },
-	{ "ISteamUserStats", "STEAMUSERSTATS_INTERFACE_VERSION012", 45, m_STEAMUSERSTATS_INTERFACE_VERSION012, 1 },
-	{ "ISteamVideo", "STEAMVIDEO_INTERFACE_V002", 4, m_STEAMVIDEO_INTERFACE_V002, 0 },
-	{ "ISteamClient", "SteamClient020", 42, m_SteamClient020, 1 },
-	{ "ISteamController", "SteamController008", 34, m_SteamController008, 1 },
-	{ "ISteamFriends", "SteamFriends017", 76, m_SteamFriends017, 1 },
-	{ "ISteamGameServer", "SteamGameServer014", 42, m_SteamGameServer014, 1 },
-	{ "ISteamGameServerStats", "SteamGameServerStats001", 10, m_SteamGameServerStats001, 1 },
-	{ "ISteamInput", "SteamInput005", 47, m_SteamInput005, 1 },
-	{ "ISteamInput", "SteamInput006", 47, m_SteamInput006, 0 },
-	{ "ISteamGameSearch", "SteamMatchGameSearch001", 14, m_SteamMatchGameSearch001, 1 },
-	{ "ISteamMatchmaking", "SteamMatchMaking009", 38, m_SteamMatchMaking009, 1 },
-	{ "ISteamMatchmakingServers", "SteamMatchMakingServers002", 17, m_SteamMatchMakingServers002, 1 },
-	{ "ISteamNetworking", "SteamNetworking006", 22, m_SteamNetworking006, 1 },
-	{ "ISteamNetworkingMessages", "SteamNetworkingMessages002", 6, m_SteamNetworkingMessages002, 1 },
-	{ "ISteamNetworkingSockets", "SteamNetworkingSockets011", 41, m_SteamNetworkingSockets011, 0 },
-	{ "ISteamNetworkingSockets", "SteamNetworkingSockets012", 47, m_SteamNetworkingSockets012, 1 },
-	{ "ISteamNetworkingUtils", "SteamNetworkingUtils004", 33, m_SteamNetworkingUtils004, 1 },
-	{ "ISteamParties", "SteamParties002", 12, m_SteamParties002, 1 },
-	{ "ISteamUser", "SteamUser021", 32, m_SteamUser021, 1 },
-	{ "ISteamUtils", "SteamUtils010", 38, m_SteamUtils010, 1 },
-	{ "ISteamGameCoordinator", "SteamGameCoordinator001", 3, m_SteamGameCoordinator001, 1 },
-	{ "ISteamGameStats", "SteamGameStats001", 13, m_SteamGameStats001, 1 },
+	{ "ISteamAppList", "STEAMAPPLIST_INTERFACE_VERSION001", 5, m_STEAMAPPLIST_INTERFACE_VERSION001 },
+	{ "ISteamApps", "STEAMAPPS_INTERFACE_VERSION008", 29, m_STEAMAPPS_INTERFACE_VERSION008 },
+	{ "ISteamHTMLSurface", "STEAMHTMLSURFACE_INTERFACE_VERSION_005", 37, m_STEAMHTMLSURFACE_INTERFACE_VERSION_005 },
+	{ "ISteamHTTP", "STEAMHTTP_INTERFACE_VERSION003", 25, m_STEAMHTTP_INTERFACE_VERSION003 },
+	{ "ISteamInventory", "STEAMINVENTORY_INTERFACE_V003", 38, m_STEAMINVENTORY_INTERFACE_V003 },
+	{ "ISteamMusicRemote", "STEAMMUSICREMOTE_INTERFACE_VERSION001", 32, m_STEAMMUSICREMOTE_INTERFACE_VERSION001 },
+	{ "ISteamMusic", "STEAMMUSIC_INTERFACE_VERSION001", 9, m_STEAMMUSIC_INTERFACE_VERSION001 },
+	{ "ISteamParentalSettings", "STEAMPARENTALSETTINGS_INTERFACE_VERSION001", 6, m_STEAMPARENTALSETTINGS_INTERFACE_VERSION001 },
+	{ "ISteamRemotePlay", "STEAMREMOTEPLAY_INTERFACE_VERSION001", 7, m_STEAMREMOTEPLAY_INTERFACE_VERSION001 },
+	{ "ISteamRemoteStorage", "STEAMREMOTESTORAGE_INTERFACE_VERSION016", 59, m_STEAMREMOTESTORAGE_INTERFACE_VERSION016 },
+	{ "ISteamScreenshots", "STEAMSCREENSHOTS_INTERFACE_VERSION003", 9, m_STEAMSCREENSHOTS_INTERFACE_VERSION003 },
+	{ "ISteamUGC", "STEAMUGC_INTERFACE_VERSION015", 84, m_STEAMUGC_INTERFACE_VERSION015 },
+	{ "ISteamUGC", "STEAMUGC_INTERFACE_VERSION016", 86, m_STEAMUGC_INTERFACE_VERSION016 },
+	{ "ISteamUserStats", "STEAMUSERSTATS_INTERFACE_VERSION012", 45, m_STEAMUSERSTATS_INTERFACE_VERSION012 },
+	{ "ISteamVideo", "STEAMVIDEO_INTERFACE_V002", 4, m_STEAMVIDEO_INTERFACE_V002 },
+	{ "ISteamClient", "SteamClient020", 42, m_SteamClient020 },
+	{ "ISteamController", "SteamController008", 34, m_SteamController008 },
+	{ "ISteamFriends", "SteamFriends017", 76, m_SteamFriends017 },
+	{ "ISteamGameServer", "SteamGameServer014", 42, m_SteamGameServer014 },
+	{ "ISteamGameServerStats", "SteamGameServerStats001", 10, m_SteamGameServerStats001 },
+	{ "ISteamInput", "SteamInput005", 47, m_SteamInput005 },
+	{ "ISteamInput", "SteamInput006", 47, m_SteamInput006 },
+	{ "ISteamGameSearch", "SteamMatchGameSearch001", 14, m_SteamMatchGameSearch001 },
+	{ "ISteamMatchmaking", "SteamMatchMaking009", 38, m_SteamMatchMaking009 },
+	{ "ISteamMatchmakingServers", "SteamMatchMakingServers002", 17, m_SteamMatchMakingServers002 },
+	{ "ISteamNetworking", "SteamNetworking006", 22, m_SteamNetworking006 },
+	{ "ISteamNetworkingMessages", "SteamNetworkingMessages002", 6, m_SteamNetworkingMessages002 },
+	{ "ISteamNetworkingSockets", "SteamNetworkingSockets011", 41, m_SteamNetworkingSockets011 },
+	{ "ISteamNetworkingSockets", "SteamNetworkingSockets012", 47, m_SteamNetworkingSockets012 },
+	{ "ISteamNetworkingUtils", "SteamNetworkingUtils004", 41, m_SteamNetworkingUtils004 },
+	{ "ISteamParties", "SteamParties002", 12, m_SteamParties002 },
+	{ "ISteamUser", "SteamUser021", 32, m_SteamUser021 },
+	{ "ISteamUtils", "SteamUtils010", 38, m_SteamUtils010 },
+	{ "ISteamGameCoordinator", "SteamGameCoordinator001", 3, m_SteamGameCoordinator001 },
+	{ "ISteamGameStats", "SteamGameStats001", 13, m_SteamGameStats001 },
 	{ 0 }
 };

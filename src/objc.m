@@ -742,6 +742,24 @@ static Class ensure_host_class(struct gclass *gc)
 	return gc->host;
 }
 
+// ---- the guest app's bundle stands in for the main bundle ---------------------------
+static NSBundle *guest_bundle;
+static id main_bundle_imp(id self, SEL _cmd) { (void)self; (void)_cmd; return guest_bundle; }
+void set_guest_bundle(const char *path)
+{
+	guest_bundle = [[NSBundle bundleWithPath:[NSString stringWithUTF8String:path]] retain];
+	if (!guest_bundle) die("%s is not a bundle", path);
+	method_setImplementation(class_getClassMethod([NSBundle class], @selector(mainBundle)), (IMP)main_bundle_imp);
+	LOG("main bundle is now %s\n", path);
+}
+void *guest_main_cfbundle(void)
+{
+	if (!guest_bundle) return (void *)CFBundleGetMainBundle();
+	static CFBundleRef b;
+	if (!b) b = CFBundleCreate(NULL, (__bridge CFURLRef)guest_bundle.bundleURL);
+	return b;
+}
+
 // ---- C entry points -------------------------------------------------------------
 static void t_NSClassFromString(uint32_t *args, struct hres *r)
 {

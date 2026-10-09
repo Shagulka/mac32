@@ -9,6 +9,7 @@
 #include <time.h>
 #include <sys/mman.h>
 #include <mach-o/dyld.h>
+#include <CoreFoundation/CoreFoundation.h>
 
 int verbose;
 extern int trace_calls, unresolved_count;
@@ -78,6 +79,29 @@ static int tier0_test(const char *path)
 	gcallv(msg, 5, a, NULL);
 	fflush(stdout);
 	return 0;
+}
+
+// Foo.app -> Foo.app/Contents/MacOS/<CFBundleExecutable>
+static int bundle_executable(const char *path, char *out, size_t n)
+{
+	size_t l = strlen(path);
+	while (l && path[l - 1] == '/') l--;
+	if (l < 4 || strncmp(path + l - 4, ".app", 4)) return 0;
+	char plist[PATH_MAX];
+	snprintf(plist, sizeof plist, "%.*s/Contents/Info.plist", (int)l, path);
+	CFURLRef url = CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8 *)plist, (CFIndex)strlen(plist), false);
+	CFReadStreamRef st = CFReadStreamCreateWithFile(NULL, url);
+	CFRelease(url);
+	if (!st || !CFReadStreamOpen(st)) die("%s: cannot read Contents/Info.plist", path);
+	CFPropertyListRef pl = CFPropertyListCreateWithStream(NULL, st, 0, kCFPropertyListImmutable, NULL, NULL);
+	CFReadStreamClose(st);
+	CFRelease(st);
+	CFStringRef name = pl ? CFDictionaryGetValue(pl, CFSTR("CFBundleExecutable")) : NULL;
+	char nm[256];
+	if (!name || !CFStringGetCString(name, nm, sizeof nm, kCFStringEncodingUTF8)) die("%s: no CFBundleExecutable", path);
+	snprintf(out, n, "%.*s/Contents/MacOS/%s", (int)l, path, nm);
+	CFRelease(pl);
+	return 1;
 }
 
 // Our 32-bit runtime library (guest/libmac32rt.dylib) fills in what the old
@@ -181,12 +205,30 @@ int main(int argc, char **argv)
 		fprintf(stderr, "[mac32] %d unresolved imports\n", unresolved_count);
 		return 0;
 	}
-	if (i >= argc) die("usage: mac32 [-v] [-t] [-L dir] program [args...]");
+	if (i >= argc) die("usage: mac32 [-v] [-t] [-L dir] program-or-App.app [args...]");
+
+	// an .app bundle: run its CFBundleExecutable, look for libraries in its
+	// Frameworks folder, and make it the guest's main bundle
+	static char exe[PATH_MAX];
+	if (bundle_executable(argv[i], exe, sizeof exe)) {
+		set_guest_bundle(argv[i]);
+		argv[i] = exe;
+	}
+	char dir[PATH_MAX];
+	snprintf(dir, sizeof dir, "%s", argv[i]);
+	char *slash = strrchr(dir, '/');
+	if (slash) {
+		*slash = 0;
+		char fw[PATH_MAX + 16];
+		snprintf(fw, sizeof fw, "%s/../Frameworks", dir);
+		macho_add_search_dir(fw);
+		macho_add_search_dir(dir);
+	}
 
 	setup_process(argc - i, argv + i);
 	struct image *img = macho_load(argv[i]);
-	g32 entry = macho_entry(img);
-	if (!entry) die("%s has no entry point", argv[i]);
+	g32 entry = macho_entry(img), mainfn = macho_main(img);
+	if (!entry && !mainfn) die("%s has no entry point", argv[i]);
 	// dyld fills in the crt1 globals an executable defines
 	g32 a;
 	if ((a = macho_sym(img, "_NXArgc"))) *(int32_t *)G2H(a) = g_argc;
@@ -194,5 +236,13 @@ int main(int argc, char **argv)
 	if ((a = macho_sym(img, "_environ"))) *(g32 *)G2H(a) = g_envp;
 	if ((a = macho_sym(img, "___progname"))) *(g32 *)G2H(a) = g_progname;
 	macho_run_initializers(img);
+	if (mainfn) {		// LC_MAIN: dyld calls main(argc, argv, envp, apple) and exits with its result
+		LOG("calling main at %#x\n", mainfn);
+		int rc = (int)gcall(mainfn, 4, (uint32_t)g_argc, g_argv, g_envp, g_apple);
+		extern void run_guest_atexit(void);
+		run_guest_atexit();
+		fflush(NULL);
+		exit(rc);
+	}
 	run_entry(entry);
 }

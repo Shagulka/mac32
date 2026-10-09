@@ -137,6 +137,11 @@ g32 make_stub(uint32_t idx)
 	return s;
 }
 
+// The per-thread slot where t_call32 keeps the host stack pointer. A host
+// longjmp out of guest code must put back the value it had before the call.
+uint64_t cpu_tsd_get(void) { return (uint64_t)(uintptr_t)pthread_getspecific(tsd_key); }
+void cpu_tsd_set(uint64_t v) { pthread_setspecific(tsd_key, (void *)(uintptr_t)v); }
+
 void cpu_thread_init(uint32_t stack_size)
 {
 	g32 base = low_pages(stack_size, PROT_READ | PROT_WRITE);

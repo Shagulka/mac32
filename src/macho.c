@@ -44,7 +44,9 @@ struct image {
 	uint32_t excap;
 	struct sym *bya;		// every section symbol, sorted by address
 	uint32_t nbya;
-	g32 entry;
+	g32 entry;			// LC_UNIXTHREAD: "start"
+	g32 main_fn;			// LC_MAIN: main()
+	uint64_t main_off;
 	int inited;
 	struct image *next;
 };
@@ -476,6 +478,7 @@ static int find_dylib(struct image *from, const char *name, char *out)
 
 static struct image *load_file(const char *rp);
 void objc_image_loaded(struct image *img);
+int macho_section(struct image *img, const char *seg, const char *sect, g32 *addr, uint32_t *size);
 
 static void load_deps(struct image *img)
 {
@@ -571,7 +574,11 @@ static struct image *load_file(const char *path)
 			img->entry = ts[10];
 			break;
 		}
-		case LC_MAIN: die("%s: LC_MAIN executables not supported yet", rp);
+		case LC_MAIN: {
+			struct entry_point_command *e = (void *)c;
+			img->main_off = e->entryoff;
+			break;
+		}
 		}
 	}
 	if (img->st) {
@@ -594,6 +601,17 @@ static struct image *load_file(const char *path)
 		       sg->filesize < sg->vmsize ? sg->filesize : sg->vmsize);
 	}
 	if (img->entry) img->entry += (g32)img->slide;
+	if (img->main_off) {		// entryoff is from the start of the file = __TEXT
+		for (int i = 0; i < img->nseg; i++)
+			if (img->seg[i]->fileoff == 0 && img->seg[i]->filesize)
+				img->main_fn = img->seg[i]->vmaddr + (g32)img->main_off + (g32)img->slide;
+	}
+	{
+		g32 a;
+		uint32_t sz;
+		if (macho_section(img, "__DATA", "__thread_vars", &a, &sz))
+			fprintf(stderr, "[mac32] warning: %s uses thread-local variables, which mac32 does not support yet\n", rp);
+	}
 	if (img->mh->filetype == MH_EXECUTE && !main_image) main_image = img;
 
 	// register before loading dependencies: libraries can depend on each other
@@ -651,6 +669,7 @@ struct image *macho_dlopen(const char *path)
 }
 
 g32 macho_entry(struct image *img) { return img->entry; }
+g32 macho_main(struct image *img) { return img->main_fn; }
 
 // Images whose static initializers we do not run yet (MAC32_SKIP_INIT, comma
 // separated leaf names). Default: libcef.dylib, Chromium for the in-game web

@@ -13,6 +13,7 @@
 #include <dlfcn.h>
 #include <string.h>
 #include <pthread.h>
+#include <setjmp.h>
 
 void call_sig(void *fn, const char *sig, const char *name, uint32_t *a, struct hres *r);
 g32 hobj_wrap_block(void *h, uint32_t size, g32 first_word);
@@ -44,35 +45,122 @@ static const struct siface *find_iface(const char *version)
 	return NULL;
 }
 
-static g32 vtables[256];
-static const struct siface *vt_iface[256];
-
+// ---- vtable layout, measured from the game's own libsteam_api ---------------
+// Each SteamAPI_<Interface>_<Method> flat wrapper does `this->vtbl[k](...)`.
+// Calling it once with a probe object whose vtable slots record their index
+// tells us k for the SDK version this game was built with.
+#define PROBE_SLOTS 256
 static void steam_method(struct hfn *h, uint32_t *args, struct hres *r);
+static g32 probe_obj, probe_vt, probe_args;
+static __thread int probe_hit;
+static __thread jmp_buf *probe_jb;
+uint64_t cpu_tsd_get(void);
+void cpu_tsd_set(uint64_t v);
+// Record the slot and leave the wrapper at once: running the rest of it could
+// go wrong (a struct-returning slot is expected to pop its hidden pointer).
+static void probe_slot(struct hfn *h, uint32_t *args, struct hres *r)
+{
+	(void)args;
+	probe_hit = (int)h->size;
+	r->rax = 0;
+	if (probe_jb) _longjmp(*probe_jb, 1);
+}
+static int probe(g32 wrapper)
+{
+	if (!probe_obj) {
+		g32 vt = gcalloc(PROBE_SLOTS, 4);
+		for (int k = 0; k < PROBE_SLOTS; k++) {
+			struct hfn *f = calloc(1, sizeof *f);
+			f->name = "steam:probe";
+			f->kind = 'C';
+			f->fn = (void *)probe_slot;
+			f->size = (uint32_t)k;
+			((g32 *)G2H(vt))[k] = hfn_stub(f);
+		}
+		probe_obj = gcalloc(1, 64);
+		probe_vt = vt;
+		// args: this (or a struct-return pointer) then scratch pointers
+		g32 scratch = gcalloc(1, 1024);
+		probe_args = gcalloc(18, 4);
+		uint32_t *a = G2H(probe_args);
+		a[0] = a[1] = probe_obj;
+		for (int i = 2; i < 18; i++) a[i] = scratch;
+	}
+	memset(G2H(probe_obj), 0, 64);
+	*(g32 *)G2H(probe_obj) = probe_vt;	// a struct-returning wrapper may have written over it
+	probe_hit = -1;
+	jmp_buf jb;
+	uint64_t saved = cpu_tsd_get();
+	if (!_setjmp(jb)) {
+		probe_jb = &jb;
+		gcallv(wrapper, 18, G2H(probe_args), NULL);
+	}
+	probe_jb = NULL;
+	cpu_tsd_set(saved);
+	return probe_hit;
+}
+
+struct layout { const struct siface *in; int n; const struct smethod **slot; g32 vtable; };
+static struct layout layouts[256];
+static int nlayouts;
+
+static struct layout *layout_for(const struct siface *in)
+{
+	for (int i = 0; i < nlayouts; i++) if (layouts[i].in == in) return &layouts[i];
+	if (nlayouts == 256) die("too many Steam interfaces");
+	struct layout *L = &layouts[nlayouts++];
+	L->in = in;
+	const struct smethod **slot = calloc(PROBE_SLOTS, sizeof *slot);
+	int n = 0, probed = 0, flat = 0;
+	for (int k = 0; k < in->n; k++) {
+		const struct smethod *m = &in->m[k];
+		int idx = m->slot;
+		if (idx < 0 && m->flat) {
+			flat++;
+			char name[256];
+			snprintf(name, sizeof name, "_%s", m->flat);
+			g32 w = macho_find_any(name);
+			if (w && host_lookup(name) != w) {		// a guest wrapper, not one of our stubs
+				idx = probe(w);
+				if (idx >= 0) probed++;
+			}
+		}
+		if (idx < 0 && probed == 0 && m->slot < 0) idx = k;	// no wrappers in this game: JSON order
+		if (idx < 0 || idx >= PROBE_SLOTS) continue;
+		if (getenv("MAC32_STEAMDUMP")) fprintf(stderr, "[steamdump] %s %d %s\n", in->version, idx, m->name);
+		if (!slot[idx]) slot[idx] = m;
+		if (idx + 1 > n) n = idx + 1;
+	}
+	if (flat && !probed)
+		fprintf(stderr, "[mac32] steam: %s: this libsteam_api has no flat wrappers; layout taken from "
+			"the SDK description and not verified\n", in->version);
+	LOG("steam: %s: %d slots, %d placed by probing\n", in->version, n, probed);
+	L->n = n;
+	L->slot = slot;
+	return L;
+}
 
 static g32 guest_vtable(const struct siface *in)
 {
-	for (int i = 0; i < 256; i++) {
-		if (vt_iface[i] == in) return vtables[i];
-		if (!vt_iface[i]) {
-			g32 vt = gcalloc((uint32_t)in->n, 4);
-			for (int k = 0; k < in->n; k++) {
-				struct hfn *f = calloc(1, sizeof *f);
-				char *nm = malloc(strlen(in->version) + strlen(in->m[k].name) + 16);
-				sprintf(nm, "steam:%s::%s", in->version, in->m[k].name);
-				f->name = nm;
-				f->kind = 'C';
-				f->fn = (void *)steam_method;
-				f->sig = in->m[k].sig;
-				f->size = (uint32_t)k;
-				f->ctx = &in->m[k];
-				((g32 *)G2H(vt))[k] = hfn_stub(f);
-			}
-			vt_iface[i] = in;
-			vtables[i] = vt;
-			return vt;
-		}
+	struct layout *L = layout_for(in);
+	if (L->vtable) return L->vtable;
+	g32 vt = gcalloc((uint32_t)(L->n ? L->n : 1), 4);
+	static const struct smethod unbridged = { "private", NULL, "X:o", 0, -1 };
+	for (int k = 0; k < L->n; k++) {
+		const struct smethod *m = L->slot[k] ? L->slot[k] : &unbridged;
+		struct hfn *f = calloc(1, sizeof *f);
+		char *nm = malloc(strlen(in->version) + strlen(m->name) + 24);
+		sprintf(nm, "steam:%s::%s#%d", in->version, m->name, k);
+		f->name = nm;
+		f->kind = 'C';
+		f->fn = (void *)steam_method;
+		f->sig = m->sig;
+		f->size = (uint32_t)k;
+		f->ctx = m;
+		((g32 *)G2H(vt))[k] = hfn_stub(f);
 	}
-	die("too many Steam interfaces");
+	L->vtable = vt;
+	return vt;
 }
 
 static g32 wrap_iface(void *host, const char *version)
@@ -86,12 +174,11 @@ static g32 wrap_iface(void *host, const char *version)
 		for (int k = 0; k < 64; k++) {
 			char *n = malloc(32);
 			snprintf(n, 32, "method_%d", k);
-			unknown[k] = (struct smethod){ n, "X:o", 0 };
+			unknown[k] = (struct smethod){ n, NULL, "X:o", 0, k };
 		}
-		*u = (struct siface){ "unknown", strdup(version), 64, unknown, 0 };
+		*u = (struct siface){ "unknown", strdup(version), 64, unknown };
 		in = u;
 	}
-	if (!in->trusted) LOG("steam: %s layout not checked against libsteam_api\n", version);
 	pthread_mutex_lock(&lk);
 	g32 g = hobj_wrap_block(host, 16, guest_vtable(in));
 	pthread_mutex_unlock(&lk);

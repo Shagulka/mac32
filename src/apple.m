@@ -246,6 +246,7 @@ static int w_CFCharacterSetIsLongCharacterMember(CFCharacterSetRef s, uint32_t c
 static CFDataRef w_CFDataCreate(CFAllocatorRef a, const UInt8 *b, int32_t n) { return CFDataCreate(a, b, n); }
 
 const char *describe_obj(g32 g);
+void *guest_main_cfbundle(void);
 
 // CFArrayApplyFunction(array, CFRange{loc,len}, applier, context): call the 32-bit applier
 static void t_CFArrayApplyFunction(uint32_t *args, struct hres *r)
@@ -373,7 +374,7 @@ static struct hfn apple[] = {
 	G("_CFStringGetDoubleValue", CFStringGetDoubleValue, "d:o"),
 	G("_CFStringLowercase", CFStringLowercase, "v:oo"), G("_CFStringUppercase", CFStringUppercase, "v:oo"),
 	G("_CFCopyDescription", CFCopyDescription, "o:o"), G("_CFShow", CFShow, "v:o"),
-	G("_CFBundleGetMainBundle", CFBundleGetMainBundle, "o:"),
+	G("_CFBundleGetMainBundle", guest_main_cfbundle, "o:"),
 	G("_CFBundleGetBundleWithIdentifier", CFBundleGetBundleWithIdentifier, "o:o"),
 	G("_CFBundleGetIdentifier", CFBundleGetIdentifier, "o:o"),
 	G("_CFBundleCopyResourcesDirectoryURL", CFBundleCopyResourcesDirectoryURL, "o:o"),

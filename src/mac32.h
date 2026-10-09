@@ -67,6 +67,8 @@ void macho_run_initializers(struct image *img);
 g32 macho_sym(struct image *img, const char *name);	// exported symbol, 0 if none
 g32 macho_find_any(const char *name);			// search every loaded image
 g32 macho_entry(struct image *img);
+g32 macho_main(struct image *img);
+void set_guest_bundle(const char *path);
 const char *macho_addr_name(g32 addr, g32 *off);	// for crash reports
 
 // guest-side process state
