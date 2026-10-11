@@ -383,3 +383,14 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   library's i386 slice has the SHA-256 the patch names, and MAC32_NOPATCH=1
   turns them all off (checked: Portal then crashes at the font bug again).
   README has the patch table.
+
+## Step 12: CoreGraphics from the SDK headers (2026-10-11, for Firefox 3.6)
+- call_sig codes g (CGFloat float<->double), P (CGPoint/CGSize, two SSE regs
+  on the host, eax:edx on i386), R (CGRect) and A (CGAffineTransform) (memory
+  on the host; hidden result pointer = first guest arg, callee pops it).
+  host_invoke now also returns xmm1.
+- tools/gen_cg.py reads CoreGraphics headers: 468 functions generated, 169
+  skipped (callbacks, arrays of CGFloat/structs, obsoleted). Hand-written
+  thunks win. Self-test checks R:R, g:R, A:gg and P:PA.
+- Firefox: pthread_equal must accept 0 ("no thread", NSPR). Next: the rest of
+  its ~400 missing imports (Carbon/HITheme/PM printing/LS/UC/SC).

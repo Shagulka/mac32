@@ -132,10 +132,18 @@ g32 hfn_stub(struct hfn *f)
 	return a;
 }
 
+// CoreGraphics types change size between i386 and x86_64 (CGFloat is float on
+// i386, double here). Codes, in arguments and returns:
+//   g CGFloat   P CGPoint/CGSize (2 floats)   R CGRect (4)   A CGAffineTransform (6)
+// P travels in two SSE registers on the host; R and A go through memory
+// (on the stack as arguments, through a hidden pointer as returns, which on
+// i386 is the first guest argument and is popped by the callee).
+static int fp_count(char c) { return c == 'P' ? 2 : c == 'R' ? 4 : c == 'A' ? 6 : 0; }
+
 void call_sig(void *fn, const char *sig, const char *name, uint32_t *a, struct hres *r)
 {
 	struct { const char *name, *sig; } hh = { name, sig }, *h = &hh;
-	uint64_t ints[6] = {0}, stk[32];
+	uint64_t ints[6] = {0}, stk[48];
 	g32 qslot[4];
 	char *qval[4];
 	int nq = 0;
@@ -143,6 +151,13 @@ void call_sig(void *fn, const char *sig, const char *name, uint32_t *a, struct h
 	int ni = 0, nf = 0, ns = 0;
 	const char *s = h->sig;
 	char ret = s[0];
+	double hret[6];					// R/A results land here
+	g32 gret = 0;
+	if (ret == 'R' || ret == 'A') {
+		gret = *a++;				// the guest's result block
+		ints[ni++] = (uint64_t)(uintptr_t)hret;	// the host's hidden result pointer
+		r->flags |= F_POP4;
+	}
 	for (s += 2; *s; s++) {
 		uint64_t v;
 		int fp = 0;
@@ -164,14 +179,23 @@ void call_sig(void *fn, const char *sig, const char *name, uint32_t *a, struct h
 		case 'l': v = a[0] | (uint64_t)a[1] << 32; a += 2; break;
 		case 'd': memcpy(&v, a, 8); a += 2; fp = 1; break;
 		case 'f': v = 0; memcpy(&v, a, 4); a++; fp = 1; break;
+		case 'g': { float f; memcpy(&f, a, 4); a++; double d = f; memcpy(&v, &d, 8); fp = 1; break; }
+		case 'P': case 'R': case 'A': {
+			int n = fp_count(*s);
+			double d[6];
+			for (int k = 0; k < n; k++) { float f; memcpy(&f, a++, 4); d[k] = f; }
+			if (*s == 'P' && nf + 2 <= 8) { fps[nf++] = d[0]; fps[nf++] = d[1]; }
+			else for (int k = 0; k < n; k++) memcpy(&stk[ns++], &d[k], 8);	// in memory, in order
+			continue;
+		}
 		default: die("bad sig %s for %s", h->sig, h->name);
 		}
 		if (fp && nf < 8) memcpy(&fps[nf++], &v, 8);
 		else if (!fp && ni < 6) ints[ni++] = v;
 		else stk[ns++] = v;
 	}
-	double x0 = 0;
-	uint64_t rax = host_invoke(fn, ints, fps, stk, ns, &x0);
+	double x[2] = { 0, 0 };
+	uint64_t rax = host_invoke(fn, ints, fps, stk, ns, x);
 	for (int i = 0; i < nq; i++)
 		if (qslot[i]) *(g32 *)G2H(qslot[i]) = qval[i] ? gstrdup(qval[i]) : 0;	// guest copy; leaks a little
 	switch (ret) {
@@ -186,8 +210,16 @@ void call_sig(void *fn, const char *sig, const char *name, uint32_t *a, struct h
 	case 'b': r->rax = rax & 0xff; break;	// GLboolean / Boolean: junk above the low byte
 	case 'h': r->rax = rax; break;		// raw host pointer, the caller converts it
 	case 'S': r->rax = rax ? guest_cstr((const char *)(uintptr_t)rax) : 0; break;
-	case 'd': r->st0 = x0; r->flags |= F_ST0; break;
-	case 'f': { float f; memcpy(&f, &x0, 4); r->st0 = f; r->flags |= F_ST0; break; }
+	case 'd': r->st0 = x[0]; r->flags |= F_ST0; break;
+	case 'f': { float f; memcpy(&f, &x[0], 4); r->st0 = f; r->flags |= F_ST0; break; }
+	case 'g': r->st0 = x[0]; r->flags |= F_ST0; break;	// x87 st(0) holds it at any width
+	case 'P': { float f[2] = { (float)x[0], (float)x[1] }; memcpy(&r->rax, f, 8); break; }	// eax:edx
+	case 'R': case 'A': {
+		float *g = G2H(gret);
+		for (int k = 0; k < fp_count(ret); k++) g[k] = (float)hret[k];
+		r->rax = gret;
+		break;
+	}
 	default: die("bad return sig %s for %s", h->sig, h->name);
 	}
 }
@@ -255,4 +287,5 @@ void thunks_init(void)
 	thunks_openal_init();
 	thunks_apple2_init();
 	thunks_legacy_init();
+	thunks_cg_init();
 }

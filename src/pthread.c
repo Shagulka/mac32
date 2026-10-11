@@ -322,7 +322,7 @@ static void t_self(uint32_t *args, struct hres *r)
 	if (!self_rec) self_rec = thread_record(pthread_self());
 	RET(self_rec);
 }
-static void t_equal(uint32_t *args, struct hres *r) { RET(A(0) == A(1) || rec_host(A(0)) == rec_host(A(1))); }
+static void t_equal(uint32_t *args, struct hres *r) { RET(A(0) == A(1) || (A(0) && A(1) && rec_host(A(0)) == rec_host(A(1)))); }	// 0 = "no thread" (NSPR)
 static void t_kill(uint32_t *args, struct hres *r) { RET(pthread_kill(rec_host(A(0)), (int)A(1))); }
 static void t_getschedparam(uint32_t *args, struct hres *r)
 {

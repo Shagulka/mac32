@@ -217,6 +217,9 @@ int main(int argc, char **argv)
 			pthread_join(t, NULL);
 		}
 		fprintf(stderr, "allocator churn: ok\n");
+		int cg = (int)gcall(macho_sym(img, "_test_cg"), 0);
+		fprintf(stderr, "CoreGraphics types: %s\n", cg ? "ok" : "WRONG");
+		if (!cg) return 1;
 		char ex[PATH_MAX];
 		snprintf(ex, sizeof ex, "%s", selftest);
 		strcpy(strrchr(ex, '/') + 1, "extest.dylib");

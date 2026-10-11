@@ -8,5 +8,6 @@ exports:
     symbols:     [ dyld_stub_binder, _mac32_host_add1, _mac32_host_callback,
                    _mac32_guest_fatal, _malloc, _free, _strcmp,
                    _memcpy, _memmove, _strlen, _memcmp, _mac32_exc_top,
-                   _mac32_exc_set_top, _objc_msgSend ]
+                   _mac32_exc_set_top, _objc_msgSend, _CGRectIntegral,
+                   _CGRectGetMaxX, _CGAffineTransformMakeScale, _CGPointApplyAffineTransform ]
 ...

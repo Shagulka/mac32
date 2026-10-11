@@ -1,5 +1,6 @@
 # uint64_t host_invoke(void *fn, const uint64_t ints[6], const double fps[8],
-#                      const uint64_t *stk, long nstk, double *xmm0_out)
+#                      const uint64_t *stk, long nstk, double *xmm_out)
+# xmm_out (if not NULL) gets xmm0 and xmm1: CGPoint/CGSize come back in both.
 # Calls a SysV x86_64 function with the given register and stack arguments.
 	.text
 	.globl _host_invoke
@@ -42,6 +43,7 @@ _host_invoke:
 	test %r12, %r12
 	jz   4f
 	movsd %xmm0, (%r12)
+	movsd %xmm1, 8(%r12)
 4:	lea  -16(%rbp), %rsp
 	pop  %r12
 	pop  %rbx
