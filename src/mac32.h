@@ -73,7 +73,8 @@ void macho_run_initializers(struct image *img);
 g32 macho_sym(struct image *img, const char *name);	// exported symbol, 0 if none
 g32 macho_find_any(const char *name);
 g32 macho_local_sym(struct image *img, const char *name);
-const char *macho_path_of(struct image *img);	// local symbols too
+const char *macho_path_of(struct image *img);
+const uint8_t *macho_file_bytes(struct image *img, size_t *n);	// its i386 slice	// local symbols too
 uint32_t macho_image_count(void);			// dyld's image list, main program first
 const char *macho_image_name(uint32_t i);
 g32 macho_image_header(uint32_t i);

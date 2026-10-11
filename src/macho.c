@@ -74,6 +74,7 @@ g32 macho_sym(struct image *img, const char *name)
 }
 
 const char *macho_path_of(struct image *img) { return img->path; }
+const uint8_t *macho_file_bytes(struct image *img, size_t *n) { *n = img->fsize; return img->f; }
 
 // any symbol of the image, local ones too (for patches)
 g32 macho_local_sym(struct image *img, const char *name)

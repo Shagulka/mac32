@@ -378,3 +378,8 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   then read a stale register as the selector when the object was freed (so it
   depended on timing). .cxx_destruct/.cxx_construct now get real IMPs that call
   the guest method. 4 of 4 runs clean (was 2 of 3 crashing).
+- Patches reorganized (user's design): patches/<game>_<library>.c, one per
+  library; src/patches.c holds the list, applies a patch only when the
+  library's i386 slice has the SHA-256 the patch names, and MAC32_NOPATCH=1
+  turns them all off (checked: Portal then crashes at the font bug again).
+  README has the patch table.

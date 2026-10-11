@@ -108,6 +108,23 @@ Useful settings:
 | `MAC32_TRACE=name,...` | With `-t`, trace calls and messages whose names contain these |
 | `MAC32_JOINLOG=1` | Log thread joins and where a stuck thread waits |
 | `MAC32_HEAPCHECK=1` | Poison freed blocks to catch writes after free |
+| `MAC32_NOPATCH=1` | Turn the game patches off (to tell a loader bug from a patch bug) |
+
+## Game patches
+
+Some old Mac builds have bugs that would stop them on any Mac. mac32 fixes
+those in memory when the library loads; the files on disk never change. Each
+patch lives in `patches/`, one file per game library, and runs only on the
+exact build it was written for (SHA-256 of the library's i386 code), so a
+fixed build from the vendor is left alone. `MAC32_NOPATCH=1` turns them off.
+
+| Game | Library and build | What is wrong | What the patch does |
+|---|---|---|---|
+| Half-Life 2, Portal (Nov 25 2024 Mac builds) | `bin/vguimatsurface.dylib`, SHA-256 `6d5d9660de74…` | Font creation was compiled out: `CFontManager::CreateOrFindWin32Font` stores a NULL font and the next lookup crashes. The leftover `COSXFont` class does not match the font interface the rest of the library uses, so no font could ever be made. | Replaces that function with one that makes mac32's own fonts, drawn with CoreText (`src/srcfont.m`), and registers the game's own `.ttf` files. |
+
+Loader-side workarounds for bugs that are not in game code (Steam libraries
+missing old functions, SDL properties with no accessors, and so on) are in
+`MODLOG.md`.
 
 ## Limits
 
