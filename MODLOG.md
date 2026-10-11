@@ -362,3 +362,9 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   shows a file panel, then execs `Resources/mac32 run <path>`.
   CFBundleDocumentTypes: application bundles and Unix executables (Alternate).
 - License changed to GPL-3.0-or-later at the user's request.
+- 2026-10-11: with shm_open added, Portal shows its main menu and loads
+  testchmb_a_00 (portals render); Half-Life 2 shows its menu and loads
+  d1_trainstation_01. Clicks sent from outside do not register (SDL reads the
+  real mouse state), so maps were started with +map. The HL2 logo font
+  ("HALF-LIFE²") shows a wrong last glyph: the game's custom font file is
+  probably not registered with CoreText yet.

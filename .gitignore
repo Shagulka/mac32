@@ -7,3 +7,4 @@ guest/*.dylib
 tools/winid
 Mac32.app/
 probe/*.o
+.DS_Store

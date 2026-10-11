@@ -12,6 +12,8 @@ graphics, sound, Bink videos, mouse, keyboard, saves and Steam.
 
 ![Portal 2 under mac32](docs/in-game-chapter9.jpg)
 
+![Half-Life 2 under mac32](docs/hl2-trainstation.jpg)
+
 ## Status
 
 | Program | State |
@@ -20,7 +22,7 @@ graphics, sound, Bink videos, mouse, keyboard, saves and Steam.
 | Half-Life (25th anniversary build) | Reaches the menu and loads maps. An occasional crash in SDL's text input is still open. |
 | OpenTTD 1.1.5 (Mac OS X 10.4-era build) | Runs and draws the game; sound and music not bridged yet (`mac32 config OpenTTD.app set "args=-s null -m null"`). |
 | VLC 1.1.12 | Loads all 268 plugins and shows its main window; opening files does not work yet. |
-| Portal, Half-Life 2 (Nov 2024 builds) | Valve's 2024 Mac build cannot make fonts; mac32 patches that in memory and draws them with CoreText. They now reach the game loop and stop at `shm_open`. |
+| Portal, Half-Life 2 (Nov 2024 builds) | Main menu and maps load and render (test chamber 00, the opening train ride). Valve's 2024 Mac build cannot make fonts; mac32 patches that in memory and draws them with CoreText. Sound and a full playthrough are not tested yet. |
 
 Other 32-bit Source and GoldSrc games are the next targets. Anything else
 32-bit will hit calls mac32 does not cover yet; the loader names each one.

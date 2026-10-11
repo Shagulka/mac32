@@ -369,6 +369,8 @@ static void t_dyld_get_image_name(uint32_t *args, struct hres *r)
 }
 static uint32_t w_dyld_get_image_header(uint32_t i) { return macho_image_header(i); }
 static int32_t w_dyld_get_image_vmaddr_slide(uint32_t i) { return macho_image_slide(i); }
+static int w_shm_open(const char *n, int fl, int mode) { return shm_open(n, fl, mode); }
+static int w_shm_unlink(const char *n) { return shm_unlink(n); }
 static int w_sigwait(const sigset_t *set, int *sig) { return sigwait(set, sig); }
 static void t_libiconv_set_relocation_prefix(uint32_t *args, struct hres *r) { (void)args; (void)r; }
 static CFArrayRef w_CFLocaleCopyAvailableLocaleIdentifiers(void) { return CFLocaleCopyAvailableLocaleIdentifiers(); }
@@ -497,6 +499,7 @@ static struct hfn legacy_fns[] = {
 	G("__dyld_get_image_header", w_dyld_get_image_header, "u:u"),
 	G("__dyld_get_image_vmaddr_slide", w_dyld_get_image_vmaddr_slide, "i:u"),
 	R("_libiconv_set_relocation_prefix", t_libiconv_set_relocation_prefix),
+	G("_shm_open", w_shm_open, "i:pii"), G("_shm_unlink", w_shm_unlink, "i:p"),
 	G("_sigwait", w_sigwait, "i:pp"), G("_sigwait$UNIX2003", w_sigwait, "i:pp"),
 	G("_CFLocaleCopyAvailableLocaleIdentifiers", w_CFLocaleCopyAvailableLocaleIdentifiers, "o:"),
 	G("_CFBundleCopyLocalizationsForPreferences", w_CFBundleCopyLocalizationsForPreferences, "o:oo"),
