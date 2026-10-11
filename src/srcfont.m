@@ -38,12 +38,72 @@ static struct sfont *F(g32 obj)
 	return NULL;
 }
 
+// The game's own fonts (resource/*.ttf: HalfLife2, hl2crosshairs, ...): the
+// Mac build never registers them, so register every one under the game folder
+// (the working directory) for this process, once.
+static void register_game_fonts(void)
+{
+	static int done;
+	if (done) return;
+	done = 1;
+	NSFileManager *fm = [NSFileManager defaultManager];
+	NSString *root = fm.currentDirectoryPath;
+	int n = 0;
+	for (NSString *mod in [fm contentsOfDirectoryAtPath:root error:nil]) {
+		NSString *res = [[root stringByAppendingPathComponent:mod] stringByAppendingPathComponent:@"resource"];
+		for (NSString *f in [fm contentsOfDirectoryAtPath:res error:nil]) {
+			NSString *ext = f.pathExtension.lowercaseString;
+			if (![ext isEqualToString:@"ttf"] && ![ext isEqualToString:@"otf"]) continue;
+			NSURL *u = [NSURL fileURLWithPath:[res stringByAppendingPathComponent:f]];
+			if (CTFontManagerRegisterFontsForURL((__bridge CFURLRef)u, kCTFontManagerScopeProcess, NULL)) n++;
+		}
+	}
+	LOG("srcfont: registered %d game font files\n", n);
+}
+
+// a font by family, full or PostScript name; NULL if CoreText would substitute
+static CTFontRef font_named(CFStringRef n, CGFloat size)
+{
+	CTFontRef f = CTFontCreateWithName(n, size, NULL);
+	CFStringRef keys[3] = { kCTFontFamilyNameKey, kCTFontFullNameKey, kCTFontPostScriptNameKey };
+	for (int i = 0; i < 3; i++) {
+		CFStringRef got = CTFontCopyName(f, keys[i]);
+		int eq = got && CFStringCompare(got, n, kCFCompareCaseInsensitive) == kCFCompareEqualTo;
+		if (got) CFRelease(got);
+		if (eq) return f;
+	}
+	// try it as a family name through a descriptor
+	CTFontDescriptorRef d = CTFontDescriptorCreateWithAttributes((__bridge CFDictionaryRef)@{
+		(__bridge id)kCTFontFamilyNameAttribute: (__bridge id)n });
+	CFArrayRef m = CTFontDescriptorCreateMatchingFontDescriptors(d, NULL);
+	CFRelease(d);
+	if (m && CFArrayGetCount(m)) {
+		CFRelease(f);
+		f = CTFontCreateWithFontDescriptor(CFArrayGetValueAtIndex(m, 0), size, NULL);
+		CFRelease(m);
+		return f;
+	}
+	if (m) CFRelease(m);
+	CFRelease(f);
+	return NULL;
+}
+
 // Windows-style "tall" is the cell height: scale the point size so ascent +
 // descent fill it
 static CTFontRef make_font(const char *name, int tall, int weight, int flags)
 {
+	register_game_fonts();
 	CFStringRef n = CFStringCreateWithCString(NULL, name, kCFStringEncodingUTF8);
-	CTFontRef f = CTFontCreateWithName(n, tall, NULL);
+	CTFontRef f = font_named(n, tall);
+	if (!f) {
+		static NSMutableSet *warned;
+		if (!warned) warned = [NSMutableSet new];
+		if (![warned containsObject:(__bridge id)n]) {
+			[warned addObject:(__bridge id)n];
+			fprintf(stderr, "[mac32] srcfont: no font named %s; using Helvetica\n", name);
+		}
+		f = CTFontCreateWithName(CFSTR("Helvetica"), tall, NULL);
+	}
 	CFRelease(n);
 	CGFloat h = CTFontGetAscent(f) + CTFontGetDescent(f);
 	if (h > 0 && fabs(h - tall) > 0.5) {
@@ -185,7 +245,7 @@ static void s_char_rgba(uint32_t *args, struct hres *r)
 	pthread_mutex_unlock(&lk);
 	uint8_t *cov = calloc((size_t)w * h, 1);
 	CGColorSpaceRef gray = CGColorSpaceCreateDeviceGray();
-	CGContextRef c = CGBitmapContextCreate(cov, (size_t)w, (size_t)h, 8, (size_t)w, gray, kCGImageAlphaNone);
+	CGContextRef c = CGBitmapContextCreate(cov, (size_t)w, (size_t)h, 8, (size_t)w, gray, (CGBitmapInfo)kCGImageAlphaNone);
 	CGColorSpaceRelease(gray);
 	CGContextSetGrayFillColor(c, 1, 1);
 	CGContextSetShouldAntialias(c, aa);

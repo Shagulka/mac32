@@ -368,3 +368,7 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   real mouse state), so maps were started with +map. The HL2 logo font
   ("HALF-LIFE²") shows a wrong last glyph: the game's custom font file is
   probably not registered with CoreText yet.
+- Fixed: the game's resource/*.ttf fonts were never registered (the Mac build
+  skips it); srcfont.m registers them for the process at the first font and
+  matches names strictly (family, full or PostScript), so "HalfLife2" draws the
+  real logo.
