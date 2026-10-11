@@ -394,3 +394,9 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   thunks win. Self-test checks R:R, g:R, A:gg and P:PA.
 - Firefox: pthread_equal must accept 0 ("no thread", NSPR). Next: the rest of
   its ~400 missing imports (Carbon/HITheme/PM printing/LS/UC/SC).
+- gen_api.py: cf (CoreFoundation, CFRange code N) and carbon (names in
+  tools/wanted.txt from tools/wanted.sh, all framework headers plus
+  tools/carbon_protos.h for removed declarations; entries the 64-bit SDK
+  rejects are pruned by a compile check). Pointer codes r (CGRect *), O
+  (object out-pointer), W (long-sized count pointer). Tables now: CG 528,
+  CF 477, Carbon 71. Firefox next stops at FSCreateDirectoryUnicode.
