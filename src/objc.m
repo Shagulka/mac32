@@ -957,9 +957,30 @@ static IMP fwd_for(const char *types)
 	return _objc_msgForward;
 }
 
+// The runtime calls .cxx_destruct/.cxx_construct as dtor(obj), with no
+// selector: a forwarding stub there reads a stale register as the selector
+// (the random "unrecognized selector" crashes in SDL's text-input view).
+// These IMPs ignore _cmd and call the guest's own method.
+static void cxx_special(id self, const char *name)
+{
+	struct gclass *gc = gclass_of_host(object_getClass(self));
+	g32 imp = gc ? find_imp(gc, name, 0, NULL) : 0;
+	if (imp) gcall(imp, 2, objc_wrap(self), canon_sel(name, 0));
+}
+static void cxx_destruct_imp(id self, SEL _cmd) { (void)_cmd; cxx_special(self, ".cxx_destruct"); }
+static id cxx_construct_imp(id self, SEL _cmd) { (void)_cmd; cxx_special(self, ".cxx_construct"); return self; }
+
 static void install(Class cls, Class lookup, struct gmeth *m, int n, int meta)
 {
 	for (int i = 0; i < n; i++) {
+		if (!meta && !strcmp(m[i].sel, ".cxx_destruct")) {
+			class_replaceMethod(cls, sel_registerName(".cxx_destruct"), (IMP)cxx_destruct_imp, "v@:");
+			continue;
+		}
+		if (!meta && !strcmp(m[i].sel, ".cxx_construct")) {
+			class_replaceMethod(cls, sel_registerName(".cxx_construct"), (IMP)cxx_construct_imp, "@@:");
+			continue;
+		}
 		SEL s = sel_registerName(m[i].sel);
 		Method hm = meta ? class_getClassMethod(lookup, s) : class_getInstanceMethod(lookup, s);
 		const char *t = hm ? method_getTypeEncoding(hm) : host_types(m[i].types);

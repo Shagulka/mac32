@@ -372,3 +372,9 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   skips it); srcfont.m registers them for the process at the first font and
   matches names strictly (family, full or PostScript), so "HalfLife2" draws the
   real logo.
+- Fixed (2026-10-11): Half-Life's random "-[SDLTranslatorResponder <garbage>]:
+  unrecognized selector". The ObjC runtime calls .cxx_destruct as dtor(obj)
+  with no selector argument; we had installed it as a forwarding stub, which
+  then read a stale register as the selector when the object was freed (so it
+  depended on timing). .cxx_destruct/.cxx_construct now get real IMPs that call
+  the guest method. 4 of 4 runs clean (was 2 of 3 crashing).
