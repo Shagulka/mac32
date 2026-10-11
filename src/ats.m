@@ -512,6 +512,11 @@ static void t_CGContextSelectFont(uint32_t *args, struct hres *r)
 	CGContextSelectFont(hobj_unwrap(A(0)), G2H(A(1)), size, (CGTextEncoding)A(3));
 }
 
+// a window's context belongs to AppKit (see window_context_note in legacy.m)
+extern id window_of_context(CGContextRef c);
+static void w_CGContextFlush(CGContextRef c) { if (!window_of_context(c)) CGContextFlush(c); }
+static void w_CGContextRelease(CGContextRef c) { if (c && !window_of_context(c)) CGContextRelease(c); }
+
 static struct hfn ats[] = {
 	R("_ATSFontFindFromName", t_ATSFontFindFromName),
 	R("_ATSFontFindFromPostScriptName", t_ATSFontFindFromPostScriptName),
@@ -540,8 +545,8 @@ static struct hfn ats[] = {
 	G("_CGColorSpaceCreateDeviceRGB", CGColorSpaceCreateDeviceRGB, "o:"),
 	G("_CGColorSpaceRelease", CGColorSpaceRelease, "v:o"),
 	G("_CGContextClearRect", w_CGContextClearRect, "v:offff"),
-	G("_CGContextFlush", CGContextFlush, "v:o"),
-	G("_CGContextRelease", CGContextRelease, "v:o"),
+	G("_CGContextFlush", w_CGContextFlush, "v:o"),
+	G("_CGContextRelease", w_CGContextRelease, "v:o"),
 	G("_CGContextSetAllowsAntialiasing", w_CGContextSetAllowsAntialiasing, "v:oi"),
 	G("_CGContextSetShouldAntialias", w_CGContextSetShouldAntialias, "v:oi"),
 	G("_CGContextSetLineWidth", w_CGContextSetLineWidth, "v:of"),

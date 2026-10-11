@@ -570,7 +570,6 @@ static void audio_off(void)
 {
 	if (!warned_audio++) fprintf(stderr, "[mac32] sound is not bridged yet; run the game with -nosound\n");
 }
-static void t_no_component(uint32_t *args, struct hres *r) { (void)args; audio_off(); RET(0); }
 static void t_audio_err(uint32_t *args, struct hres *r) { (void)args; audio_off(); RET(0x77686174); }	// 'what'
 static void t_noop0(uint32_t *args, struct hres *r) { (void)args; RET(0); }
 static void t_curl_fail(uint32_t *args, struct hres *r) { (void)args; RET(2); }	// CURLE_FAILED_INIT
@@ -604,7 +603,7 @@ static struct hfn libc3[] = {
 	R("_NSLibraryNameForModule", t_NSLibraryNameForModule), R("_NSNameOfSymbol", t_NSNameOfSymbol),
 	R("_MPCreateSemaphore", t_MPCreateSemaphore), R("_MPDeleteSemaphore", t_MPDeleteSemaphore),
 	R("_MPSignalSemaphore", t_MPSignalSemaphore), R("_MPWaitOnSemaphore", t_MPWaitOnSemaphore),
-	R("_GetCurrentProcess", t_GetCurrentProcess),
+	R("_GetCurrentProcess", t_GetCurrentProcess), R("_CPSGetCurrentProcess", t_GetCurrentProcess),
 	R("___sprintf_chk", t_sprintf_chk), G("___strcpy_chk", w_strcpy_chk, "p:ppu"), G("___strcat_chk", w_strcat_chk, "p:ppu"),
 	G("___memmove_chk", w_memmove_chk, "p:ppuu"), G("___memset_chk", w_memset_chk, "p:piuu"),
 	G("_sched_get_priority_max", sched_get_priority_max, "i:i"), G("_sched_get_priority_min", sched_get_priority_min, "i:i"),
@@ -652,12 +651,7 @@ static struct hfn libc3[] = {
 	R("_clearerr", t_clearerr), R("_tmpfile", t_tmpfile), R("_tmpnam", t_tmpnam), R("_freopen", t_freopen),
 	G("_clock", w_clock, "u:"), G("_difftime", w_difftime, "d:ii"), G("_finite", w_finite, "i:d"),
 	G("_strcoll", strcoll, "i:pp"), R("_localeconv", t_localeconv),
-	// audio: the Component Manager is gone from 64-bit macOS; nothing bridged yet
-	R("_FindNextComponent", t_no_component), R("_OpenAComponent", t_audio_err),
-	R("_CloseComponent", t_noop0),
-	R("_AudioOutputUnitStart", t_audio_err), R("_AudioOutputUnitStop", t_audio_err),
-	R("_AudioUnitGetProperty", t_audio_err), R("_AudioUnitSetProperty", t_audio_err),
-	R("_AudioUnitInitialize", t_audio_err), R("_AudioUnitUninitialize", t_audio_err),
+	// audio units: src/audio.c; pulling samples out of a unit is not bridged
 	R("_AudioUnitRender", t_audio_err),
 	// curl (server browser / news): not available yet
 	R("_curl_global_init", t_noop0), R("_curl_easy_init", t_noop0), R("_curl_easy_cleanup", t_noop0),

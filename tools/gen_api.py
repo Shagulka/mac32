@@ -72,7 +72,21 @@ UINT32 = {'unsigned int', 'uint32_t', 'size_t', 'unsigned char', 'unsigned short
           'CGRefreshRate', 'CGDisplayFadeReservationToken', 'CGDisplayReservationInterval',
           'CGDisplayConfigRef', 'CGGlyph', 'CGFontIndex', 'CGKeyCode', 'CGCharCode', 'uint16_t',
           'unsigned short', 'uint8_t', 'CGSRegionObj', 'boolean_t'}
-INT64 = {'int64_t', 'uint64_t', 'SInt64', 'UInt64', 'long long', 'unsigned long long', 'CGEventFlags', 'CGEventTimestamp', 'CGEventSourceKeyboardType'}
+INT64 = {'int64_t', 'uint64_t', 'SInt64', 'UInt64', 'long long', 'unsigned long long', 'CGEventFlags', 'CGEventTimestamp', 'CGEventSourceKeyboardType',
+         # 8-byte structs of two UInt32: on the stack in i386, in one register on
+         # x86_64, and returned in edx:eax / rax, the same as a 64-bit integer
+         'AbsoluteTime', 'Nanoseconds', 'UnsignedWide', 'wide', 'Duration64', 'MIDITimeStamp'}
+# integer and float types whose size is the same in i386 and x86_64, so a
+# pointer to one can be handed over as is (not long, size_t, CFIndex ...)
+FIXED = {'int', 'unsigned int', 'short', 'unsigned short', 'signed char', 'unsigned char', 'char', 'int8_t',
+         'uint8_t', 'int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t', 'long long',
+         'unsigned long long', 'SInt8', 'UInt8', 'SInt16', 'UInt16', 'SInt32', 'UInt32', 'SInt64', 'UInt64',
+         'float', 'double', 'Float32', 'Float64', 'Boolean', 'bool', 'FourCharCode', 'OSType', 'OSStatus', 'OSErr',
+         'AbsoluteTime', 'Nanoseconds', 'UnsignedWide', 'wide', 'ComponentDescription', 'AudioComponentDescription',
+         '__int32_t', '__uint32_t', '__darwin_pid_t', 'pid_t', 'AUNode', 'FSVolumeRefNum', 'FSIORefNum',
+         'MIDITimeStamp', 'MIDIObjectRef', 'MIDIClientRef', 'MIDIPortRef', 'MIDIEndpointRef',
+         # #pragma pack(4) in CoreMIDI on every architecture
+         'MIDIPacket', 'MIDIPacketList'}
 SAME_LAYOUT_PTR = {'char', 'FSRef', 'PMRect', 'PMResolution', 'PMPaperMargins', 'OSType', 'OSErr', 'SInt16',
                    'ScriptCode', 'TextEncoding', 'EventTypeSpec', 'RGBColor', 'Str255', 'unsigned char', 'UniChar', 'Byte', 'HFSUniStr255', 'FSSpec', 'ProcessSerialNumber', 'UInt8', 'UInt16', 'UInt32', 'SInt32', 'Boolean', 'UTF32Char', 'CFStringEncoding', 'unsigned char', 'uint8_t', 'uint16_t', 'uint32_t', 'int', 'int32_t',
                    'UniChar', 'CGGlyph', 'CGDirectDisplayID', 'CGWindowID', 'CGDisplayCount', 'bool',
@@ -129,8 +143,11 @@ def code(t, ret=False):
         if ret:
             return 'S' if base == 'char' else 'X'	# pointers into host storage
         if base == 'void':
-            return 'p' if which == 'cg' else 'X'	# CF: values are objects or raw, can't tell
-        return 'p' if base in SAME_LAYOUT_PTR else 'X'
+            # CF: values are objects or raw, can't tell; Carbon: data buffers
+            return 'p' if which in ('cg', 'carbon') else 'X'
+        if base in SAME_LAYOUT_PTR: return 'p'
+        if which == 'carbon' and (base in FIXED or resolve(base) in FIXED): return 'p'
+        return 'X'
     base = clean(t.replace('const ', ''))
     c = basic(base, ret)
     if c == 'X' and which == 'carbon':
@@ -147,7 +164,7 @@ def basic(base, ret):
     if base == 'CGFloat': return 'g'
     if base in ('Str255', 'ConstStr255Param', 'ConstStringPtr', 'StringPtr', 'FSSpecPtr', 'ConstStr63Param',
                 'ConstStr31Param'): return 'p'
-    if base in ('NSInteger', 'kern_return_t', 'mach_error_t'): return 'i'
+    if base in ('NSInteger', 'kern_return_t', 'mach_error_t', 'CGLError', 'pid_t'): return 'i'
     if base in ('NSUInteger', 'io_connect_t', 'io_object_t', 'io_service_t', 'mach_port_t', 'io_iterator_t'): return 'u'
     if base.startswith('NS') and base.endswith(' *'): return 'o'
     if base == 'CFRange': return 'N'
@@ -252,8 +269,8 @@ out.append(f'void thunks_{fw["table"]}_init(void) {{ REGISTER({fw["table"]}); }}
 open(fw['out'], 'w').write('\n'.join(out) + '\n')
 
 # drop entries the 64-bit SDK does not declare or marks unavailable
-for _ in range(6):
-    r = subprocess.run(['clang', '-arch', 'x86_64', '-fsyntax-only', '-w', '-Isrc', fw['out']], capture_output=True, text=True)
+for _ in range(20):
+    r = subprocess.run(['clang', '-arch', 'x86_64', '-fsyntax-only', '-ferror-limit=0', '-w', '-Isrc', fw['out']], capture_output=True, text=True)
     bad = set(re.findall(r"(?:undeclared (?:function|identifier)|is unavailable|incompatible pointer|"
                          r"incompatible integer).*?'(\w+)'", r.stderr))
     bad |= set(re.findall(r"'(\w+)' is unavailable", r.stderr))

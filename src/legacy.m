@@ -3,6 +3,8 @@
 // assorted CoreServices calls (first case: OpenTTD 1.1).
 #import <AppKit/AppKit.h>
 #import <Carbon/Carbon.h>
+#import <QuartzCore/QuartzCore.h>
+#import <objc/runtime.h>
 #include <zlib.h>
 #include <pthread.h>
 #include <langinfo.h>
@@ -189,10 +191,73 @@ static int w_FSCompareFSRefs(const FSRef *a, const FSRef *b) { return FSCompareF
 static CGImageRef w_CGBitmapContextCreateImage(CGContextRef c) { return CGBitmapContextCreateImage(c); }
 static void w_CGImageRelease(CGImageRef i) { CGImageRelease(i); }
 static void w_CGContextSetInterpolationQuality(CGContextRef c, int q) { CGContextSetInterpolationQuality(c, q); }
+// Window contexts. Old programs (SDL 1.2) paint a frame by drawing an image
+// into [NSGraphicsContext graphicsContextWithWindow:] outside drawRect:.
+// Layer-backed windows never show that, so such a draw goes to a layer laid
+// over the window's content view instead. The bridge notes each window
+// context it hands out (objc.m); the program's CGContextFlush/Release of it
+// are dropped, since AppKit owns that context.
+enum { NWCTX = 16 };
+static struct { CGContextRef c; NSWindow *w; } wctx[NWCTX];
+static unsigned wctx_next;
+static pthread_mutex_t wctx_lk = PTHREAD_MUTEX_INITIALIZER;
+static char frame_layer_key;
+
+void window_context_note(CGContextRef c, NSWindow *w)
+{
+	pthread_mutex_lock(&wctx_lk);
+	int i = 0;
+	while (i < NWCTX && wctx[i].c != c) i++;
+	if (i == NWCTX) i = wctx_next++ % NWCTX;
+	wctx[i].c = c;
+	wctx[i].w = w;
+	pthread_mutex_unlock(&wctx_lk);
+}
+
+NSWindow *window_of_context(CGContextRef c)
+{
+	NSWindow *w = nil;
+	pthread_mutex_lock(&wctx_lk);
+	for (int i = 0; i < NWCTX && !w; i++) if (c && wctx[i].c == c) w = wctx[i].w;
+	pthread_mutex_unlock(&wctx_lk);
+	return w;
+}
+
+static void show_frame(NSWindow *w, CGImageRef img)
+{
+	NSView *v = w.contentView;
+	if (!v) return;
+	CALayer *l = objc_getAssociatedObject(v, &frame_layer_key);
+	if (!l) {
+		v.wantsLayer = YES;
+		l = [CALayer layer];
+		l.frame = v.layer.bounds;
+		l.autoresizingMask = kCALayerWidthSizable | kCALayerHeightSizable;
+		l.contentsGravity = kCAGravityResize;
+		l.magnificationFilter = kCAFilterNearest;
+		l.zPosition = 1;
+		[v.layer addSublayer:l];
+		objc_setAssociatedObject(v, &frame_layer_key, l, OBJC_ASSOCIATION_RETAIN);
+	}
+	[CATransaction begin];
+	[CATransaction setDisableActions:YES];
+	l.contents = (__bridge id)img;
+	[CATransaction commit];
+}
+
 static void t_CGContextDrawImage(uint32_t *args, struct hres *r)
 {
 	(void)r;
-	CGContextDrawImage(hobj_unwrap(A(0)), CGRectMake(F32(A(1)), F32(A(2)), F32(A(3)), F32(A(4))), hobj_unwrap(A(5)));
+	CGContextRef c = hobj_unwrap(A(0));
+	CGImageRef img = hobj_unwrap(A(5));
+	NSWindow *w = window_of_context(c);
+	if (!w) {
+		CGContextDrawImage(c, CGRectMake(F32(A(1)), F32(A(2)), F32(A(3)), F32(A(4))), img);
+		return;
+	}
+	if ([NSThread isMainThread]) { show_frame(w, img); return; }
+	CGImageRetain(img);
+	dispatch_async(dispatch_get_main_queue(), ^{ show_frame(w, img); CGImageRelease(img); });
 }
 static void t_CGImageCreateWithImageInRect(uint32_t *args, struct hres *r)
 {

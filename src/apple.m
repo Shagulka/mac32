@@ -24,6 +24,18 @@ static int w_SetFrontProcess(const ProcessSerialNumber *p)
 	});
 	return rc;
 }
+// Old SDL's main uses the private CPS calls to become a foreground app;
+// both only ever name the current process.
+static int w_CPSEnableForegroundOperation(void *psn)
+{
+	ProcessSerialNumber me = { 0, kCurrentProcess };
+	return TransformProcessType(&me, kProcessTransformToForegroundApplication);
+}
+static int w_CPSSetFrontProcess(void *psn)
+{
+	ProcessSerialNumber me = { 0, kCurrentProcess };
+	return w_SetFrontProcess(&me);
+}
 static int w_TransformProcessType(const ProcessSerialNumber *p, uint32_t t) { return TransformProcessType(p, t); }
 static int w_SetSystemUIMode(uint32_t m, uint32_t o) { return SetSystemUIMode(m, o); }
 // The launcher's mouseDown:/mouseUp: read the buttons here instead of from
@@ -459,6 +471,8 @@ static struct hfn apple[] = {
 	G("_GetCurrentKeyModifiers", GetCurrentKeyModifiers, "u:"),
 	G("_SetFrontProcess", w_SetFrontProcess, "i:p"),
 	G("_TransformProcessType", w_TransformProcessType, "i:pu"),
+	G("_CPSEnableForegroundOperation", w_CPSEnableForegroundOperation, "i:p"),
+	G("_CPSSetFrontProcess", w_CPSSetFrontProcess, "i:p"),
 	G("_SetSystemUIMode", w_SetSystemUIMode, "i:uu"),
 	// CGL
 	R("_CGLChoosePixelFormat", t_CGLChoosePixelFormat),

@@ -172,6 +172,16 @@ static void t_IOServiceAddInterestNotification(uint32_t *args, struct hres *r)
 	if (A(5)) U32(A(5)) = 0;	// (port, service, type, callback, refcon, *notification)
 	RET(kIOReturnUnsupported);
 }
+// mac32 hands out no notification ports, but SDL 1.2 adds the port's run-loop
+// source and then CFReleases it whether or not registration worked: give it
+// a fresh source that never fires (its release then balances).
+static void quiet_perform(void *info) { (void)info; }
+static void t_IONotificationPortGetRunLoopSource(uint32_t *args, struct hres *r)
+{
+	(void)args;
+	CFRunLoopSourceContext c = { .perform = quiet_perform };
+	RET(hobj_wrap((void *)CFRunLoopSourceCreate(NULL, 0, &c)));
+}
 static uint32_t w_IONotificationPortGetMachPort(IONotificationPortRef p) { return IONotificationPortGetMachPort(p); }
 static int w_IOIteratorIsValid(uint32_t i) { return IOIteratorIsValid(i); }
 static int w_IOObjectIsEqualTo(uint32_t a, uint32_t b) { return IOObjectIsEqualTo(a, b); }
@@ -261,6 +271,20 @@ static int w_host_statistics(uint32_t h, int flavor, void *info, uint32_t *cnt)
 	return rc;
 }
 
+// SDL 1.2's Quartz video still asks for the 10.0-era display calls. Palettes
+// only mattered for 8-bit full screen, which macOS no longer has; the display
+// cannot be drawn into directly (no base address), so SDL draws to a window.
+extern CFDictionaryRef CGDisplayBestModeForParameters(CGDirectDisplayID, size_t, size_t, size_t, boolean_t *);
+extern CGError CGGetDisplayTransferByFormula(CGDirectDisplayID, CGGammaValue *, CGGammaValue *, CGGammaValue *,
+					     CGGammaValue *, CGGammaValue *, CGGammaValue *, CGGammaValue *,
+					     CGGammaValue *, CGGammaValue *);
+static CFDictionaryRef w_CGDisplayBestModeForParameters(uint32_t d, uint32_t bpp, uint32_t w, uint32_t h, boolean_t *exact)
+{
+	return CGDisplayBestModeForParameters(d, bpp, w, h, exact);
+}
+static void t_nsvErr(uint32_t *args, struct hres *r) { (void)args; RET(-35); }
+static void t_palette_new(uint32_t *args, struct hres *r) { (void)args; RET(hobj_wrap((void *)kCFNull)); }
+
 static struct hfn apple2_fns[] = {
 	G("_CFArrayExchangeValuesAtIndices", CFArrayExchangeValuesAtIndices, "v:oii"),
 	R("_CFDictionaryGetValueIfPresent", t_CFDictionaryGetValueIfPresent),
@@ -284,6 +308,20 @@ static struct hfn apple2_fns[] = {
 	R("_HideMenuBar", t_HideMenuBar), R("_ShowMenuBar", t_ShowMenuBar), R("_UpdateSystemActivity", t_zero),
 	R("_NSPointInRect", t_NSPointInRect),
 
+	// sleep/wake notices: report that registration failed (SDL 1.2 carries on)
+	R("_IORegisterForSystemPower", t_zero), R("_IOAllowPowerChange", t_ok), R("_IODeregisterForSystemPower", t_ok),
+	// 0 for every selector: Roman script, and no cached KCHR keyboard table, so
+	// SDL 1.2 keeps its built-in key map
+	R("_GetScriptManagerVariable", t_zero),
+	// SDL 1.2 lists volumes to find audio CDs: report none (nsvErr)
+	R("_FSGetVolumeInfo", t_nsvErr),
+	R("_CGPaletteCreateDefaultColorPalette", t_palette_new), R("_CGPaletteCreateWithDisplay", t_palette_new),
+	R("_CGPaletteRelease", t_nothing), R("_CGPaletteSetColorAtIndex", t_nothing),
+	R("_CGDisplayCanSetPalette", t_zero), R("_CGDisplaySetPalette", t_ok),
+	R("_CGDisplayBaseAddress", t_zero), R("_CGDisplayBytesPerRow", t_zero), R("_CGDisplayBeamPosition", t_zero),
+	R("_CGDisplayWaitForBeamPositionOutsideLines", t_ok),
+	G("_CGDisplayBestModeForParameters", w_CGDisplayBestModeForParameters, "o:uuuup"),
+	G("_CGGetDisplayTransferByFormula", CGGetDisplayTransferByFormula, "i:uppppppppp"),
 	R("_CGAcquireDisplayFadeReservation", t_fade_reserve), R("_CGDisplayFade", t_ok),
 	R("_CGReleaseDisplayFadeReservation", t_ok),
 	R("_CGCaptureAllDisplays", t_ok), R("_CGDisplayCapture", t_ok),
@@ -320,7 +358,7 @@ static struct hfn apple2_fns[] = {
 	// no notification ports: SDL's HID discovery then stays off (it also
 	// destroys a port twice when matching fails)
 	R("_IONotificationPortCreate", t_zero), R("_IONotificationPortDestroy", t_nothing),
-	R("_IONotificationPortGetRunLoopSource", t_zero), R("_IOServiceAddInterestNotification", t_IOServiceAddInterestNotification),
+	R("_IONotificationPortGetRunLoopSource", t_IONotificationPortGetRunLoopSource), R("_IOServiceAddInterestNotification", t_IOServiceAddInterestNotification),
 	G("_IONotificationPortGetMachPort", w_IONotificationPortGetMachPort, "u:o"),
 	R("_IODispatchCalloutFromMessage", t_nothing),
 	G("_IOIteratorIsValid", w_IOIteratorIsValid, "i:u"), G("_IOObjectIsEqualTo", w_IOObjectIsEqualTo, "i:uu"),

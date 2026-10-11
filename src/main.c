@@ -119,6 +119,8 @@ static void load_runtime(void)
 	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
 	snprintf(rt, sizeof rt, "%s/guest/libmac32cxx.dylib", exe);	// C++ exceptions + RTTI
 	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
+	snprintf(rt, sizeof rt, "%s/guest/libmac32ios.dylib", exe);	// iostreams
+	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
 }
 
 // Enter an LC_UNIXTHREAD executable at "start" with the stack the kernel

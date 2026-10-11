@@ -256,9 +256,7 @@ void _ZSt19__throw_logic_errorPKc(const char *s) { mac32_guest_fatal("std::logic
 void _ZSt21__throw_runtime_errorPKc(const char *s) { mac32_guest_fatal("std::runtime_error", s); }
 void _ZSt16__throw_bad_castv(void) { mac32_guest_fatal("std::bad_cast", ""); }
 
-// iostream static setup: no streams are wired up yet
-void _ZNSt8ios_base4InitC1Ev(void *self) { (void)self; }
-void _ZNSt8ios_base4InitD1Ev(void *self) { (void)self; }
+// ios_base::Init and the streams live in iostream.cpp (libmac32ios.dylib)
 
 // ---- std::list nodes (libstdc++ _List_node_base: next, prev) ------------------
 typedef struct lnode { struct lnode *next, *prev; } lnode;

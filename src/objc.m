@@ -683,6 +683,110 @@ static int tracking_rect(id target, const char *sel, const uint32_t *ga, struct 
 	return 0;
 }
 
+// graphicsContextWithWindow: contexts: remember the window, so a later draw
+// into its CGContext can be shown (legacy.m, window_context_note)
+extern void window_context_note(CGContextRef c, NSWindow *w);
+static char ctx_window_key;
+static int window_context(id target, const char *sel, const uint32_t *ga, struct hres *r)
+{
+	if (!strcmp(sel, "graphicsContextWithWindow:")) {
+		NSWindow *w = objc_unwrap(ga[0]);
+		NSGraphicsContext *c = [target graphicsContextWithWindow:w];
+		if (!c && w) {
+			// macOS returns nil for this now: stand in with a 1x1 bitmap
+			// context kept with the window; images drawn into it are shown
+			static char token_key;
+			id token = objc_getAssociatedObject(w, &token_key);
+			if (!token) {
+				CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+				CGContextRef b = CGBitmapContextCreate(NULL, 1, 1, 8, 4, cs, kCGImageAlphaPremultipliedFirst);
+				CGColorSpaceRelease(cs);
+				token = (id)b;
+				objc_setAssociatedObject(w, &token_key, token, OBJC_ASSOCIATION_RETAIN);
+				CGContextRelease(b);
+			}
+			c = [NSGraphicsContext graphicsContextWithCGContext:(CGContextRef)token flipped:NO];
+		}
+		if (c) objc_setAssociatedObject(c, &ctx_window_key, w, OBJC_ASSOCIATION_ASSIGN);
+		r->rax = objc_wrap(c);
+		return 1;
+	}
+	if (!strcmp(sel, "graphicsPort") || !strcmp(sel, "CGContext")) {
+		NSWindow *w = objc_getAssociatedObject(target, &ctx_window_key);
+		CGContextRef c = [(NSGraphicsContext *)target CGContext];
+		if (w) window_context_note(c, w);
+		r->rax = hobj_wrap(c);
+		return 1;
+	}
+	return 0;
+}
+
+// NSBitmapImageRep pixel memory must sit below 4 GB for 32-bit code to touch
+// it. When the program lets AppKit allocate the planes, allocate them in guest
+// memory instead and hand them over; they are freed with the image rep.
+@interface M32GuestBlocks : NSObject { @public g32 b[5]; }
+@end
+@implementation M32GuestBlocks
+- (void)dealloc { for (int i = 0; i < 5; i++) gfree(b[i]); [super dealloc]; }
+@end
+static char guest_planes_key;
+
+static g32 low_or_zero(const void *p, const char *what)
+{
+	if (!p || (uintptr_t)p < 0x100000000ull) return H2G(p);
+	LOG("objc: %s points above 4 GB; the program gets NULL\n", what);
+	return 0;
+}
+
+static int bitmap_rep(id target, const char *sel, const uint32_t *ga, struct hres *r)
+{
+	int fmt = !strcmp(sel, "initWithBitmapDataPlanes:pixelsWide:pixelsHigh:bitsPerSample:samplesPerPixel:hasAlpha:"
+			       "isPlanar:colorSpaceName:bitmapFormat:bytesPerRow:bitsPerPixel:");
+	if (fmt || !strcmp(sel, "initWithBitmapDataPlanes:pixelsWide:pixelsHigh:bitsPerSample:samplesPerPixel:hasAlpha:"
+				"isPlanar:colorSpaceName:bytesPerRow:bitsPerPixel:")) {
+		int32_t w = (int32_t)ga[1], h = (int32_t)ga[2], bps = (int32_t)ga[3], spp = (int32_t)ga[4];
+		BOOL alpha = (ga[5] & 0xff) != 0, planar = (ga[6] & 0xff) != 0;
+		NSString *cs = objc_unwrap(ga[7]);
+		uint32_t format = fmt ? ga[8] : 0;
+		int32_t bpr = (int32_t)ga[8 + fmt], bpp = (int32_t)ga[9 + fmt];
+		int np = planar ? spp : 1;
+		if (np < 1 || np > 5) np = 1;
+		if (!bpr) bpr = (int32_t)(((int64_t)w * (planar ? bps : (bpp ? bpp : bps * spp)) + 7) / 8);
+		unsigned char *hp[5] = { 0 };
+		M32GuestBlocks *mine = nil;
+		const uint32_t *gp = ga[0] ? G2H(ga[0]) : NULL;
+		for (int i = 0; i < np; i++) {
+			if (gp && gp[i]) { hp[i] = G2H(gp[i]); continue; }
+			if (!mine) mine = [M32GuestBlocks new];
+			size_t n = (size_t)bpr * (size_t)(h > 0 ? h : 0);
+			mine->b[i] = gmalloc((uint32_t)(n ? n : 1));
+			memset(G2H(mine->b[i]), 0, n);
+			hp[i] = G2H(mine->b[i]);
+		}
+		NSBitmapImageRep *rep = fmt
+			? [target initWithBitmapDataPlanes:hp pixelsWide:w pixelsHigh:h bitsPerSample:bps samplesPerPixel:spp
+					 hasAlpha:alpha isPlanar:planar colorSpaceName:cs bitmapFormat:format
+				       bytesPerRow:bpr bitsPerPixel:bpp]
+			: [target initWithBitmapDataPlanes:hp pixelsWide:w pixelsHigh:h bitsPerSample:bps samplesPerPixel:spp
+					 hasAlpha:alpha isPlanar:planar colorSpaceName:cs bytesPerRow:bpr bitsPerPixel:bpp];
+		if (rep && mine) objc_setAssociatedObject(rep, &guest_planes_key, mine, OBJC_ASSOCIATION_RETAIN);
+		[mine release];
+		r->rax = objc_wrap(rep);
+		return 1;
+	}
+	if (!strcmp(sel, "getBitmapDataPlanes:")) {	// (unsigned char **): five pointers
+		unsigned char *hp[5] = { 0 };
+		[(NSBitmapImageRep *)target getBitmapDataPlanes:hp];
+		if (ga[0]) for (int i = 0; i < 5; i++) ((uint32_t *)G2H(ga[0]))[i] = low_or_zero(hp[i], "getBitmapDataPlanes:");
+		return 1;
+	}
+	if (!strcmp(sel, "bitmapData")) {
+		r->rax = low_or_zero([(NSBitmapImageRep *)target bitmapData], "bitmapData");
+		return 1;
+	}
+	return 0;
+}
+
 // nil-terminated object lists (arrayWithObjects:, dictionaryWithObjectsAndKeys:
 // ...): NSInvocation cannot carry varargs, so build them from the guest list
 static int variadic_objects(id target, const char *sel, const uint32_t *ga, struct hres *r)
@@ -775,6 +879,9 @@ static void msgsend(uint32_t *a, struct hres *r, int kind)
 	if (!strcmp(sel, "countByEnumeratingWithState:objects:count:")) { fast_enum(target, ga, r); return; }
 	if (variadic_objects(target, sel, ga, r)) return;
 	if (tracking_rect(target, sel, ga, r)) return;
+	if ([target isKindOfClass:[NSBitmapImageRep class]] && bitmap_rep(target, sel, ga, r)) return;
+	if ((target == (id)[NSGraphicsContext class] || [target isKindOfClass:[NSGraphicsContext class]]) &&
+	    window_context(target, sel, ga, r)) return;
 	if (!strcmp(sel, "stringWithFormat:")) {	// variadic: NSInvocation cannot carry it
 		NSString *fmt = objc_unwrap(ga[0]);
 		int n;

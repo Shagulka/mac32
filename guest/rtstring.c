@@ -298,6 +298,8 @@ size_t _ZNKSs5rfindEPKcmm(const void *s, const char *p, size_t pos, size_t n)
 	for (size_t i = pos + 1; i-- > 0;) if (!memcmp(D(s) + i, p, n)) return i;
 	return NPOS;
 }
+size_t _ZNKSs5rfindEPKcm(const void *s, const char *p, size_t pos) { return _ZNKSs5rfindEPKcmm(s, p, pos, strlen(p)); }
+size_t _ZNKSs5rfindERKSsm(const void *s, const void *o, size_t pos) { return _ZNKSs5rfindEPKcmm(s, D(o), pos, R(o)->len); }
 size_t _ZNKSs13find_first_ofEPKcmm(const void *s, const char *p, size_t pos, size_t n)
 {
 	for (size_t sz = R(s)->len; pos < sz; pos++) if (in_set((unsigned char)D(s)[pos], p, n, S1)) return pos;
