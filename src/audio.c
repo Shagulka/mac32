@@ -363,8 +363,42 @@ static void t_AudioUnitSetProperty(uint32_t *args, struct hres *r)
 		RET(AudioUnitSetProperty(u, A(1), A(2), A(3), &h, sizeof h));
 		return;
 	}
+	// Sound input (voice chat) is not bridged: refuse to switch on an output
+	// unit's input side, as a Mac with no microphone would, so the program
+	// turns voice off (and macOS asks for no microphone permission)
+	if (A(1) == kAudioOutputUnitProperty_EnableIO && A(2) == kAudioUnitScope_Input && A(4) && *(uint32_t *)G2H(A(4))) {
+		LOG("audio: sound input refused (voice input is not bridged)\n");
+		RET(kAudioUnitErr_InvalidProperty);
+		return;
+	}
 	RET(AudioUnitSetProperty(u, A(1), A(2), A(3), A(4) ? G2H(A(4)) : NULL, A(5)));
 }
+
+// AudioConverter: stream descriptions and scalar properties have the same
+// layout on both sides; the complex-buffer form (input callback) is not
+// bridged and reports an error.
+static void t_AudioConverterNew(uint32_t *args, struct hres *r)
+{
+	AudioConverterRef c = NULL;
+	OSStatus s = AudioConverterNew(G2H(A(0)), G2H(A(1)), &c);
+	*(g32 *)G2H(A(2)) = s ? 0 : hobj_wrap(c);
+	RET(s);
+}
+static OSStatus w_AudioConverterDispose(AudioConverterRef c) { return AudioConverterDispose(c); }
+static OSStatus w_AudioConverterReset(AudioConverterRef c) { return AudioConverterReset(c); }
+static OSStatus w_AudioConverterSetProperty(AudioConverterRef c, uint32_t id, uint32_t size, const void *data)
+{
+	return AudioConverterSetProperty(c, id, size, data);
+}
+static OSStatus w_AudioConverterGetProperty(AudioConverterRef c, uint32_t id, uint32_t *size, void *data)
+{
+	return AudioConverterGetProperty(c, id, size, data);
+}
+static OSStatus w_AudioConverterConvertBuffer(AudioConverterRef c, uint32_t insize, const void *in, uint32_t *outsize, void *out)
+{
+	return AudioConverterConvertBuffer(c, insize, in, outsize, out);
+}
+static void t_AudioConverterFillComplexBuffer(uint32_t *args, struct hres *r) { (void)args; RET(kAudioConverterErr_UnspecifiedError); }
 static void t_AudioUnitGetProperty(uint32_t *args, struct hres *r)
 {
 	// unit, id, scope, element, data, *size (scalars and AudioStreamBasicDescription
@@ -453,6 +487,12 @@ static OSStatus w_MusicDeviceSysEx(AudioUnit u, const UInt8 *p, uint32_t n) { re
 
 static struct hfn au[] = {
 	R("_AudioQueueNewOutput", t_AudioQueueNewOutput),
+	R("_AudioConverterNew", t_AudioConverterNew), G("_AudioConverterDispose", w_AudioConverterDispose, "i:o"),
+	G("_AudioConverterReset", w_AudioConverterReset, "i:o"),
+	G("_AudioConverterSetProperty", w_AudioConverterSetProperty, "i:ouup"),
+	G("_AudioConverterGetProperty", w_AudioConverterGetProperty, "i:oupp"),
+	G("_AudioConverterConvertBuffer", w_AudioConverterConvertBuffer, "i:oupup"),
+	R("_AudioConverterFillComplexBuffer", t_AudioConverterFillComplexBuffer),
 	R("_FindNextComponent", t_FindNextComponent), R("_OpenAComponent", t_OpenAComponent),
 	R("_OpenComponent", t_OpenComponent), R("_CloseComponent", t_CloseComponent),
 	R("_AudioComponentFindNext", t_FindNextComponent), R("_AudioComponentInstanceNew", t_AudioComponentInstanceNew),
