@@ -699,7 +699,7 @@ static int window_context(id target, const char *sel, const uint32_t *ga, struct
 			id token = objc_getAssociatedObject(w, &token_key);
 			if (!token) {
 				CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
-				CGContextRef b = CGBitmapContextCreate(NULL, 1, 1, 8, 4, cs, kCGImageAlphaPremultipliedFirst);
+				CGContextRef b = CGBitmapContextCreate(NULL, 1, 1, 8, 4, cs, (CGBitmapInfo)kCGImageAlphaPremultipliedFirst);
 				CGColorSpaceRelease(cs);
 				token = (id)b;
 				objc_setAssociatedObject(w, &token_key, token, OBJC_ASSOCIATION_RETAIN);
