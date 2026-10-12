@@ -452,3 +452,38 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   asks for the missing shaderapivk: patched. It then loads client.dylib
   (an older build: tier0's ThreadInterlocked* are host functions now) and
   stops at SteamClient017, an interface version older than mac32's tables.
+
+## Step 15: windows that never showed, Steam layouts, the server browser (2026-10-12)
+- Counter-Strike's window never reached the screen, though AppKit said it
+  was visible and on the active Space; the window server had it off screen.
+  (The screenshot tool used in testing captures windows that are not on
+  screen, which is why this went unnoticed.) A plain window made inside the
+  same process stayed hidden too, but one made before the game's code ran
+  stayed visible: the Carbon TransformProcessType/SetFrontProcess that the
+  game calls before NSApp exists leave the process unable to show windows.
+  mac32 now makes NSApp with a regular activation policy just before the
+  program runs, answers those Carbon calls through AppKit, and gives NSApp
+  the program's own NSApplication subclass when the program asks for it
+  (NSValveApplication; without it Portal 2 needed double clicks).
+- Half-Life's engine imports the old SteamGameServer() accessor, which mac32
+  provides, and calls slot 38 as GetNextOutgoingPacket(buf, 4096, ...). The
+  accessor handed it SteamGameServer014, whose slot 38 is
+  SendUserConnectAndAuthenticate: Valve reordered ISteamGameServer in 013/014.
+  Old-accessor callers now get SteamGameServer012 in its own SDK order.
+  SteamClient017 has an SDK-order layout too, and other interfaces older than
+  mac32's tables use the start of the next newer one (they only gained
+  methods). The remaining old accessors (SteamMatchmaking() ...) are added.
+- The server browser (ISteamMatchmakingServers) is bridged: Steam gets host
+  stand-ins for the game's response objects, gameserveritem_t is converted
+  (m_steamID at 364 on i386, 368 on x86_64), filter arrays get host
+  pointers. Counter-Strike 1.6 runs a multiplayer listen server.
+- With AudioUnits bridged, the Source engine's voice recorder got as far as
+  AudioConverterNew. Sound input is not bridged, so switching on an output
+  unit's input side is refused (the game turns voice off, and macOS shows no
+  microphone prompt); AudioConverter's simple calls are bridged.
+- Counter-Strike: Source, conclusion: its cstrike/bin client and server were
+  built against an older tier0 than bin/ ships (missing ThreadInterlocked*
+  exports, and ICommandLine::ParmValue overloads in other vtable slots), so
+  the Mac download cannot run on any Mac as is. On hold.
+- Test runs now go through Haiku subagents with fixed scripts (launch, poll
+  the log, collect lines, stop by PID).
