@@ -2,7 +2,7 @@
 # Everything from _t_start to _t_end is copied into a page below 4 GB, so
 # addresses the 32-bit side uses fit in 32 bits. Position-independent only.
 #
-# Rosetta facts (see MODLOG.md): enter 32-bit mode with iretq to an LDT code
+# Rosetta facts (see docs/journal.md): enter 32-bit mode with iretq to an LDT code
 # selector; leave with a far return to 0x2b. ljmp from 64-bit mode does not
 # switch modes.
 

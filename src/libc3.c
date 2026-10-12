@@ -1,6 +1,6 @@
 // Sockets, users, wide-char formatting, scandir and other libc pieces the
 // Source engine needs, plus honest failure stubs for subsystems not bridged
-// yet (audio, curl, Carbon windows). See MODLOG.md for what each stub means.
+// yet (audio, curl, Carbon windows). See docs/journal.md for what each stub means.
 #include "thunks.h"
 #include <string.h>
 #include <unistd.h>

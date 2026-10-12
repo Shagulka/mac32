@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mac32</title>
+<meta name="description" content="Run 32-bit Intel Mac programs on a modern Mac. Portal 2's Mac version plays in full on Apple Silicon.">
+<meta property="og:title" content="mac32">
+<meta property="og:description" content="Run 32-bit Intel Mac programs on a modern Mac.">
+<meta property="og:image" content="images/in-game-chapter9.jpg">
+<style>
+:root {
+	--bg: #f7f6f3;
+	--panel: #ffffff;
+	--text: #1d1c1a;
+	--muted: #5f5c57;
+	--line: #e2dfd8;
+	--accent: #2f6fd6;
+	--accent-text: #ffffff;
+	--code-bg: #efede8;
+	--ok: #1f8a4c;
+	--part: #b7791f;
+	--no: #9a9893;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #141413;
+		--panel: #1d1d1b;
+		--text: #ecebe7;
+		--muted: #a3a09a;
+		--line: #2f2e2b;
+		--accent: #6aa0ff;
+		--accent-text: #0e1420;
+		--code-bg: #262522;
+		--ok: #4cc27f;
+		--part: #e0a54a;
+		--no: #77746e;
+	}
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+.wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+header { padding: 64px 0 28px; }
+h1 { font-size: 52px; line-height: 1; letter-spacing: -0.03em; margin: 0 0 14px; }
+.lede { font-size: 22px; line-height: 1.45; color: var(--muted); margin: 0 0 26px; max-width: 640px; }
+.lede strong { color: var(--text); font-weight: 600; }
+.buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+	display: inline-block; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 16px;
+	text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--panel);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.hero { margin: 8px 0 0; }
+.hero img { width: 100%; display: block; border-radius: 10px; border: 1px solid var(--line); }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+section { padding: 40px 0 8px; }
+h2 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 14px; }
+p { margin: 0 0 14px; }
+a { color: var(--accent); }
+.status { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.status td { padding: 12px 14px; border-top: 1px solid var(--line); vertical-align: top; font-size: 16px; }
+.status tr:first-child td { border-top: 0; }
+.status td:first-child { width: 34%; font-weight: 600; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
+.ok { background: var(--ok); } .part { background: var(--part); } .no { background: var(--no); }
+.legend { font-size: 14px; color: var(--muted); margin-top: 10px; }
+.legend span { margin-right: 16px; white-space: nowrap; }
+.gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 18px; }
+.gallery figure { margin: 0; }
+.gallery img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--line); aspect-ratio: 16 / 10; object-fit: cover; }
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0 22px; }
+.flow div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: 15px; position: relative; }
+.flow b { display: block; font-size: 15px; margin-bottom: 2px; }
+.flow span { color: var(--muted); }
+.points { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 28px; }
+.points h3 { font-size: 17px; margin: 0 0 4px; }
+.points p { color: var(--muted); font-size: 16px; }
+pre {
+	background: var(--code-bg); border-radius: 8px; padding: 14px 16px; overflow-x: auto;
+	font: 14.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0 0 14px;
+}
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+footer { margin-top: 48px; padding: 24px 0 48px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+footer p { margin: 0 0 8px; }
+@media (max-width: 680px) {
+	header { padding-top: 40px; }
+	h1 { font-size: 40px; }
+	.lede { font-size: 19px; }
+	.gallery, .points { grid-template-columns: 1fr; }
+	.flow { grid-template-columns: 1fr 1fr; }
+	.status td:first-child { width: 40%; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+	<h1>mac32</h1>
+	<p class="lede">Run 32-bit Intel Mac apps and games on current macOS, Apple Silicon included. <strong>The Mac version of Portal 2 plays start to finish.</strong></p>
+	<div class="buttons">
+		<a class="btn primary" href="https://github.com/Shagulka/mac32">Source on GitHub</a>
+		<a class="btn" href="#get-it">Get it running</a>
+	</div>
+</header>
+
+<figure class="hero">
+	<img src="images/in-game-chapter9.jpg" alt="Portal 2, chapter 9, running under mac32 on an Apple Silicon Mac">
+	<figcaption>Portal 2 on an M2 Pro Mac, with sound, videos and Steam.</figcaption>
+</figure>
+
+<section>
+	<h2>Old Mac apps, back on your Mac</h2>
+	<p>macOS stopped running 32-bit apps with Catalina in 2019, and Apple Silicon Macs never could. Many Mac games and apps were only ever built for 32-bit Intel and will never get a new version.</p>
+	<p>mac32 runs them anyway. It loads the app into a 64-bit process, runs its code under Rosetta 2, and passes each call it makes to the 64-bit system libraries. You use the real Mac version of the app, not a Windows build or a virtual machine. Think of it as Wine for old Mac apps.</p>
+</section>
+
+<section>
+	<h2>What runs</h2>
+	<table class="status">
+		<tr><td><span class="dot ok"></span>Portal 2</td><td>Plays start to finish: graphics, sound, Bink videos, mouse, keyboard, saves and Steam.</td></tr>
+		<tr><td><span class="dot ok"></span>Half-Life</td><td>Menu, New Game and maps work (25th anniversary build).</td></tr>
+		<tr><td><span class="dot part"></span>Portal, Half-Life 2</td><td>Menus and maps draw. Valve's 2024 build cannot make fonts, so mac32 patches that in memory.</td></tr>
+		<tr><td><span class="dot part"></span>DOSBox 0.74</td><td>Starts, draws the DOS prompt and starts its sound.</td></tr>
+		<tr><td><span class="dot part"></span>OpenTTD 1.1.5</td><td>Runs and draws the game.</td></tr>
+		<tr><td><span class="dot no"></span>VLC 1.1.12</td><td>Shows its main window; cannot open files yet.</td></tr>
+		<tr><td><span class="dot no"></span>Firefox 3.6</td><td>Starts, then stops at the first old Carbon call mac32 lacks.</td></tr>
+	</table>
+	<p class="legend"><span><span class="dot ok"></span>works</span><span><span class="dot part"></span>runs, not fully tested</span><span><span class="dot no"></span>starts, not usable yet</span></p>
+	<p>More apps are on the way. <code>mac32 check</code> tells you whether an app will run and which system calls it still needs.</p>
+
+	<div class="gallery">
+		<figure><img src="images/hl2-trainstation.jpg" alt="Half-Life 2's opening train ride under mac32" loading="lazy"><figcaption>Half-Life 2</figcaption></figure>
+		<figure><img src="images/portal-testchamber-00.jpg" alt="Portal's first test chamber under mac32" loading="lazy"><figcaption>Portal</figcaption></figure>
+		<figure><img src="images/dosbox-0.74.jpg" alt="DOSBox 0.74 showing its welcome screen under mac32" loading="lazy"><figcaption>DOSBox 0.74</figcaption></figure>
+		<figure><img src="images/openttd-1.1.5.jpg" alt="OpenTTD 1.1.5 under mac32" loading="lazy"><figcaption>OpenTTD 1.1.5</figcaption></figure>
+	</div>
+</section>
+
+<section>
+	<h2>How it works</h2>
+	<div class="flow">
+		<div><b>32-bit program</b><span>runs as is, in a 32-bit code segment</span></div>
+		<div><b>Stub</b><span>each import switches to 64-bit code</span></div>
+		<div><b>Bridge</b><span>converts arguments, structs and objects</span></div>
+		<div><b>macOS</b><span>the real 64-bit function answers</span></div>
+	</div>
+	<div class="points">
+		<div><h3>32-bit code</h3><p>Rosetta 2 still runs 32-bit x86 code in a 32-bit code segment. mac32 sets one up and switches in and out of it, which takes about 55 ns per call.</p></div>
+		<div><h3>Memory</h3><p>32-bit code can only reach the first 4 GB. mac32 keeps that range for the app's code, heap and thread stacks.</p></div>
+		<div><h3>System calls</h3><p>Over 3,300 functions from libc, CoreFoundation, CoreGraphics, Carbon, OpenGL, OpenAL and Core Audio, with arguments converted between 32 and 64 bits.</p></div>
+		<div><h3>Objective-C and C++</h3><p>Classes an app defines become real 64-bit classes. Old GNU C++ strings and streams match GCC 4's layout, so code built in 2010 works with them.</p></div>
+		<div><h3>Steam</h3><p>A game's own 32-bit Steam library talks to the 64-bit Steam client you already run. Steam still checks that you own the game.</p></div>
+		<div><h3>Game fixes</h3><p>Some old builds have bugs that stop them on any Mac. mac32 fixes them in memory for that exact build and never changes the files.</p></div>
+	</div>
+	<p>For the full story of how each part was built, see the <a href="https://github.com/Shagulka/mac32/blob/master/docs/journal.md">development journal</a>.</p>
+</section>
+
+<section id="get-it">
+	<h2>Get it running</h2>
+	<p>You need an Apple Silicon Mac with Rosetta 2 (or an Intel Mac) and the Xcode command line tools.</p>
+<pre><code>git clone https://github.com/Shagulka/mac32.git
+cd mac32
+tools/get-llvm.sh
+make
+make install</code></pre>
+	<p>Then open <code>Mac32.app</code> and pick an app, or use the terminal:</p>
+<pre><code>mac32 check ~/Games/OpenTTD.app    # will it run?
+mac32 run ~/Games/OpenTTD.app
+mac32 run "Portal 2"               # a Steam game, by folder name</code></pre>
+	<p>mac32 does not include any games or Apple files; you use your own copies. For Steam games, Steam must be running and logged in.</p>
+</section>
+
+<section>
+	<h2>Help out</h2>
+	<p>Tried an old app? <a href="https://github.com/Shagulka/mac32/issues/new?template=program-report.md">Tell us how it went</a>. If it stops, the log names the system call it was missing, and that tells us what to add next. To add one yourself, see <a href="https://github.com/Shagulka/mac32/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+</section>
+
+<footer>
+	<p>Made by Boris Khesin, with <a href="https://claude.com/claude-code">Claude</a> as a contributor. Free software under the <a href="https://github.com/Shagulka/mac32/blob/master/COPYING">GNU GPL, version 3 or later</a>.</p>
+	<p>Portal, Half-Life, Source and Steam are trademarks of Valve Corporation; Mac and macOS are trademarks of Apple Inc. This project is not made or endorsed by either.</p>
+</footer>
+
+</div>
+</body>
+</html>

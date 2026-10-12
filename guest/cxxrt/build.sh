@@ -2,8 +2,10 @@
 # Build LLVM 17 libunwind + libc++abi as 32-bit guest code (libmac32cxx.dylib).
 set -e
 L=${LLVM:-$HOME/Developer/mac32-deps/llvm-project}
+[ -d "$L/libcxxabi" ] || { echo "LLVM sources not found in $L: run tools/get-llvm.sh (or set LLVM=)" >&2; exit 1; }
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$here"
+mkdir -p obj
 COMMON="-target i386-apple-macos10.7 -O2 -fno-stack-protector -fPIC -funwind-tables -w"
 INC="-I$here/include -I$L/libcxx/include -I$L/libcxxabi/include -I$L/libunwind/include -I$L/libcxx/src -I$L/libunwind/src"
 DEFS="-D_LIBUNWIND_IS_NATIVE_ONLY -D_LIBCXXABI_BUILDING_LIBRARY -D_LIBCPP_BUILDING_LIBRARY -DLIBCXXABI_USE_LLVM_UNWINDER -DNDEBUG"

@@ -1,0 +1,295 @@
+#!/bin/bash
+# mac32 - run 32-bit Intel Mac programs on modern macOS (like `wine`, for old Mac apps).
+# Copyright (C) 2026 Boris Khesin. GPL-3.0-or-later; see COPYING.
+#
+#   mac32 run <App.app | program | Steam game folder> [args...]
+#   mac32 check [--all] <app>              will it run? what is missing?
+#   mac32 scan [folders...]                find 32-bit apps on this Mac
+#   mac32 config <app> [show | set k=v | unset k | edit]
+#   mac32 wrap <app> [--name N]            make a double-clickable launcher
+#   mac32 logs [app]                       follow a program's log
+#   mac32 selftest                         check mac32 itself
+
+# follow symlinks (make install links this script into a bin folder)
+src=${BASH_SOURCE[0]}
+while [ -L "$src" ]; do
+	d=$(cd "$(dirname "$src")" && pwd)
+	src=$(readlink "$src")
+	case $src in /*) ;; *) src="$d/$src" ;; esac
+done
+here="$(cd "$(dirname "$src")" && pwd)"
+# the engine: inside Mac32.app (Contents/Resources/mac32 -> ../MacOS/mac32),
+# or next to the repo's bin/ folder, or MAC32_ENGINE
+engine=${MAC32_ENGINE:-}
+for c in "$here/../MacOS/mac32" "$here/../Mac32.app/Contents/MacOS/mac32" "$here/../mac32"; do
+	[ -z "$engine" ] && [ -x "$c" ] && engine="$(cd "$(dirname "$c")" && pwd)/$(basename "$c")"
+done
+steam="$HOME/Library/Application Support/Steam"
+confdir="$HOME/Library/Application Support/mac32/apps"
+logdir="$HOME/Library/Logs"
+
+die() { echo "mac32: $*" >&2; exit 1; }
+need_engine() { [ -n "$engine" ] || die "cannot find the mac32 engine (build it with make, or set MAC32_ENGINE)"; }
+
+usage() {
+	sed -n '4,11p' "$here/$(basename "$src")" | sed 's/^# \{0,1\}//'
+	exit "${1:-0}"
+}
+
+# ---- what a target is -----------------------------------------------------------
+# kind: app (bundle), exe (Mach-O file), steam (folder in steamapps/common)
+plist_get() { /usr/libexec/PlistBuddy -c "Print :$2" "$1/Contents/Info.plist" 2>/dev/null; }
+resolve() {
+	t=$1
+	kind= path= exe= key= name=
+	if [ -d "$t" ] && [ -f "$t/Contents/Info.plist" ]; then
+		kind=app; path="$(cd "$t" && pwd)"
+		exe="$path/Contents/MacOS/$(plist_get "$path" CFBundleExecutable)"
+		key=$(plist_get "$path" CFBundleIdentifier); name=$(basename "$path" .app)
+	elif [ -f "$t" ]; then
+		kind=exe; path="$(cd "$(dirname "$t")" && pwd)/$(basename "$t")"; exe=$path
+		name=$(basename "$path")
+	elif [ -d "$steam/steamapps/common/$t" ]; then
+		kind=steam; path="$steam/steamapps/common/$t"; name=$t
+		exe=$(cd "$path" && ls -1 *_osx 2>/dev/null | head -1)
+		[ -n "$exe" ] || die "$t has no Mac launcher (*_osx); is it a Mac Source/GoldSrc game?"
+		exe="$path/$exe"
+	else
+		die "no app, program or Steam game called '$t'"
+	fi
+	[ -n "$key" ] || key=$name
+	key=$(printf '%s' "$key" | tr -c 'A-Za-z0-9._-' '_')
+}
+
+archs() { lipo -archs "$1" 2>/dev/null; }
+
+# ---- per-app settings: one "name=value" per line ----------------------------------
+#   args=<extra arguments>   cwd=<folder>   env=<NAME=VALUE> (any number)
+conf_file() { echo "$confdir/$key.conf"; }
+conf_get() { [ -f "$(conf_file)" ] && sed -n "s/^$1=//p" "$(conf_file)" | tail -1; }
+conf_envs() { [ -f "$(conf_file)" ] && sed -n 's/^env=//p' "$(conf_file)"; }
+
+# ---- run --------------------------------------------------------------------------------
+cmd_run() {
+	local log= verbose= trace=
+	while [ $# -gt 0 ]; do
+		case $1 in
+		--log) log=$2; shift 2 ;;
+		-v|--verbose) verbose=-v; shift ;;
+		--trace) trace=$2; shift 2 ;;
+		--) shift; break ;;
+		-*) die "run: unknown option $1" ;;
+		*) break ;;
+		esac
+	done
+	[ $# -ge 1 ] || die "run: what should I run?"
+	need_engine
+	resolve "$1"; shift
+	case " $(archs "$exe") " in
+	*" i386 "*) ;;
+	*) die "$name is not a 32-bit Intel program ($(archs "$exe")); it does not need mac32" ;;
+	esac
+
+	local args=() lib= mod= cwd
+	case $kind in
+	app) cwd=$(dirname "$path") ;;		# data next to the app (OpenTTD's data/)
+	exe) cwd=$(dirname "$path") ;;
+	steam)
+		cwd=$path
+		mod=$(basename "$exe"); mod=${mod%_osx}
+		local others
+		others=$(cd "$path" && ls -d */gameinfo.txt 2>/dev/null | sed 's|/gameinfo.txt||' | grep -vx "$mod")
+		[ "$(echo "$others" | grep -c .)" = 1 ] && mod=$others
+		mod=${MOD:-$mod}			# MOD=<folder> picks the game folder by hand
+		[ -d "$path/$mod" ] || mod=
+		lib=.
+		for d in bin/osx32 bin; do [ -e "$path/$d/libtier0.dylib" ] && { lib=$d; break; }; done
+		local appid
+		appid=$(grep -l "\"installdir\"[[:space:]]*\"$name\"" "$steam"/steamapps/appmanifest_*.acf 2>/dev/null | head -1 |
+			sed 's/.*appmanifest_\([0-9]*\)\.acf/\1/')
+		[ -n "$appid" ] && export SteamAppId=$appid SteamGameId=$appid
+		pgrep -x steam_osx >/dev/null || echo "mac32: Steam is not running; the game will refuse to start" >&2
+		;;
+	esac
+	local c
+	c=$(conf_get cwd); [ -n "$c" ] && cwd=$c
+	while IFS= read -r e; do [ -n "$e" ] && export "$e"; done < <(conf_envs)
+	[ -n "$trace" ] && export MAC32_TRACE=$trace
+
+	local target=$path
+	[ $kind = steam ] && target="./$(basename "$exe")"
+	local cmdline=("$engine")
+	[ -n "$verbose" ] && cmdline+=(-v)
+	[ -n "$trace" ] && cmdline+=(-t)
+	[ -n "$lib" ] && cmdline+=(-L "$lib")
+	cmdline+=("$target")
+	[ -n "$mod" ] && cmdline+=(-game "$mod")
+	local extra
+	extra=$(conf_get args)
+	# shellcheck disable=SC2206
+	[ -n "$extra" ] && cmdline+=($extra)
+	cmdline+=("$@")
+
+	[ -n "$log" ] || log="$logdir/mac32-$name.log"
+	cd "$cwd" || die "cannot enter $cwd"
+	if [ "$log" = - ]; then
+		exec "${cmdline[@]}"
+	fi
+	echo "mac32: running $name (log: $log)" >&2
+	exec "${cmdline[@]}" > "$log" 2>&1
+}
+
+# ---- check -----------------------------------------------------------------------------
+cmd_check() {
+	local all=20
+	[ "${1:-}" = --all ] && { all=100000; shift; }
+	[ $# -ge 1 ] || die "check: which app?"
+	need_engine
+	resolve "$1"
+	local a
+	a=$(archs "$exe")
+	echo "$name: $exe"
+	echo "  architectures: ${a:-unknown}"
+	case " $a " in
+	*" x86_64 "*|*" arm64 "*) echo "  has a 64-bit build: it runs on this Mac without mac32"; return 0 ;;
+	*" i386 "*) ;;
+	*) echo "  not an Intel program: mac32 cannot run it"; return 1 ;;
+	esac
+	local dir lib=()
+	dir=$(dirname "$exe")
+	[ $kind = steam ] && for d in bin/osx32 bin .; do [ -e "$path/$d/libtier0.dylib" ] && { lib=(-L "$path/$d"); break; }; done
+	[ $kind = app ] && lib=(-L "$path/Contents/Frameworks" -L "$dir")
+	local out missing
+	out=$("$engine" -v "${lib[@]}" --deps "$exe" 2>&1)
+	missing=$(printf '%s\n' "$out" | sed -n 's/^\[mac32\] unresolved \(_[^ ]*\) .*/\1/p' | sort -u)
+	local n
+	n=$(printf '%s' "$missing" | grep -c .)
+	echo "  its libraries loaded at start: $(printf '%s\n' "$out" | grep '^\[mac32\] loaded' | grep -vc '/guest/lib')"
+	if [ "$n" = 0 ]; then
+		echo "  every function it imports at start is covered"
+	else
+		echo "  $n imported functions are not covered yet (only a problem if they are called):"
+		printf '%s\n' "$missing" | head -$all | sed 's/^/    /'
+		[ "$n" -gt $all ] && echo "    ... and $((n - all)) more (mac32 check --all shows them)"
+	fi
+	echo "  libraries it opens later (plugins) are not checked; run it to find out"
+}
+
+# ---- scan ----------------------------------------------------------------------------------
+cmd_scan() {
+	local dirs=("$@")
+	[ ${#dirs[@]} -gt 0 ] || dirs=(/Applications "$HOME/Applications" "$HOME/Downloads" "$HOME/Desktop" "$steam/steamapps/common")
+	local found=0 d app e a
+	for d in "${dirs[@]}"; do
+		[ -d "$d" ] || continue
+		while IFS= read -r app; do
+			e="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist" 2>/dev/null)"
+			[ -f "$e" ] || continue
+			a=" $(archs "$e") "
+			case $a in *" i386 "*) case $a in *" x86_64 "*|*" arm64 "*) ;; *) echo "app    $app"; found=$((found + 1)) ;; esac ;; esac
+		done < <(find "$d" -maxdepth 4 -name '*.app' -type d -prune 2>/dev/null)
+		while IFS= read -r e; do
+			a=" $(archs "$e") "
+			case $a in *" i386 "*) case $a in *" x86_64 "*|*" arm64 "*) ;; *)
+				echo "steam  $(basename "$(dirname "$e")")"; found=$((found + 1)) ;; esac ;; esac
+		done < <(find "$d" -maxdepth 2 -name '*_osx' -type f 2>/dev/null)
+	done
+	echo "$found 32-bit program(s) found" >&2
+}
+
+# ---- config ----------------------------------------------------------------------------------
+cmd_config() {
+	[ $# -ge 1 ] || die "config: which app?"
+	resolve "$1"; shift
+	local f
+	f=$(conf_file)
+	mkdir -p "$confdir"
+	case ${1:-show} in
+	show) echo "# $f"; [ -f "$f" ] && cat "$f" || echo "(no settings)" ;;
+	set)
+		[ $# -ge 2 ] || die "config set name=value"
+		local k=${2%%=*}
+		case $k in args|cwd|env) ;; *) die "settings: args, cwd, env" ;; esac
+		[ "$k" != env ] && [ -f "$f" ] && sed -i '' "/^$k=/d" "$f"
+		echo "$2" >> "$f"; cat "$f" ;;
+	unset)
+		[ -f "$f" ] && sed -i '' "/^${2:-x}=/d" "$f"; [ -f "$f" ] && cat "$f" ;;
+	edit) "${EDITOR:-nano}" "$f" ;;
+	*) die "config: show, set, unset or edit" ;;
+	esac
+}
+
+# ---- wrap: a launcher app in ~/Applications/mac32 ------------------------------------------------
+cmd_wrap() {
+	[ $# -ge 1 ] || die "wrap: which app?"
+	resolve "$1"; shift
+	local label=$name
+	[ "${1:-}" = --name ] && label=$2
+	local cli
+	cli="$here/$(basename "$src")"
+	local w="$HOME/Applications/mac32/$label.app"
+	mkdir -p "$w/Contents/MacOS" "$w/Contents/Resources"
+	local target=$path
+	[ $kind = steam ] && target=$name
+	# the engine runs from inside this bundle (a symlink), so the Dock shows
+	# this launcher's name and icon rather than mac32's
+	ln -sf "$engine" "$w/Contents/MacOS/mac32"
+	printf '#!/bin/bash\n# made by mac32 wrap\nexport MAC32_ENGINE="$(dirname "$0")/mac32"\nexec %q run %q "$@"\n' \
+		"$cli" "$target" > "$w/Contents/MacOS/launch"
+	chmod +x "$w/Contents/MacOS/launch"
+	local icon= iconkey=
+	if [ $kind = app ]; then
+		icon=$(plist_get "$path" CFBundleIconFile)
+		[ -n "$icon" ] && { [ -f "$path/Contents/Resources/$icon" ] || icon="$icon.icns"; }
+		[ -n "$icon" ] && [ -f "$path/Contents/Resources/$icon" ] && cp "$path/Contents/Resources/$icon" "$w/Contents/Resources/" &&
+			iconkey="<key>CFBundleIconFile</key><string>$icon</string>"
+	fi
+	local id
+	id="com.khesin.mac32.wrap.$(printf '%s' "$label" | tr -c 'A-Za-z0-9' '-')"
+	cat > "$w/Contents/Info.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>$id</string>
+<key>CFBundleName</key><string>$label</string>
+<key>CFBundleExecutable</key><string>launch</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+$iconkey
+</dict></plist>
+EOF
+	codesign -s - --force "$w" >/dev/null 2>&1
+	echo "made $w"
+	echo "double-click it, or keep it in the Dock; it runs: mac32 run $target"
+}
+
+# ---- logs, selftest ---------------------------------------------------------------------------------
+cmd_logs() {
+	local f
+	if [ $# -ge 1 ]; then f="$logdir/mac32-$1.log"
+	else f=$(ls -t "$logdir"/mac32-*.log 2>/dev/null | head -1); fi
+	[ -f "$f" ] || die "no log ${1:+for $1 }yet"
+	echo "== $f" >&2
+	tail -n 40 -f "$f"
+}
+cmd_selftest() {
+	need_engine
+	local g
+	g=$(dirname "$engine")/guest/selftest.dylib
+	[ -f "$g" ] || g="$here/../guest/selftest.dylib"
+	[ -f "$g" ] || die "selftest.dylib not found (it is built in the repo's guest/ folder)"
+	"$engine" --selftest "$g"
+}
+
+case ${1:-} in
+run) shift; cmd_run "$@" ;;
+check) shift; cmd_check "$@" ;;
+scan) shift; cmd_scan "$@" ;;
+config) shift; cmd_config "$@" ;;
+wrap) shift; cmd_wrap "$@" ;;
+logs) shift; cmd_logs "$@" ;;
+selftest) shift; cmd_selftest ;;
+-h|--help|help|"") usage ;;
+*)
+	# like `wine program.exe`: mac32 <app> runs it
+	cmd_run "$@" ;;
+esac

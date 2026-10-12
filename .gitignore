@@ -1,10 +1,11 @@
-probe/probe
+# build output
+/mac32
+/Mac32.app/
+/build/
+guest/*.dylib
+guest/cxxrt/obj/
+tools/winid
+tools/probe/probe
 *.o
 *.dSYM/
-mac32
-build/
-guest/*.dylib
-tools/winid
-Mac32.app/
-probe/*.o
 .DS_Store

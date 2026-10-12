@@ -1,11 +1,14 @@
-# mac32 — run 32-bit Intel Mac apps on Apple Silicon
+# mac32 development journal
+
+How mac32 was built, step by step, including the dead ends. Dates are 2026.
+For an overview, start with the [README](../README.md).
 
 Goal: a loader that runs 32-bit i386 Mach-O programs (first target: Portal 2's
 `portal2_osx`) on macOS 26 / Apple Silicon, in a 64-bit x86_64 process under
 Rosetta 2. The 32-bit code runs as is; calls into macOS go through thunks to
 the 64-bit system libraries. Same idea as CrossOver's wine32on64, but for Mach-O.
 
-Ground rules: only the user's own games, nothing from Valve's code or files is
+Ground rules: only games the player owns, nothing from Valve's code or files is
 committed here, no leaked source code.
 
 ## Machine
@@ -27,7 +30,7 @@ committed here, no leaked source code.
   Steam needs a bridge (or a stub for offline play).
 
 ## Step 0 — probe (DONE 2026-10-08): Rosetta runs 32-bit code
-`probe/probe.c` + `probe/tramp.s`. Build:
+`tools/probe/probe.c` + `tools/probe/tramp.s`. Build:
 `clang -arch x86_64 -O1 -Wl,-pagezero_size,0x1000 probe.c tramp.s -o probe`;
 run `./probe ldt`. Result: a hand-written i386 function and a clang-built i386
 CRC32 (`clang -target i386-apple-macos10.6 -Os -mno-sse -c`) both return the right
@@ -99,7 +102,7 @@ Why: Mac Steam (running, PID in registry.vdf) ships steamclient.dylib as
 x86_64+arm64 only; the game's 32-bit libsteam_api.dylib cannot load it.
 We do NOT fake Steam or patch the check (that would bypass ownership). Next
 step is a bridge: guest libsteam_api -> host 64-bit Steam client, so real
-Steam checks that the user owns app 620.
+Steam checks that the player owns app 620.
 
 What is stubbed or skipped for now (each says so at runtime):
 - sound: Component Manager/AudioUnit/AudioQueue/OpenAL return "no device";
@@ -151,8 +154,8 @@ More facts learned:
 
 ## Step 3 — Steam bridge, main menu renders (2026-10-08)
 `make && tools/run_p2.sh 120` now reaches Portal 2's main menu: live 3D
-background map, logo, menu (docs/first-light-main-menu.jpg). Steam reports
-`CClientSteamContext logged on = 1` with the user's real Steam ID.
+background map, logo, menu (images/first-light-main-menu.jpg). Steam reports
+`CClientSteamContext logged on = 1` with the player's real Steam ID.
 
 Steam bridge (src/steam.c, generated src/steam_ifaces.c):
 - The game's 32-bit libsteam_api finds Steam over Mach IPC
@@ -194,10 +197,10 @@ gives the window an app identity for window tools.
 
 ## Step 4 — in game (2026-10-08 ~19:58)
 Menu text fixed (colour tag 288, 14-byte ATSLayoutRecord). Keyboard input
-works: Return opened Single Player and Continue Game loaded the user's
+works: Return opened Single Player and Continue Game loaded an existing
 chapter 9 save; the level renders with lighting, models, viewmodel (portal
-gun with PotatOS) and subtitles (docs/in-game-chapter9.jpg).
-Launch: `./play_portal2.sh` (needs Steam running; log in ~/Library/Logs).
+gun with PotatOS) and subtitles (images/in-game-chapter9.jpg).
+Launch: `mac32 run "Portal 2"` (needs Steam running; log in ~/Library/Logs).
 Not yet checked or not working:
 - sound: not bridged (-nosound).
 - mouse clicks sent to the window while it was in the background did not
@@ -236,15 +239,10 @@ Not yet checked or not working:
 - run_p2.sh: NOSOUND= / NOVID= / GAMEARGS= / ACTIVATE=<s> / SHOT=<s,...>;
   MAC32_TRACE=sub1,sub2 filters -t to matching host calls and selectors.
 
-## Step 6 — confirmed by the user (2026-10-08)
-Boris played it with ./play_portal2.sh: mouse works, frame rate is fine,
+## Step 6 — played for real (2026-10-08)
+Boris played it from the launcher script: mouse works, frame rate is fine,
 "everything just works". The earlier ~15 fps and dead clicks were only the
 background/locked-screen test setup.
-
-## Saves backup (before the first level load, 2026-10-08 19:55)
-- `~/.universal-modder/backups/portal2-saves/20261008-195500.zip` (portal2/SAVE)
-- `~/.universal-modder/backups/portal2-cfg/20261008-195500.zip` (portal2/cfg)
-Restore: `um backup restore portal2-saves` / `um backup restore portal2-cfg`.
 
 ## Plan
 1. (done) Loader core: parse i386 Mach-O (LC_SEGMENT, LC_DYLD_INFO rebase/bind/lazy-bind,
@@ -268,7 +266,7 @@ Restore: `um backup restore portal2-saves` / `um backup restore portal2-cfg`.
    (never a fake Steam: the ownership check must stay with Steam).
 
 ## Gotchas
-- macOS has no `timeout` command; run lldb with the Bash tool timeout instead.
+- macOS has no `timeout` command; put a time limit on lldb from the calling shell.
 - `lldb --batch -o 'run ldt'` works under Rosetta and gives the fault address.
 
 ## Step 7: the game quit after a while (2026-10-09)
@@ -331,7 +329,7 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   - host AppKit runs on guest thread stacks: minimum 8 MB
   - crash handler on an alternate stack; crash reports describe addresses
 - Portal 2 rechecked after all of this: logs on, loads a map, quits cleanly.
-- VLC playback (paused at the user's request, 2026-10-09): command-line files
+- VLC playback (paused at Boris's request, 2026-10-09): command-line files
   never auto-play on the Mac in VLC 1.1 (the Cocoa interface blocks in
   [NSApp run] before libvlc_playlist_play); files come in as "open documents"
   Apple Events. With host classes now made at load (so nibs can instantiate
@@ -339,7 +337,7 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   SUUpdater, not VLCMain, and openFile: is never called: the app delegate ends
   up wrong. Next step there: trace NSApp setDelegate: during nib loading.
 
-## Step 10: Portal (Nov 2024 Source build) - on hold at the user's request
+## Step 10: Portal (Nov 2024 Source build) - on hold at Boris's request
 - Same vguimatsurface.dylib as Half-Life 2. Its font manager calls a newer
   IVGuiFontImpl layout than the leftover COSXFont implements, and font
   creation was compiled out (it stores a NULL font). src/patches.c patches
@@ -361,7 +359,7 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
 - Mac32.app opened with no program: takes an Open With / dropped app, or
   shows a file panel, then execs `Resources/mac32 run <path>`.
   CFBundleDocumentTypes: application bundles and Unix executables (Alternate).
-- License changed to GPL-3.0-or-later at the user's request.
+- License changed to GPL-3.0-or-later at Boris's request.
 - 2026-10-11: with shm_open added, Portal shows its main menu and loads
   testchmb_a_00 (portals render); Half-Life 2 shows its menu and loads
   d1_trainstation_01. Clicks sent from outside do not register (SDL reads the
@@ -400,3 +398,29 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   rejects are pruned by a compile check). Pointer codes r (CGRect *), O
   (object out-pointer), W (long-sized count pointer). Tables now: CG 528,
   CF 477, Carbon 71. Firefox next stops at FSCreateDirectoryUnicode.
+
+## Step 13: C++ streams, SDL 1.2 and DOSBox (2026-10-11)
+- New 32-bit-only test apps from the projects' own pages: DOSBox 0.74, ScummVM
+  1.1.1, Celestia 1.6.1, Tux Paint 0.9.21, Adium 1.4.5. (Transmission 1.93 has
+  an x86_64 slice, so it runs without mac32.)
+- Old C++ programs use GCC 4's iostreams, which the guest runtime lacked.
+  `guest/iostream.cpp` (libmac32ios.dylib) declares the classes with the same
+  bases, members and virtuals as GCC 4.0/4.2's headers, so clang lays out
+  objects, vtables and VTTs as GCC did (Celestia inlines the `ifstream` and
+  `istringstream` constructors and needs the VTTs). static_asserts pin the
+  i386 sizes: ios_base 112, basic_ios 136, streambuf 32, istream 144.
+  The code inside is new: stdio for files, the COW string for string streams.
+- SDL 1.2 (Quartz): private CPS calls, CGPalette*, CGDisplayBaseAddress,
+  IORegisterForSystemPower (its run-loop source is CFReleased even on
+  failure, so mac32 returns a real source that never fires), FSGetVolumeInfo
+  (no CDs), GetScriptManagerVariable (0: SDL keeps its own key map).
+- `getBitmapDataPlanes:` filled an array with 64-bit pointers: the bridge now
+  allocates NSBitmapImageRep planes in guest memory.
+- Blank SDL windows: SDL draws each frame into
+  `[NSGraphicsContext graphicsContextWithWindow:]`, which now returns nil.
+  mac32 hands back a stand-in context tied to the window; an image drawn into
+  it becomes the contents of a layer over the window's content view.
+- Sound: AudioUnit output (Component Manager and AudioComponent calls) with a
+  render-callback trampoline (AudioBufferList entries are 12 bytes on i386, 16
+  on x86_64), and AUGraph for DOSBox's MIDI synth.
+- DOSBox 0.74 starts, draws its prompt and starts sound output.

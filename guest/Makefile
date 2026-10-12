@@ -1,5 +1,7 @@
 # 32-bit guest libraries, linked against a stub i386 libSystem.
 CC = clang
+LLVM ?= $(HOME)/Developer/mac32-deps/llvm-project
+export LLVM
 CFLAGS = -target i386-apple-macos10.6 -O2 -fno-stack-protector -fno-builtin -Wall
 LINK = $(CC) $(CFLAGS) -dynamiclib -nostdlib -Wl,-w
 
@@ -29,5 +31,5 @@ libmac32cxx.dylib: cxxrt/build.sh cxxrt/libSystem.tbd
 
 extest.dylib: extest.cpp libmac32cxx.dylib libSystem.tbd
 	$(CC)++ -target i386-apple-macos10.7 -O1 -fno-stack-protector -fexceptions -frtti -nostdinc++ \
-	  -I$(HOME)/Developer/mac32-deps/llvm-project/libcxxabi/include -dynamiclib -nostdlib -Wl,-w \
+	  -I$(LLVM)/libcxxabi/include -dynamiclib -nostdlib -Wl,-w \
 	  extest.cpp libmac32cxx.dylib cxxrt/libSystem.tbd -o $@
