@@ -5,13 +5,20 @@ export LLVM
 CFLAGS = -target i386-apple-macos10.6 -O2 -fno-stack-protector -fno-builtin -Wall
 LINK = $(CC) $(CFLAGS) -dynamiclib -nostdlib -Wl,-w
 
-all: selftest.dylib libmac32rt.dylib libmac32cxx.dylib libmac32ios.dylib extest.dylib
+all: selftest.dylib libmac32rt.dylib libmac32cxx.dylib libmac32cxx2.dylib libmac32ios.dylib extest.dylib
 
 selftest.dylib: selftest.c libSystem.tbd
 	$(LINK) $^ -o $@
 
-libmac32rt.dylib: rt.c rtstring.c objcexc.c setjmp.s libSystem.tbd
+libmac32rt.dylib: rt.c rtstring.c objcexc.c setjmp.s tlv.s libSystem.tbd
 	$(LINK) -install_name /usr/lib/libmac32rt.dylib $^ -o $@
+
+# LLVM libc++ for programs linked against /usr/lib/libc++.1.dylib
+libmac32cxx2.dylib: cxxrt/build-libcxx.sh
+	cxxrt/build-libcxx.sh
+	$(CC)++ -target i386-apple-macos10.7 -dynamiclib -nostdlib -Wl,-w -Wl,-undefined,dynamic_lookup \
+	  -Wl,-not_for_dyld_shared_cache -install_name /usr/lib/libmac32cxx2.dylib \
+	  $$(cat cxxrt/obj/cxx/list) libSystem.tbd -o $@
 
 # GCC 4-shaped iostreams (cin/cout, string and file streams); the string
 # members and the rest of libc come from the other images at load time

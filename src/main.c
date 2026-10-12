@@ -41,11 +41,20 @@ static void setup_process(int argc, char **argv)
 {
 	char rp[PATH_MAX];
 	if (!realpath(argv[0], rp)) snprintf(rp, sizeof rp, "%s", argv[0]);
+	// MAC32_EXE_AS=<path>: where the program is told it was started from.
+	// A game whose depot lost its launcher stub can run another game's
+	// identical stub (hl2_osx) while finding its own folder.
+	const char *as = getenv("MAC32_EXE_AS");
+	if (as && *as) {
+		snprintf(rp, sizeof rp, "%s", as);
+		LOG("the program is told it is %s\n", rp);
+	}
 	set_exe_path(rp);
 	int ne = 0;
 	while (environ[ne]) ne++;
 	g_argc = argc;
 	g_argv = guest_strv(argv, argc);
+	if (as && *as) ((g32 *)G2H(g_argv))[0] = gstrdup(rp);	// the program's argv[0] only
 	g_envp = guest_strv(environ, ne);
 	char ex[PATH_MAX + 20];
 	snprintf(ex, sizeof ex, "executable_path=%s", rp);
@@ -118,6 +127,8 @@ static void load_runtime(void)
 	snprintf(rt, sizeof rt, "%s/guest/libmac32rt.dylib", exe);
 	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
 	snprintf(rt, sizeof rt, "%s/guest/libmac32cxx.dylib", exe);	// C++ exceptions + RTTI
+	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
+	snprintf(rt, sizeof rt, "%s/guest/libmac32cxx2.dylib", exe);	// LLVM libc++ (/usr/lib/libc++.1.dylib)
 	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
 	snprintf(rt, sizeof rt, "%s/guest/libmac32ios.dylib", exe);	// iostreams
 	if (!macho_load(rt)) die("cannot load %s (run make)", rt);
@@ -263,6 +274,7 @@ int main(int argc, char **argv)
 
 	setup_process(argc - i, argv + i);
 	struct image *img = macho_load(argv[i]);
+	if (!img) die("cannot load %s", argv[i]);
 	low_exe_placed(0);	// a position-independent program: nothing is fixed below EXE_ZONE
 	g32 entry = macho_entry(img), mainfn = macho_main(img);
 	if (!entry && !mainfn) die("%s has no entry point", argv[i]);

@@ -52,8 +52,21 @@ resolve() {
 	elif [ -d "$steam/steamapps/common/$t" ]; then
 		kind=steam; path="$steam/steamapps/common/$t"; name=$t
 		exe=$(cd "$path" && ls -1 *_osx 2>/dev/null | head -1)
-		[ -n "$exe" ] || die "$t has no Mac launcher (*_osx); is it a Mac Source/GoldSrc game?"
-		exe="$path/$exe"
+		if [ -n "$exe" ]; then
+			exe="$path/$exe"
+		elif [ -e "$path/bin/launcher.dylib" ]; then
+			# a Source game whose depot lost its launcher stub (Counter-Strike:
+			# Source): hl2_osx only loads bin/launcher.dylib from the current
+			# folder, so another installed Source game's copy does the same job
+			local other
+			for other in "Half-Life 2" "Portal" "Half-Life 2 Deathmatch"; do
+				[ -x "$steam/steamapps/common/$other/hl2_osx" ] && { exe="$steam/steamapps/common/$other/hl2_osx"; break; }
+			done
+			[ -n "$exe" ] || die "$t has no Mac launcher (hl2_osx), and no other Source game is installed to borrow one from"
+			export MAC32_EXE_AS="$path/hl2_osx"
+		else
+			die "$t has no Mac launcher (*_osx); is it a Mac Source/GoldSrc game?"
+		fi
 	else
 		die "no app, program or Steam game called '$t'"
 	fi
@@ -107,6 +120,13 @@ cmd_run() {
 		local appid
 		appid=$(grep -l "\"installdir\"[[:space:]]*\"$name\"" "$steam"/steamapps/appmanifest_*.acf 2>/dev/null | head -1 |
 			sed 's/.*appmanifest_\([0-9]*\)\.acf/\1/')
+		# GoldSrc games share the Half-Life folder: the mod folder names the game
+		case "$(basename "$exe"):${mod:-valve}" in
+		hl_osx:valve) appid=70 ;; hl_osx:cstrike) appid=10 ;; hl_osx:tfc) appid=20 ;;
+		hl_osx:dod) appid=30 ;; hl_osx:dmc) appid=40 ;; hl_osx:gearbox) appid=50 ;;
+		hl_osx:ricochet) appid=60 ;; hl_osx:bshift) appid=130 ;; hl_osx:czero) appid=80 ;;
+		esac
+		appid=${STEAM_APPID:-$appid}		# STEAM_APPID=<id> by hand
 		[ -n "$appid" ] && export SteamAppId=$appid SteamGameId=$appid
 		pgrep -x steam_osx >/dev/null || echo "mac32: Steam is not running; the game will refuse to start" >&2
 		;;
@@ -118,6 +138,7 @@ cmd_run() {
 
 	local target=$path
 	[ $kind = steam ] && target="./$(basename "$exe")"
+	[ $kind = steam ] && [ -n "${MAC32_EXE_AS:-}" ] && target=$exe	# a borrowed launcher
 	local cmdline=("$engine")
 	[ -n "$verbose" ] && cmdline+=(-v)
 	[ -n "$trace" ] && cmdline+=(-t)

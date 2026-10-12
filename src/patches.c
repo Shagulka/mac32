@@ -7,9 +7,10 @@
 #include <CommonCrypto/CommonDigest.h>
 
 // ---- the list: one entry per file in patches/ ----------------------------------
-extern const struct guest_patch patch_source2024_vguimatsurface;
+extern const struct guest_patch patch_source2024_vguimatsurface, patch_css2024_launcher;
 static const struct guest_patch *const all[] = {
 	&patch_source2024_vguimatsurface,
+	&patch_css2024_launcher,
 };
 
 int patch_jump(struct image *img, const char *fn, struct hfn *h)

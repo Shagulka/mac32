@@ -10,6 +10,9 @@
 #include <langinfo.h>
 #include <mach-o/arch.h>
 #include <xlocale.h>
+#include <wchar.h>
+#include <wctype.h>
+#include <runetype.h>
 #include <libgen.h>
 #include <semaphore.h>
 #include <poll.h>
@@ -319,6 +322,155 @@ static g32 loc_out(locale_t l) { return l == LC_GLOBAL_LOCALE ? 0xffffffffu : l 
 static void t_newlocale(uint32_t *args, struct hres *r) { RET(loc_out(newlocale((int)A(0), A(1) ? G2H(A(1)) : NULL, loc_in(A(2))))); }
 static void t_uselocale(uint32_t *args, struct hres *r) { RET(loc_out(uselocale(loc_in(A(0))))); }
 static void t_freelocale(uint32_t *args, struct hres *r) { (void)r; if (A(0) && A(0) != 0xffffffffu) freelocale(loc_in(A(0))); }
+// ---- the per-locale C functions libc++ uses (locale_t through loc_in) -------------
+// end pointers point into the caller's string: hand back the same offset
+static g32 end_at(g32 start, const void *host_start, const void *host_end)
+{
+	return start + (g32)((const char *)host_end - (const char *)host_start);
+}
+static void t_strtod_l(uint32_t *args, struct hres *r)
+{
+	char *e;
+	const char *s = G2H(A(0));
+	double v = strtod_l(s, &e, loc_in(A(2)));
+	if (A(1)) U32(A(1)) = end_at(A(0), s, e);
+	r->st0 = v;
+	r->flags |= F_ST0;
+}
+static void t_strtof_l(uint32_t *args, struct hres *r)
+{
+	char *e;
+	const char *s = G2H(A(0));
+	float v = strtof_l(s, &e, loc_in(A(2)));
+	if (A(1)) U32(A(1)) = end_at(A(0), s, e);
+	r->st0 = v;
+	r->flags |= F_ST0;
+}
+static void t_strtold_l(uint32_t *args, struct hres *r)
+{
+	char *e;
+	const char *s = G2H(A(0));
+	long double v = strtold_l(s, &e, loc_in(A(2)));
+	if (A(1)) U32(A(1)) = end_at(A(0), s, e);
+	r->st0 = (double)v;
+	r->flags |= F_ST0;
+}
+static void t_strtold(uint32_t *args, struct hres *r)
+{
+	uint32_t a[3] = { A(0), A(1), 0 };
+	t_strtold_l(a, r);
+}
+static void t_strtoll_l(uint32_t *args, struct hres *r)
+{
+	char *e;
+	const char *s = G2H(A(0));
+	long long v = strtoll_l(s, &e, (int)A(2), loc_in(A(3)));
+	if (A(1)) U32(A(1)) = end_at(A(0), s, e);
+	RET64((uint64_t)v);
+}
+static void t_strtoull_l(uint32_t *args, struct hres *r)
+{
+	char *e;
+	const char *s = G2H(A(0));
+	unsigned long long v = strtoull_l(s, &e, (int)A(2), loc_in(A(3)));
+	if (A(1)) U32(A(1)) = end_at(A(0), s, e);
+	RET64(v);
+}
+static void t_mb_cur_max_l(uint32_t *args, struct hres *r) { RET(MB_CUR_MAX_L(loc_in(A(0)))); }
+static void t_tolower_l(uint32_t *args, struct hres *r) { RET(tolower_l((int)A(0), loc_in(A(1)))); }
+static void t_toupper_l(uint32_t *args, struct hres *r) { RET(toupper_l((int)A(0), loc_in(A(1)))); }
+static void t_maskrune_l(uint32_t *args, struct hres *r) { RET(__maskrune_l((int)A(0), A(1), loc_in(A(2)))); }
+static void t_btowc_l(uint32_t *args, struct hres *r) { RET(btowc_l((int)A(0), loc_in(A(1)))); }
+static void t_wctob_l(uint32_t *args, struct hres *r) { RET(wctob_l((wint_t)A(0), loc_in(A(1)))); }
+static void t_mbrlen_l(uint32_t *args, struct hres *r)
+{
+	RET(mbrlen_l(G2H(A(0)), A(1), A(2) ? G2H(A(2)) : NULL, loc_in(A(3))));
+}
+static void t_mbrtowc_l(uint32_t *args, struct hres *r)
+{
+	RET(mbrtowc_l(A(0) ? G2H(A(0)) : NULL, A(1) ? G2H(A(1)) : NULL, A(2), A(3) ? G2H(A(3)) : NULL, loc_in(A(4))));
+}
+static void t_mbtowc_l(uint32_t *args, struct hres *r)
+{
+	RET(mbtowc_l(A(0) ? G2H(A(0)) : NULL, A(1) ? G2H(A(1)) : NULL, A(2), loc_in(A(3))));
+}
+static void t_wcrtomb_l(uint32_t *args, struct hres *r)
+{
+	RET(wcrtomb_l(A(0) ? G2H(A(0)) : NULL, (wchar_t)A(1), A(2) ? G2H(A(2)) : NULL, loc_in(A(3))));
+}
+// (dst, const char **src, [nms,] len, mbstate *, locale): *src moves along the guest string
+static void t_mbsnrtowcs_l(uint32_t *args, struct hres *r)
+{
+	g32 g = U32(A(1));
+	const char *s = g ? G2H(g) : NULL, *h = s;
+	size_t n = mbsnrtowcs_l(A(0) ? G2H(A(0)) : NULL, &h, A(2), A(3), A(4) ? G2H(A(4)) : NULL, loc_in(A(5)));
+	U32(A(1)) = h ? end_at(g, s, h) : 0;
+	RET(n);
+}
+static void t_mbsrtowcs_l(uint32_t *args, struct hres *r)
+{
+	g32 g = U32(A(1));
+	const char *s = g ? G2H(g) : NULL, *h = s;
+	size_t n = mbsrtowcs_l(A(0) ? G2H(A(0)) : NULL, &h, A(2), A(3) ? G2H(A(3)) : NULL, loc_in(A(4)));
+	U32(A(1)) = h ? end_at(g, s, h) : 0;
+	RET(n);
+}
+static void t_wcsnrtombs_l(uint32_t *args, struct hres *r)
+{
+	g32 g = U32(A(1));
+	const wchar_t *s = g ? G2H(g) : NULL, *h = s;
+	size_t n = wcsnrtombs_l(A(0) ? G2H(A(0)) : NULL, &h, A(2), A(3), A(4) ? G2H(A(4)) : NULL, loc_in(A(5)));
+	U32(A(1)) = h ? end_at(g, s, h) : 0;
+	RET(n);
+}
+static void t_strcoll_l(uint32_t *args, struct hres *r) { RET(strcoll_l(G2H(A(0)), G2H(A(1)), loc_in(A(2)))); }
+static void t_strxfrm_l(uint32_t *args, struct hres *r) { RET(strxfrm_l(A(0) ? G2H(A(0)) : NULL, G2H(A(1)), A(2), loc_in(A(3)))); }
+static void t_wcscoll_l(uint32_t *args, struct hres *r) { RET(wcscoll_l(G2H(A(0)), G2H(A(1)), loc_in(A(2)))); }
+static void t_wcsxfrm_l(uint32_t *args, struct hres *r) { RET(wcsxfrm_l(A(0) ? G2H(A(0)) : NULL, G2H(A(1)), A(2), loc_in(A(3)))); }
+// snprintf_l(buf, size, locale, fmt, ...): mac32's printf only knows the C locale
+static void t_snprintf_l(uint32_t *args, struct hres *r)
+{
+	int n;
+	char *s = gvformat(G2H(A(3)), &args[4], &n);
+	if (A(1)) {
+		uint32_t c = (uint32_t)n < A(1) - 1 ? (uint32_t)n : A(1) - 1;
+		memcpy(G2H(A(0)), s, c);
+		((char *)G2H(A(0)))[c] = 0;
+	}
+	free(s);
+	RET(n);
+}
+static void t_asprintf_l(uint32_t *args, struct hres *r)
+{
+	int n;
+	char *s = gvformat(G2H(A(2)), &args[3], &n);
+	g32 g = gmalloc((uint32_t)n + 1);
+	memcpy(G2H(g), s, (size_t)n + 1);
+	free(s);
+	U32(A(0)) = g;
+	RET(n);
+}
+// struct timespec is {long, long}: 8 bytes on i386
+static void t_clock_gettime(uint32_t *args, struct hres *r)
+{
+	struct timespec t;
+	int rc = clock_gettime((clockid_t)A(0), &t);
+	if (!rc && A(1)) { U32(A(1)) = (uint32_t)t.tv_sec; U32(A(1) + 4) = (uint32_t)t.tv_nsec; }
+	RET(rc);
+}
+static void t_clock_getres(uint32_t *args, struct hres *r)
+{
+	struct timespec t;
+	int rc = clock_getres((clockid_t)A(0), &t);
+	if (!rc && A(1)) { U32(A(1)) = (uint32_t)t.tv_sec; U32(A(1) + 4) = (uint32_t)t.tv_nsec; }
+	RET(rc);
+}
+static uint64_t w_clock_gettime_nsec_np(uint32_t c) { return clock_gettime_nsec_np((clockid_t)c); }
+// message catalogs (std::messages): none
+static void t_catopen(uint32_t *args, struct hres *r) { (void)args; RET(0xffffffffu); }
+static void t_catgets(uint32_t *args, struct hres *r) { RET(A(3)); }	// the default string
+static void t_catclose(uint32_t *args, struct hres *r) { (void)args; RET(0); }
+
 static void init_cfprefs_app(g32 a) { U32(a) = hobj_wrap((void *)kCFPreferencesCurrentApplication); }
 static void init_in6addr_any(g32 a) { memset(G2H(a), 0, 16); }
 static int w_inet_pton(int af, const char *s, void *d) { return inet_pton(af, s, d); }
@@ -565,6 +717,17 @@ static struct hfn legacy_fns[] = {
 	R("_GetEventParameter", t_GetEventParameter), G("_SetEventParameter", w_SetEventParameter, "i:ouuup"),
 	G("_geteuid", w_geteuid, "u:"), G("_getgid", w_getgid, "u:"), G("_getegid", w_getegid, "u:"), G("_setuid", w_setuid, "i:u"),
 	G("_stpcpy", w_stpcpy, "u:up"), R("_strsep", t_strsep),
+	R("_strtod_l", t_strtod_l), R("_strtof_l", t_strtof_l), R("_strtold_l", t_strtold_l), R("_strtold", t_strtold),
+	R("_strtoll_l", t_strtoll_l), R("_strtoull_l", t_strtoull_l), R("____mb_cur_max_l", t_mb_cur_max_l),
+	R("____tolower_l", t_tolower_l), R("____toupper_l", t_toupper_l), R("___maskrune_l", t_maskrune_l),
+	R("_btowc_l", t_btowc_l), R("_wctob_l", t_wctob_l), R("_mbrlen_l", t_mbrlen_l), R("_mbrtowc_l", t_mbrtowc_l),
+	R("_mbtowc_l", t_mbtowc_l), R("_wcrtomb_l", t_wcrtomb_l), R("_mbsnrtowcs_l", t_mbsnrtowcs_l),
+	R("_mbsrtowcs_l", t_mbsrtowcs_l), R("_wcsnrtombs_l", t_wcsnrtombs_l), R("_strcoll_l", t_strcoll_l),
+	R("_strxfrm_l", t_strxfrm_l), R("_wcscoll_l", t_wcscoll_l), R("_wcsxfrm_l", t_wcsxfrm_l),
+	R("_snprintf_l", t_snprintf_l), R("_asprintf_l", t_asprintf_l),
+	R("_clock_gettime", t_clock_gettime), R("_clock_getres", t_clock_getres),
+	G("_clock_gettime_nsec_np", w_clock_gettime_nsec_np, "l:u"),
+	R("_catopen", t_catopen), R("_catgets", t_catgets), R("_catclose", t_catclose),
 	R("_newlocale", t_newlocale), R("_uselocale", t_uselocale), R("_freelocale", t_freelocale),
 	D("_kCFPreferencesCurrentApplication", 4, init_cfprefs_app), D("_in6addr_any", 16, init_in6addr_any),
 	G("_inet_pton", w_inet_pton, "i:ipp"), R("_inet_ntop", t_inet_ntop), G("_if_nametoindex", w_if_nametoindex, "u:p"),

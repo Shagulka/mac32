@@ -19,19 +19,23 @@ videos, mouse, keyboard, saves and Steam.
 | Portal 2 (Steam) | Plays start to finish. Survives long sessions and quits cleanly. |
 | Half-Life (25th anniversary build) | Menu, New Game and maps work. |
 | Portal, Half-Life 2 (Nov 2024 Mac builds) | Menus and maps draw. Valve's build cannot make fonts; mac32 patches that in memory (see [Game patches](#game-patches)). Sound and a full playthrough not tested. |
+| Counter-Strike 1.6 | Menu, and maps on a local server (de_dust2). Some menu background tiles draw as black stripes. |
+| Counter-Strike: Source (last Mac build) | Opens its OpenGL window and loads the game code, then stops at an older Steam interface (`SteamClient017`) mac32 cannot describe yet. Needs a launcher patch (below), and borrows Half-Life 2's `hl2_osx`, which its depot lost. |
+| ScummVM 1.1.1 | Runs games: Beneath a Steel Sky plays its intro. |
+| Tux Paint 0.9.21 | Starts and draws its full interface. |
 | DOSBox 0.74 | Starts, draws the DOS prompt and starts its sound. Keyboard not tested yet. |
+| Celestia 1.6.1 | Loads its data and opens its window, then reports an error it has not shown yet. |
 | OpenTTD 1.1.5 | Runs and draws the game. Sound not tested yet; `-s null -m null` turns it off. |
 | VLC 1.1.12 | Loads all 268 plugins and shows its main window; cannot open files yet. |
 | Firefox 3.6.28 | Starts, then stops at the first old Carbon call mac32 does not have. |
 
-Support for more apps is on the way, starting with ScummVM 1.1.1, Celestia
-1.6.1, Tux Paint 0.9.21 and Adium 1.4.5. To see whether an app will run, use
+Support for more apps is on the way. To see whether an app will run, use
 `mac32 check`: it lists the system calls the app needs that mac32 does not
 support yet.
 
 <p>
 <img src="docs/images/hl2-trainstation.jpg" width="49%" alt="Half-Life 2 under mac32">
-<img src="docs/images/dosbox-0.74.jpg" width="49%" alt="DOSBox 0.74 under mac32">
+<img src="docs/images/cs16-dust2.jpg" width="49%" alt="Counter-Strike 1.6 under mac32">
 </p>
 
 ## Download
@@ -130,6 +134,7 @@ the vendor is left alone. `MAC32_NOPATCH=1` turns them all off.
 | Game | Library and build | What is wrong | What the patch does |
 |---|---|---|---|
 | Half-Life 2, Portal (Nov 25 2024 Mac builds) | `bin/vguimatsurface.dylib`, SHA-256 `6d5d9660de74…` | Font creation was compiled out: `CFontManager::CreateOrFindWin32Font` stores a NULL font and the next lookup crashes. The leftover `COSXFont` class does not match the font interface the rest of the library uses, so no font could ever be made. | Replaces that function with one that makes mac32's own fonts, drawn with CoreText (`src/srcfont.m`), and registers the game's own `.ttf` files. |
+| Counter-Strike: Source (last Mac build) | `bin/launcher.dylib`, SHA-256 `7e48beb8d372…` | `CSDLMgr::CreateHiddenGameWindow` creates the game window only with `-vulkan`, and `-vulkan` needs `shaderapivk`, which the Mac build does not ship. Without it the game stops with "Failed to create SDL window". | Makes it create the window in OpenGL mode too, with the OpenGL flag (two bytes). |
 
 ## Troubleshooting
 

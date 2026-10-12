@@ -424,3 +424,31 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   render-callback trampoline (AudioBufferList entries are 12 bytes on i386, 16
   on x86_64), and AUGraph for DOSBox's MIDI synth.
 - DOSBox 0.74 starts, draws its prompt and starts sound output.
+
+## Step 14: QuickDraw windows, nibs, libc++, Counter-Strike (2026-10-11)
+- ScummVM 1.1.1 and Tux Paint 0.9.21 ship SDL 1.2.13, which draws windows
+  through QuickDraw: `src/quickdraw.m` gives them an NSQuickDrawView whose
+  port is a guest-memory PixMap, shown through the view's layer on
+  QDFlushPortBuffer. Old AudioUnit names ('aunt'/'out ') and the v1 input
+  callback for their sound. NSApplicationMain, and +poseAsClass: onto
+  NSApplication remembered for it. valloc was not page-aligned (GLib aborts).
+- Celestia 1.6.1: nib outlets never reached guest ivars. AppKit's connector
+  calls set<Outlet>: if the object answers it, else writes a host ivar; it
+  never uses KVC. Each guest object ivar without a setter now gets one.
+  Categories were lost when their module came before their class's. Drawing
+  from a background thread moves to the main thread (with the caller's GL
+  context); GL calls with no current context use the last one the program
+  made current. gen_api.py had treated FSRef * as an object out-pointer and
+  dropped earlier output on every run; both fixed. Celestia now loads and
+  then reports an error it has not shown yet (on hold).
+- Counter-Strike 1.6 (Half-Life folder, -game cstrike, app 10): menu and
+  de_dust2 on a local server. Menu background tiles have gaps.
+- Counter-Strike: Source, last Mac depot: no hl2_osx (Half-Life 2's works:
+  it loads bin/launcher.dylib from the current folder; MAC32_EXE_AS tells
+  the game its own folder). Links /usr/lib/libc++.1.dylib, so libc++ 17 is
+  now built as guest code (libmac32cxx2.dylib), with libc++abi's stdexcept
+  and the *_l locale functions it needs. Thread-local variables work
+  (guest/tlv.s). The launcher only creates a window with -vulkan, which also
+  asks for the missing shaderapivk: patched. It then loads client.dylib
+  (an older build: tier0's ThreadInterlocked* are host functions now) and
+  stops at SteamClient017, an interface version older than mac32's tables.

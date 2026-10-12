@@ -386,6 +386,35 @@ static void t_readdir_r(uint32_t *args, struct hres *r)	// (dir, entry, result *
 }
 static void t_rewinddir(uint32_t *args, struct hres *r) { (void)r; rewinddir(dirs[*(uint32_t *)G2H(A(0) + 264)]); }
 
+g32 mac32_tlv_addr(g32 desc);	// macho.c
+
+static void w_bcopy(const void *src, void *dst, uint32_t n) { memmove(dst, src, n); }
+// guest memory is mapped at the same addresses, so these act on it directly
+static int w_vm_protect(uint32_t task, uint32_t addr, uint32_t size, uint32_t set_max, int prot)
+{
+	(void)task;
+	return vm_protect(mach_task_self(), (vm_address_t)addr, size, set_max != 0, prot);
+}
+static int w_msync(void *p, uint32_t len, int flags) { return msync(p, len, flags); }
+static void w_arc4random_stir(void) { }
+static uint32_t w_wmemchr(const wchar_t *s, uint32_t c, uint32_t n) { const wchar_t *p = wmemchr(s, (wchar_t)c, n); return p ? H2G(p) : 0; }
+static uint32_t w_alGetProcAddress(const char *name) { (void)name; return 0; }	// no OpenAL extensions
+
+// Source tier0's atomic helpers. Newer tier0 builds made them inline, but
+// game modules built earlier (CS:S's client.dylib) still import them.
+static int32_t w_TIIncrement(int32_t *p) { return __atomic_add_fetch(p, 1, __ATOMIC_SEQ_CST); }
+static int32_t w_TIDecrement(int32_t *p) { return __atomic_sub_fetch(p, 1, __ATOMIC_SEQ_CST); }
+static int32_t w_TIExchange(int32_t *p, int32_t v) { return __atomic_exchange_n(p, v, __ATOMIC_SEQ_CST); }
+static int32_t w_TIExchangeAdd(int32_t *p, int32_t v) { return __atomic_fetch_add(p, v, __ATOMIC_SEQ_CST); }
+static int w_TIAssignIf(int32_t *p, int32_t v, int32_t cmp)
+{
+	return __atomic_compare_exchange_n(p, &cmp, v, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+static int w_TIAssignIf64(int64_t *p, int64_t v, int64_t cmp)
+{
+	return __atomic_compare_exchange_n(p, &cmp, v, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
 static struct hfn libc2[] = {
 	R("_sscanf", t_sscanf), R("_vsscanf", t_vsscanf), R("_fscanf", t_fscanf),
 	R("_stat", t_stat), R("_lstat", t_lstat), R("_fstat", t_fstat),
@@ -442,6 +471,14 @@ static struct hfn libc2[] = {
 	G("_mach_msg", mach_msg, "i:piuuuuu"),
 	G("_mach_port_allocate", mach_port_allocate, "i:uup"),
 	G("_mach_port_deallocate", mach_port_deallocate, "i:uu"),
+	G("_ThreadInterlockedIncrement", w_TIIncrement, "i:p"), G("_ThreadInterlockedDecrement", w_TIDecrement, "i:p"),
+	G("_ThreadInterlockedExchange", w_TIExchange, "i:pi"), G("_ThreadInterlockedExchangeAdd", w_TIExchangeAdd, "i:pi"),
+	G("_ThreadInterlockedExchangePointer", w_TIExchange, "i:pi"),
+	G("_ThreadInterlockedAssignIf", w_TIAssignIf, "b:pii"), G("_ThreadInterlockedAssignIf64", w_TIAssignIf64, "b:pll"),
+	G("_bcopy", w_bcopy, "v:ppu"), G("_vm_protect", w_vm_protect, "i:uuuui"), G("_msync", w_msync, "i:pui"),
+	G("_arc4random_stir", w_arc4random_stir, "v:"), G("_wmemchr", w_wmemchr, "u:puu"),
+	G("_alGetProcAddress", w_alGetProcAddress, "u:p"),
+	G("_mach_thread_self", mach_thread_self, "u:"), G("_mac32_tlv_addr", mac32_tlv_addr, "u:u"),
 	G("_mach_port_mod_refs", mach_port_mod_refs, "i:uuui"),
 	G("_mach_port_type", mach_port_type, "i:uup"),
 	R("_launch_data_alloc", t_ignore0), R("_launch_data_dict_insert", t_ignore0), R("_launch_data_free", t_ignore0),

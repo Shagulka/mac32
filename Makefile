@@ -42,7 +42,7 @@ VERSION ?= 0.1
 app: mac32 guest
 	mkdir -p $(APP)/Contents/MacOS/guest
 	cp mac32 $(APP)/Contents/MacOS/mac32
-	cp guest/libmac32rt.dylib guest/libmac32cxx.dylib guest/libmac32ios.dylib guest/selftest.dylib guest/extest.dylib $(APP)/Contents/MacOS/guest/
+	cp guest/libmac32rt.dylib guest/libmac32cxx.dylib guest/libmac32cxx2.dylib guest/libmac32ios.dylib guest/selftest.dylib guest/extest.dylib $(APP)/Contents/MacOS/guest/
 	mkdir -p $(APP)/Contents/Resources
 	cp bin/mac32 $(APP)/Contents/Resources/mac32
 	printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \

@@ -146,6 +146,7 @@ static void index_symbols(struct image *img)
 }
 
 int macho_section(struct image *img, const char *seg, const char *sect, g32 *addr, uint32_t *size);
+static void tlv_register(struct image *img, g32 vars, uint32_t size);
 static struct image *image_at(g32 a)
 {
 	for (struct image *img = images; img; img = img->next)
@@ -505,6 +506,7 @@ static int find_dylib(struct image *from, const char *name, char *out)
 static struct image *load_file(const char *rp);
 void objc_image_loaded(struct image *img);
 int macho_section(struct image *img, const char *seg, const char *sect, g32 *addr, uint32_t *size);
+static void tlv_register(struct image *img, g32 vars, uint32_t size);
 
 static void load_deps(struct image *img)
 {
@@ -636,8 +638,7 @@ static struct image *load_file(const char *path)
 	{
 		g32 a;
 		uint32_t sz;
-		if (macho_section(img, "__DATA", "__thread_vars", &a, &sz))
-			fprintf(stderr, "[mac32] warning: %s uses thread-local variables, which mac32 does not support yet\n", rp);
+		if (macho_section(img, "__DATA", "__thread_vars", &a, &sz)) tlv_register(img, a, sz);
 	}
 	if (img->mh->filetype == MH_EXECUTE && !main_image) main_image = img;
 
@@ -665,6 +666,46 @@ static struct image *load_file(const char *path)
 		mprotect(G2H(sg->vmaddr + (g32)img->slide), (sg->vmsize + 0xfff) & ~0xfffu, prot);
 	}
 	return img;
+}
+
+// ---- thread-local variables (see guest/tlv.s) ----------------------------------
+// Each image with __thread_vars gets a key; its template is the span of its
+// __thread_data and __thread_bss sections, and every thread gets its own copy
+// of that span the first time it touches one of the image's variables.
+enum { MAX_TLV = 64 };
+static struct { g32 start; uint32_t size; } tlv_tmpl[MAX_TLV];
+static int ntlv = 1;			// key 0 is unused
+static __thread g32 tlv_block[MAX_TLV];
+
+static void tlv_register(struct image *img, g32 vars, uint32_t size)
+{
+	g32 da = 0, ba = 0;
+	uint32_t dsz = 0, bsz = 0;
+	macho_section(img, "__DATA", "__thread_data", &da, &dsz);
+	macho_section(img, "__DATA", "__thread_bss", &ba, &bsz);
+	g32 start = da ? da : ba, end = da ? da + dsz : ba + bsz;
+	if (ba && ba < start) start = ba;
+	if (ba && ba + bsz > end) end = ba + bsz;
+	if (ntlv == MAX_TLV) die("too many images with thread-local variables");
+	int key = ntlv++;
+	tlv_tmpl[key].start = start;
+	tlv_tmpl[key].size = end - start;
+	// descriptors: {thunk (bound to __tlv_bootstrap), key, offset}
+	for (uint32_t o = 0; o + 12 <= size; o += 12) *(uint32_t *)G2H(vars + o + 4) = (uint32_t)key;
+	LOG("%s: %u thread-local variables, %u-byte template (key %d)\n", img->path, size / 12, end - start, key);
+}
+
+g32 mac32_tlv_addr(g32 desc)
+{
+	uint32_t key = *(uint32_t *)G2H(desc + 4), off = *(uint32_t *)G2H(desc + 8);
+	if (!key || key >= (uint32_t)ntlv) die("bad thread-local descriptor %#x (key %u)", desc, key);
+	if (!tlv_block[key]) {
+		uint32_t n = tlv_tmpl[key].size ? tlv_tmpl[key].size : 4;
+		g32 b = gcalloc(1, n);
+		if (tlv_tmpl[key].size) memcpy(G2H(b), G2H(tlv_tmpl[key].start), tlv_tmpl[key].size);
+		tlv_block[key] = b;	// one per thread, kept for the thread's life
+	}
+	return tlv_block[key] + off;
 }
 
 struct image *macho_load(const char *path) { return load_file(path); }

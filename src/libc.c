@@ -405,7 +405,12 @@ static void t_dlopen(uint32_t *args, struct hres *r)
 	if (is_system_path(p)) { LOG("dlopen(%s): host library\n", p); RET(SYS_HANDLE); return; }
 	if (p && strstr(p, "steamclient.dylib")) { LOG("dlopen(%s): Steam bridge\n", p); RET(STEAM_HANDLE); return; }
 	struct image *img = macho_dlopen(p);
-	if (!img) { snprintf(dlerr, sizeof dlerr, "dlopen(%s): image not found", p ? p : "NULL"); RET(0); return; }
+	if (!img) {
+		snprintf(dlerr, sizeof dlerr, "dlopen(%s): image not found", p ? p : "NULL");
+		LOG("%s\n", dlerr);	// with -v
+		RET(0);
+		return;
+	}
 	for (uint32_t i = 1; i < nhandles; i++) if (handles[i] == img) { RET(i * 16); return; }
 	handles[nhandles] = img;
 	RET(nhandles++ * 16);
