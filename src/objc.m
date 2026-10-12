@@ -552,6 +552,16 @@ static void call_host(id target, Class super_cls, SEL hsel, const char *selname,
 		gl_last_context = CGLGetCurrentContext();
 		return;
 	}
+	// +[ProgramApp sharedApplication] after mac32 made a plain NSApp (see
+	// mac32_early_app): give that object the program's class, so its
+	// sendEvent: and other overrides run (NSValveApplication, SDLApplication).
+	// Classes made from guest code add no host ivars, so the swap is safe.
+	if (!strcmp(selname, "sharedApplication") && object_isClass(target) && target != (id)[NSApplication class] &&
+	    [(Class)target isSubclassOfClass:[NSApplication class]] && NSApp &&
+	    object_getClass(NSApp) == [NSApplication class] && gclass_of_host((Class)target)) {
+		object_setClass(NSApp, (Class)target);
+		LOG("objc: NSApp is now a %s\n", class_getName((Class)target));
+	}
 	if (want_foreground && !strcmp(selname, "sharedApplication") && object_isClass(target)) {
 		NSApplication *had = NSApp;
 		call_host(target, super_cls, hsel, "sharedApplication (first)", ga, r, sret);

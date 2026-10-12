@@ -38,10 +38,95 @@ static void *sc_sym(const char *name)
 }
 
 // ---- interface proxies -------------------------------------------------------
-static const struct siface *find_iface(const char *version)
+// ---- older interface versions ------------------------------------------------
+// Layouts from older Steamworks SDKs, in vtable order, for interfaces whose
+// order changed later (ISteamGameServer 014 moved its deprecated calls and
+// dropped the heartbeat ones). Signatures come from the newest table by name.
+struct legacy { const char *version, *from; const char *names[64]; };
+static const struct legacy legacy_ifaces[] = {
+	// Steamworks 1.42-1.47 (the last SDKs with the SteamGameServer() accessor)
+	{ "SteamGameServer012", "SteamGameServer014", {
+		"InitGameServer", "SetProduct", "SetGameDescription", "SetModDir", "SetDedicatedServer", "LogOn",
+		"LogOnAnonymous", "LogOff", "BLoggedOn", "BSecure", "GetSteamID", "WasRestartRequested",
+		"SetMaxPlayerCount", "SetBotPlayerCount", "SetServerName", "SetMapName", "SetPasswordProtected",
+		"SetSpectatorPort", "SetSpectatorServerName", "ClearAllKeyValues", "SetKeyValue", "SetGameTags",
+		"SetGameData", "SetRegion", "SendUserConnectAndAuthenticate", "CreateUnauthenticatedUserConnection",
+		"SendUserDisconnect", "BUpdateUserData", "GetAuthSessionTicket", "BeginAuthSession", "EndAuthSession",
+		"CancelAuthTicket", "UserHasLicenseForApp", "RequestUserGroupStatus", "GetGameplayStats",
+		"GetServerReputation", "GetPublicIP", "HandleIncomingPacket", "GetNextOutgoingPacket",
+		"EnableHeartbeats", "SetHeartbeatInterval", "ForceHeartbeat", "AssociateWithClan",
+		"ComputeNewPlayerCompatibility", NULL } },
+	// Steamworks 1.39-1.41 (Counter-Strike: Source's client.dylib)
+	{ "SteamClient017", "SteamClient020", {
+		"CreateSteamPipe", "BReleaseSteamPipe", "ConnectToGlobalUser", "CreateLocalUser", "ReleaseUser",
+		"GetISteamUser", "GetISteamGameServer", "SetLocalIPBinding", "GetISteamFriends", "GetISteamUtils",
+		"GetISteamMatchmaking", "GetISteamMatchmakingServers", "GetISteamGenericInterface",
+		"GetISteamUserStats", "GetISteamGameServerStats", "GetISteamApps", "GetISteamNetworking",
+		"GetISteamRemoteStorage", "GetISteamScreenshots", "RunFrame", "GetIPCCallCount",
+		"SetWarningMessageHook", "BShutdownIfAllPipesClosed", "GetISteamHTTP",
+		"DEPRECATED_GetISteamUnifiedMessages", "GetISteamController", "GetISteamUGC", "GetISteamAppList",
+		"GetISteamMusic", "GetISteamMusicRemote", "GetISteamHTMLSurface",
+		"DEPRECATED_Set_SteamAPI_CPostAPIResultInProcess", "DEPRECATED_Remove_SteamAPI_CPostAPIResultInProcess",
+		"Set_SteamAPI_CCheckCallbackRegisteredInProcess", "GetISteamInventory", "GetISteamVideo",
+		"GetISteamParentalSettings", NULL } },
+	{ 0 }
+};
+// methods only old versions have
+static const struct smethod legacy_extra[] = {
+	{ "EnableHeartbeats", NULL, "v:oB", 0, -1 }, { "SetHeartbeatInterval", NULL, "v:oi", 0, -1 },
+	{ "ForceHeartbeat", NULL, "v:o", 0, -1 }, { "RunFrame", NULL, "v:o", 0, -1 },
+	{ "GetIPCCallCount", NULL, "u:o", 0, -1 },
+	{ "DEPRECATED_GetISteamUnifiedMessages", NULL, "o:oiip", 3, -1 },
+	{ NULL }
+};
+
+static const struct siface *exact_iface(const char *version)
 {
 	for (const struct siface *i = steam_ifaces; i->cls; i++)
 		if (!strcmp(i->version, version)) return i;
+	return NULL;
+}
+
+static const struct siface *legacy_iface(const char *version)
+{
+	static struct siface *made[16];
+	for (int L = 0; legacy_ifaces[L].version; L++) {
+		const struct legacy *lg = &legacy_ifaces[L];
+		if (strcmp(lg->version, version)) continue;
+		if (made[L]) return made[L];
+		const struct siface *from = exact_iface(lg->from);
+		if (!from) return NULL;
+		int n = 0;
+		while (lg->names[n]) n++;
+		struct smethod *m = calloc((size_t)n, sizeof *m);
+		for (int k = 0; k < n; k++) {
+			const char *want = lg->names[k];
+			const struct smethod *src = NULL;
+			for (int j = 0; j < from->n && !src; j++) {
+				const char *have = from->m[j].name;
+				size_t wl = strlen(want);
+				if (!strcmp(have, want) || (!strncmp(have, want, wl) && !strcmp(have + wl, "_DEPRECATED"))) src = &from->m[j];
+			}
+			for (int j = 0; legacy_extra[j].name && !src; j++) if (!strcmp(legacy_extra[j].name, want)) src = &legacy_extra[j];
+			m[k] = src ? *src : (struct smethod){ want, NULL, "X:o", 0, -1 };
+			m[k].name = want;
+			m[k].flat = NULL;
+			m[k].slot = k;		// fixed: the SDK order above
+		}
+		struct siface *in = calloc(1, sizeof *in);
+		*in = (struct siface){ from->cls, lg->version, n, m };
+		LOG("steam: %s laid out from the older SDK order (%d methods)\\n", version, n);
+		return made[L] = in;
+	}
+	return NULL;
+}
+
+static const struct siface *find_iface(const char *version)
+{
+	const struct siface *exact = exact_iface(version);
+	if (exact) return exact;
+	const struct siface *old = legacy_iface(version);
+	if (old) return old;
 	// A newer version than our tables know (SteamClient021): borrow the names
 	// and signatures of the newest known one. Slots still come from probing
 	// the game's own wrappers, which match the version it asked for; methods
@@ -55,8 +140,30 @@ static const struct siface *find_iface(const char *version)
 		    i->version[pl] >= '0' && i->version[pl] <= '9' && atoi(i->version + pl) < want &&
 		    (!best || atoi(i->version + pl) > atoi(best->version + pl)))
 			best = i;	// older interfaces had other layouts: those stay unbridged
-	if (best) fprintf(stderr, "[mac32] steam: %s is newer than our tables; using %s's methods\n", version, best->version);
-	return best;
+	if (best) {
+		fprintf(stderr, "[mac32] steam: %s is newer than our tables; using %s's methods\n", version, best->version);
+		return best;
+	}
+	// Older than our tables: most interfaces only ever gained methods at the
+	// end, so the nearest newer layout begins with the older one. Copy it
+	// under the old name, with SDK-order slots (the game's own wrappers, if
+	// any, describe a different version).
+	const struct siface *next = NULL;
+	for (const struct siface *i = steam_ifaces; i->cls; i++)
+		if (!strncmp(i->version, version, pl) && strlen(i->version) > pl &&
+		    i->version[pl] >= '0' && i->version[pl] <= '9' && atoi(i->version + pl) > want &&
+		    (!next || atoi(i->version + pl) < atoi(next->version + pl)))
+			next = i;
+	if (!next) return NULL;
+	static struct siface older[32];
+	static int nolder;
+	for (int i = 0; i < nolder; i++) if (!strcmp(older[i].version, version)) return &older[i];
+	if (nolder == 32) return NULL;
+	struct smethod *m = calloc((size_t)next->n, sizeof *m);
+	for (int k = 0; k < next->n; k++) { m[k] = next->m[k]; m[k].flat = NULL; m[k].slot = k; }
+	older[nolder] = (struct siface){ next->cls, strdup(version), next->n, m };
+	fprintf(stderr, "[mac32] steam: %s is older than our tables; using the start of %s's methods\n", version, next->version);
+	return &older[nolder++];
 }
 
 // ---- vtable layout, measured from the game's own libsteam_api ---------------
@@ -331,8 +438,43 @@ ACCESSOR(t_SteamUser, "_SteamAPI_SteamUser_v023", "_SteamAPI_SteamUser_v022", "_
 ACCESSOR(t_SteamFriends, "_SteamAPI_SteamFriends_v017")
 ACCESSOR(t_SteamHTTP, "_SteamAPI_SteamHTTP_v003")
 ACCESSOR(t_SteamUtils, "_SteamAPI_SteamUtils_v010")
+// the rest of the old accessors, on this libsteam_api's versioned ones
+ACCESSOR(t_SteamMatchmaking, "_SteamAPI_SteamMatchmaking_v009")
+ACCESSOR(t_SteamMatchmakingServers, "_SteamAPI_SteamMatchmakingServers_v002")
+ACCESSOR(t_SteamNetworking, "_SteamAPI_SteamNetworking_v006")
+ACCESSOR(t_SteamRemoteStorage, "_SteamAPI_SteamRemoteStorage_v016")
+ACCESSOR(t_SteamScreenshots, "_SteamAPI_SteamScreenshots_v003")
+ACCESSOR(t_SteamUGC, "_SteamAPI_SteamUGC_v016")
+ACCESSOR(t_SteamAppList, "_SteamAPI_SteamAppList_v001")
+ACCESSOR(t_SteamController, "_SteamAPI_SteamController_v008")
+ACCESSOR(t_SteamMusic, "_SteamAPI_SteamMusic_v001")
+ACCESSOR(t_SteamMusicRemote, "_SteamAPI_SteamMusicRemote_v001")
+ACCESSOR(t_SteamHTMLSurface, "_SteamAPI_SteamHTMLSurface_v005")
+ACCESSOR(t_SteamInventory, "_SteamAPI_SteamInventory_v003")
+ACCESSOR(t_SteamVideo, "_SteamAPI_SteamVideo_v002")
+ACCESSOR(t_SteamParentalSettings, "_SteamAPI_SteamParentalSettings_v001")
+ACCESSOR(t_SteamGameServerUtils, "_SteamAPI_SteamGameServerUtils_v010")
+ACCESSOR(t_SteamGameServerNetworking, "_SteamAPI_SteamGameServerNetworking_v006")
+ACCESSOR(t_SteamGameServerStats, "_SteamAPI_SteamGameServerStats_v001")
+ACCESSOR(t_SteamGameServerHTTP, "_SteamAPI_SteamGameServerHTTP_v003")
+ACCESSOR(t_SteamGameServerUGC, "_SteamAPI_SteamGameServerUGC_v016")
+ACCESSOR(t_SteamGameServerInventory, "_SteamAPI_SteamGameServerInventory_v003")
 ACCESSOR(t_SteamUserStats, "_SteamAPI_SteamUserStats_v013", "_SteamAPI_SteamUserStats_v012", "_SteamAPI_SteamUserStats_v011")
-ACCESSOR(t_SteamGameServer, "_SteamAPI_SteamGameServer_v015", "_SteamAPI_SteamGameServer_v014", "_SteamAPI_SteamGameServer_v013")
+// ISteamGameServer changed order in 013/014, so a game that imports the
+// old SteamGameServer() accessor gets the version its SDK had: 012
+static void t_SteamGameServer(uint32_t *args, struct hres *r)
+{
+	(void)args;
+	static g32 user, find, ver;
+	if (!find) {
+		user = macho_find_any("_SteamGameServer_GetHSteamUser");
+		find = macho_find_any("_SteamInternal_FindOrCreateGameServerInterface");
+		ver = gstrdup("SteamGameServer012");
+		if (!user || !find) die("this libsteam_api cannot make a SteamGameServer012 interface");
+	}
+	uint32_t h = (uint32_t)gcall(user, 0);
+	RET(h ? (uint32_t)gcall(find, 2, h, ver) : 0);	// libsteam_api keeps one per user
+}
 // old SteamGameServer_Init(ip, steamPort, gamePort, queryPort, mode, version)
 // has the arguments of the new SteamInternal_GameServer_Init
 static void t_SteamGameServer_Init(uint32_t *args, struct hres *r)
@@ -342,6 +484,26 @@ static void t_SteamGameServer_Init(uint32_t *args, struct hres *r)
 }
 
 static struct hfn sc[] = {
+	R("_SteamMatchmaking", t_SteamMatchmaking),
+	R("_SteamMatchmakingServers", t_SteamMatchmakingServers),
+	R("_SteamNetworking", t_SteamNetworking),
+	R("_SteamRemoteStorage", t_SteamRemoteStorage),
+	R("_SteamScreenshots", t_SteamScreenshots),
+	R("_SteamUGC", t_SteamUGC),
+	R("_SteamAppList", t_SteamAppList),
+	R("_SteamController", t_SteamController),
+	R("_SteamMusic", t_SteamMusic),
+	R("_SteamMusicRemote", t_SteamMusicRemote),
+	R("_SteamHTMLSurface", t_SteamHTMLSurface),
+	R("_SteamInventory", t_SteamInventory),
+	R("_SteamVideo", t_SteamVideo),
+	R("_SteamParentalSettings", t_SteamParentalSettings),
+	R("_SteamGameServerUtils", t_SteamGameServerUtils),
+	R("_SteamGameServerNetworking", t_SteamGameServerNetworking),
+	R("_SteamGameServerStats", t_SteamGameServerStats),
+	R("_SteamGameServerHTTP", t_SteamGameServerHTTP),
+	R("_SteamGameServerUGC", t_SteamGameServerUGC),
+	R("_SteamGameServerInventory", t_SteamGameServerInventory),
 	R("_SteamApps", t_SteamApps), R("_SteamUser", t_SteamUser), R("_SteamFriends", t_SteamFriends),
 	R("_SteamHTTP", t_SteamHTTP), R("_SteamUtils", t_SteamUtils), R("_SteamUserStats", t_SteamUserStats),
 	R("_SteamGameServer", t_SteamGameServer), R("_SteamGameServer_Init", t_SteamGameServer_Init),
