@@ -284,6 +284,8 @@ int main(int argc, char **argv)
 	if ((a = macho_sym(img, "_NXArgv"))) *(g32 *)G2H(a) = g_argv;
 	if ((a = macho_sym(img, "_environ"))) *(g32 *)G2H(a) = g_envp;
 	if ((a = macho_sym(img, "___progname"))) *(g32 *)G2H(a) = g_progname;
+	extern void mac32_early_app(void);	// objc.m
+	mac32_early_app();
 	macho_run_initializers(img);
 	if (mainfn) {		// LC_MAIN: dyld calls main(argc, argv, envp, apple) and exits with its result
 		LOG("calling main at %#x\n", mainfn);

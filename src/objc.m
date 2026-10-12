@@ -10,6 +10,7 @@
 // NSInteger was int, BOOL was char, NSRect returns through a hidden pointer).
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
+#import <ApplicationServices/ApplicationServices.h>
 #import <OpenGL/OpenGL.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
@@ -24,6 +25,7 @@
 @end
 
 static pthread_mutex_t lk = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
+static int want_foreground;	// see mac32_become_foreground
 
 // ---- u64 -> u64 hash map -------------------------------------------------
 struct map { uint64_t *k, *v; uint32_t cap, n; };
@@ -548,6 +550,12 @@ static void call_host(id target, Class super_cls, SEL hsel, const char *selname,
 	if (!strcmp(selname, "makeCurrentContext") && [target isKindOfClass:[NSOpenGLContext class]]) {
 		[(NSOpenGLContext *)target makeCurrentContext];
 		gl_last_context = CGLGetCurrentContext();
+		return;
+	}
+	if (want_foreground && !strcmp(selname, "sharedApplication") && object_isClass(target)) {
+		NSApplication *had = NSApp;
+		call_host(target, super_cls, hsel, "sharedApplication (first)", ga, r, sret);
+		if (!had && NSApp) [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 		return;
 	}
 	if (ui_on_main(target, selname)) {
@@ -1704,6 +1712,42 @@ static id preprocess(id exc)
 		for (NSString *l in [NSThread callStackSymbols]) fprintf(stderr, "  %s\n", l.UTF8String);
 	}
 	return prev_pre ? prev_pre(exc) : exc;
+}
+
+// Becoming a foreground app. Old programs do it with the Carbon calls
+// TransformProcessType / CPSEnableForegroundOperation, often before NSApp
+// exists; done that way on current macOS, the process's windows never reach
+// the screen though AppKit reports them visible (Half-Life). So those calls
+// come here, and the activation policy is set through AppKit: now if NSApp
+// exists, else as soon as the program creates it (keeping its own
+// NSApplication subclass).
+void mac32_become_foreground(void)
+{
+	want_foreground = 1;
+	if (!NSApp) return;
+	void (^set)(void) = ^{ [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular]; };
+	if ([NSThread isMainThread]) set();
+	else dispatch_async(dispatch_get_main_queue(), set);
+}
+
+// Called just before the program's own code runs. Creating NSApp with a
+// regular activation policy this early is what lets the program's windows
+// reach the screen (see mac32_become_foreground). Use the program's own
+// NSApplication subclass when it has one loaded by now: the bundle's
+// NSPrincipalClass, else the first subclass it defines.
+void mac32_early_app(void)
+{
+	Class c = Nil;
+	NSString *pc = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSPrincipalClass"];
+	if (pc) c = NSClassFromString(pc);
+	for (int i = 0; i < ngclasses && !(c && [c isSubclassOfClass:[NSApplication class]] && c != [NSApplication class]); i++) {
+		Class h = ensure_host_class(gclasses[i]);
+		if ([h isSubclassOfClass:[NSApplication class]]) c = h;
+	}
+	if (!c || ![c isSubclassOfClass:[NSApplication class]]) c = [NSApplication class];
+	[c sharedApplication];
+	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+	LOG("objc: NSApp is a %s\n", class_getName(object_getClass(NSApp)));
 }
 
 void thunks_objc_init(void)

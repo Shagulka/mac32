@@ -248,6 +248,8 @@ static void steam_method(struct hfn *h, uint32_t *args, struct hres *r)
 		die("Steam method %s is not bridged yet (signature %s)", h->name, m->sig);
 	void *self = hobj_unwrap(args[0]);
 	void *fn = (*(void ***)self)[h->size];
+	if (getenv("MAC32_STEAMARGS") && strstr(m->name, getenv("MAC32_STEAMARGS")))
+		fprintf(stderr, "[steamargs] %s: %08x %08x %08x %08x %08x %08x\n", m->name, args[1], args[2], args[3], args[4], args[5], args[6]);
 	if (m->sig[0] == 'I') {
 		char s2[64];
 		snprintf(s2, sizeof s2, "h%s", m->sig + 1);	// raw host pointer back

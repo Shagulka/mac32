@@ -18,7 +18,9 @@ static int w_Gestalt(uint32_t sel, int32_t *resp) { SInt32 v = 0; OSErr e = Gest
 // macOS ignores; ask AppKit as well.
 static int w_SetFrontProcess(const ProcessSerialNumber *p)
 {
-	int rc = SetFrontProcess(p);
+	// the Carbon call, made this early, also keeps windows off the screen
+	int self = p && !p->highLongOfPSN && p->lowLongOfPSN == kCurrentProcess;
+	int rc = self ? 0 : SetFrontProcess(p);
 	dispatch_async(dispatch_get_main_queue(), ^{
 		[[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateAllWindows];
 	});
@@ -26,17 +28,22 @@ static int w_SetFrontProcess(const ProcessSerialNumber *p)
 }
 // Old SDL's main uses the private CPS calls to become a foreground app;
 // both only ever name the current process.
-static int w_CPSEnableForegroundOperation(void *psn)
-{
-	ProcessSerialNumber me = { 0, kCurrentProcess };
-	return TransformProcessType(&me, kProcessTransformToForegroundApplication);
-}
+void mac32_become_foreground(void);	// objc.m
+static int w_CPSEnableForegroundOperation(void *psn) { (void)psn; mac32_become_foreground(); return 0; }
 static int w_CPSSetFrontProcess(void *psn)
 {
 	ProcessSerialNumber me = { 0, kCurrentProcess };
 	return w_SetFrontProcess(&me);
 }
-static int w_TransformProcessType(const ProcessSerialNumber *p, uint32_t t) { return TransformProcessType(p, t); }
+static int w_TransformProcessType(const ProcessSerialNumber *p, uint32_t t)
+{
+	// only the current process: become a foreground app through AppKit (objc.m)
+	if (t == kProcessTransformToForegroundApplication && p && !p->highLongOfPSN && p->lowLongOfPSN == kCurrentProcess) {
+		mac32_become_foreground();
+		return 0;
+	}
+	return TransformProcessType(p, t);
+}
 static int w_SetSystemUIMode(uint32_t m, uint32_t o) { return SetSystemUIMode(m, o); }
 // The launcher's mouseDown:/mouseUp: read the buttons here instead of from
 // the event. Carbon defined it as the state as of the event being handled, so
