@@ -487,3 +487,6 @@ VLC 1.1.12 and 1.0.5 (videolan.org), Firefox 3.6.28 (mozilla.org), OpenTTD
   the Mac download cannot run on any Mac as is. On hold.
 - Test runs now go through Haiku subagents with fixed scripts (launch, poll
   the log, collect lines, stop by PID).
+- Counter-Strike 1.6 played on official VAC-secured servers (tested by Boris
+  on his own account, 2026-10-12). mac32 changes nothing in VAC; CS 1.6 needs
+  no game patch.

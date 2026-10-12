@@ -19,7 +19,7 @@ videos, mouse, keyboard, saves and Steam.
 | Portal 2 (Steam) | Plays start to finish. Survives long sessions and quits cleanly. |
 | Half-Life (25th anniversary build) | Menu, New Game and maps work. |
 | Portal, Half-Life 2 (Nov 2024 Mac builds) | Menus and maps load. Valve's build cannot make fonts; mac32 patches that in memory (see [Game patches](#game-patches)). Sound and a full playthrough not tested. |
-| Counter-Strike 1.6 | Menu, maps, and multiplayer servers you host yourself. Some menu background tiles draw as black stripes. Official servers not tried. |
+| Counter-Strike 1.6 | Plays online on official VAC-secured servers, and on servers you host yourself. Some menu background tiles draw as black stripes. |
 | Counter-Strike: Source (last Mac build) | Does not run. Valve's last Mac download is inconsistent: its game code was built against an older engine library (`tier0`) than the one it ships with, so it cannot run on any Mac as downloaded. mac32 gets it as far as starting the game code (a launcher patch, Half-Life 2's borrowed `hl2_osx`, older Steam interfaces). |
 | ScummVM 1.1.1 | Runs games: Beneath a Steel Sky plays its intro. |
 | Tux Paint 0.9.21 | Starts and draws its full interface. |
@@ -173,12 +173,13 @@ and the end of its log. To add support for a missing function, see
 
 ## Known limitations
 
-- Games run in single-player or on your own servers. mac32 does not touch
-  anti-cheat or ownership checks.
+- mac32 does not touch ownership checks: Steam still checks that you own each
+  game.
 - mac32 does not include any games or Apple files; you use your own copies.
 - Game controllers, voice chat input and QuickTime video are not supported yet.
-- Online play on servers protected by VAC has not been tried; mac32 does not
-  change anti-cheat, but VAC could still object to how the game is loaded.
+- mac32 does not change anti-cheat. Counter-Strike 1.6 has played on VAC-secured
+  servers; games that need an in-memory patch (see above) are best kept to
+  servers without VAC, since VAC may treat changed game memory as tampering.
 - Signals are not delivered to 32-bit code.
 
 ## Credits and license
