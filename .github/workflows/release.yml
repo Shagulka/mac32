@@ -22,7 +22,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Pick the version
         id: version
@@ -33,7 +33,7 @@ jobs:
           echo "Building mac32 $v"
 
       - name: Cache the LLVM sources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .deps/llvm-project
           key: llvm-17.0.6-runtimes-${{ hashFiles('tools/get-llvm.sh') }}
@@ -54,7 +54,7 @@ jobs:
       - name: Package
         run: make dist VERSION=${{ steps.version.outputs.version }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: mac32-${{ steps.version.outputs.version }}-macos
           path: |
@@ -69,7 +69,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: mac32-${{ needs.build.outputs.version }}-macos
           path: dist
