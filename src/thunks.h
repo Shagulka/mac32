@@ -42,6 +42,7 @@ void thunks_legacy_init(void);
 void thunks_cg_init(void);
 void thunks_cf_init(void);
 void thunks_carbon_init(void);
+void thunks_qd_init(void);
 
 // raw thunk helpers
 #define A(i) (args[i])

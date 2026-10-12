@@ -225,6 +225,7 @@ enum { MAXBUF = 8 };
 struct gunit {
 	AudioUnit u;
 	g32 proc, refcon;		// guest AURenderCallback
+	int v1;				// proc is a pre-10.2 AudioUnitInputCallback
 	g32 flags, ts, abl;		// guest scratch: flags, AudioTimeStamp (64 bytes), buffer list
 	g32 data[MAXBUF];
 	uint32_t cap[MAXBUF];
@@ -286,7 +287,10 @@ static OSStatus unit_render(void *ud, AudioUnitRenderActionFlags *flags, const A
 	}
 	*(uint32_t *)G2H(g->flags) = flags ? *flags : 0;
 	if (ts) memcpy(G2H(g->ts), ts, 64);
-	OSStatus s = (OSStatus)gcall(g->proc, 6, g->refcon, g->flags, ts ? g->ts : 0, bus, frames, n ? g->abl : 0);
+	OSStatus s = g->v1
+		// (refCon, flags, timeStamp, bus, AudioBuffer *): one interleaved buffer
+		? (OSStatus)gcall(g->proc, 5, g->refcon, g->flags, ts ? g->ts : 0, bus, n ? g->abl + 4 : 0)
+		: (OSStatus)gcall(g->proc, 6, g->refcon, g->flags, ts ? g->ts : 0, bus, frames, n ? g->abl : 0);
 	if (flags) *flags = *(uint32_t *)G2H(g->flags);
 	for (uint32_t i = 0; i < n; i++) {
 		AudioBuffer *b = &io->mBuffers[i];
@@ -302,8 +306,16 @@ static OSStatus unit_render(void *ud, AudioUnitRenderActionFlags *flags, const A
 static void t_FindNextComponent(uint32_t *args, struct hres *r)
 {
 	// (Component previous, ComponentDescription *): the description has the
-	// same five UInt32s as AudioComponentDescription
-	AudioComponent c = AudioComponentFindNext(A(0) ? hobj_unwrap(A(0)) : NULL, G2H(A(1)));
+	// same five UInt32s as AudioComponentDescription. Programs from before
+	// 10.2 (SDL 1.2.13) ask for output units by the old names: type 'aunt',
+	// subtype 'out ', with the unit ('def ', 'sys ', 'ahal') as the maker.
+	AudioComponentDescription d = *(AudioComponentDescription *)G2H(A(1));
+	if (d.componentType == 'aunt' && d.componentSubType == 'out ') {
+		d.componentType = kAudioUnitType_Output;
+		d.componentSubType = d.componentManufacturer;
+		d.componentManufacturer = kAudioUnitManufacturer_Apple;
+	}
+	AudioComponent c = AudioComponentFindNext(A(0) ? hobj_unwrap(A(0)) : NULL, &d);
 	RET(c ? hobj_wrap(c) : 0);
 }
 static void t_OpenAComponent(uint32_t *args, struct hres *r)
@@ -333,11 +345,19 @@ static void t_AudioUnitSetProperty(uint32_t *args, struct hres *r)
 {
 	// unit, id, scope, element, data, size
 	AudioUnit u = hobj_unwrap(A(0));
-	if (A(1) == kAudioUnitProperty_SetRenderCallback && A(4)) {
+	// 7 is kAudioUnitProperty_SetInputCallback from before 10.2 (SDL 1.2.13)
+	if ((A(1) == kAudioUnitProperty_SetRenderCallback || A(1) == 7) && A(4)) {
 		struct gunit *g = unit_of(u, 1);
 		uint32_t *cb = G2H(A(4));
 		g->proc = cb[0];
 		g->refcon = cb[1];
+		g->v1 = A(1) == 7;
+		if (g->v1) {
+			AURenderCallbackStruct h = { g->proc ? unit_render : NULL, g };
+			LOG("audio: old-style input callback %#x on unit %#x\n", g->proc, A(0));
+			RET(AudioUnitSetProperty(u, kAudioUnitProperty_SetRenderCallback, A(2), A(3), &h, sizeof h));
+			return;
+		}
 		AURenderCallbackStruct h = { g->proc ? unit_render : NULL, g };
 		LOG("audio: render callback %#x on unit %#x\n", g->proc, A(0));
 		RET(AudioUnitSetProperty(u, A(1), A(2), A(3), &h, sizeof h));

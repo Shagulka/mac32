@@ -721,6 +721,8 @@ static int window_context(id target, const char *sel, const uint32_t *ga, struct
 	return 0;
 }
 
+static void pose_as(Class poser, g32 gtarget);
+
 // NSBitmapImageRep pixel memory must sit below 4 GB for 32-bit code to touch
 // it. When the program lets AppKit allocate the planes, allocate them in guest
 // memory instead and hand them over; they are freed with the image rep.
@@ -882,6 +884,7 @@ static void msgsend(uint32_t *a, struct hres *r, int kind)
 	if ([target isKindOfClass:[NSBitmapImageRep class]] && bitmap_rep(target, sel, ga, r)) return;
 	if ((target == (id)[NSGraphicsContext class] || [target isKindOfClass:[NSGraphicsContext class]]) &&
 	    window_context(target, sel, ga, r)) return;
+	if (!strcmp(sel, "poseAsClass:") && class_isMetaClass(object_getClass(target))) { pose_as(target, ga[0]); return; }
 	if (!strcmp(sel, "stringWithFormat:")) {	// variadic: NSInvocation cannot carry it
 		NSString *fmt = objc_unwrap(ga[0]);
 		int n;
@@ -1116,6 +1119,41 @@ static Class ensure_host_class(struct gclass *gc)
 	}
 	pthread_mutex_unlock(&lk);
 	return gc->host;
+}
+
+// ---- posing and NSApplicationMain --------------------------------------------------
+// +poseAsClass: is gone from the 64-bit runtime. Programs used it to put their
+// NSApplication subclass in NSApplication's place before NSApplicationMain
+// (SDL 1.2's SDLMain); remember the subclass and make the app from it.
+static Class app_poser;
+static void pose_as(Class poser, g32 gtarget)
+{
+	Class target = objc_unwrap(gtarget);
+	if (target == [NSApplication class] && [poser isSubclassOfClass:target]) {
+		app_poser = poser;
+		LOG("objc: %s poses as NSApplication\n", class_getName(poser));
+	} else {
+		LOG("objc: %s poseAsClass:%s ignored\n", class_getName(poser), class_getName(target));
+	}
+}
+
+// NSApplicationMain(argc, argv): the principal class's shared app, the main
+// nib, then the run loop
+static void t_NSApplicationMain(uint32_t *args, struct hres *r)
+{
+	(void)args;
+	NSBundle *b = [NSBundle mainBundle];
+	NSString *pc = [b objectForInfoDictionaryKey:@"NSPrincipalClass"];
+	Class c = pc ? NSClassFromString(pc) : nil;
+	if (!c || ![c isSubclassOfClass:[NSApplication class]]) c = [NSApplication class];
+	if (app_poser && [app_poser isSubclassOfClass:c]) c = app_poser;
+	NSApplication *app = [c sharedApplication];
+	NSString *nib = [b objectForInfoDictionaryKey:@"NSMainNibFile"];
+	LOG("objc: NSApplicationMain: %s, nib %s\n", class_getName(c), nib ? nib.UTF8String : "(none)");
+	if (nib && ![b loadNibNamed:nib owner:app topLevelObjects:nil])
+		LOG("objc: could not load the main nib %s\n", nib.UTF8String);
+	[app run];
+	RET(0);
 }
 
 // ---- the guest app's bundle stands in for the main bundle ---------------------------
@@ -1459,6 +1497,7 @@ static void t_sel_registerName(uint32_t *args, struct hres *r) { pthread_mutex_l
 static void t_sel_getName(uint32_t *args, struct hres *r) { RET(A(0)); }
 
 static struct hfn objc_fns[] = {
+	R("_NSApplicationMain", t_NSApplicationMain),
 	R("_objc_msgSend", t_msgSend), R("_objc_msgSend_stret", t_msgSend_stret),
 	R("_objc_msgSend_fpret", t_msgSend_fpret), R("_objc_msgSendSuper", t_msgSendSuper),
 	R("_objc_msgSendSuper_stret", t_msgSendSuper_stret),

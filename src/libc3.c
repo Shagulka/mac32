@@ -121,6 +121,56 @@ static void t_getpwuid(uint32_t *args, struct hres *r)
 	RET(pw_buf);
 }
 
+static void t_getpwnam(uint32_t *args, struct hres *r)
+{
+	struct passwd *p = getpwnam(G2H(A(0)));
+	if (!p) { RET(0); return; }
+	uint32_t a[1] = { p->pw_uid };
+	t_getpwuid(a, r);
+}
+// getpwnam_r/getpwuid_r(key, struct passwd *, char *buf, size_t, struct passwd **):
+// the strings go into the caller's buffer, as libc does
+static int pw_put(struct passwd *p, g32 gpw, g32 buf, uint32_t len)
+{
+	const char *s[6] = { p->pw_name, p->pw_passwd ? p->pw_passwd : "", p->pw_class ? p->pw_class : "",
+			     p->pw_gecos ? p->pw_gecos : "", p->pw_dir ? p->pw_dir : "", p->pw_shell ? p->pw_shell : "" };
+	g32 at[6];
+	uint32_t used = 0;
+	for (int i = 0; i < 6; i++) {
+		uint32_t n = (uint32_t)strlen(s[i]) + 1;
+		if (used + n > len) return ERANGE;
+		memcpy(G2H(buf + used), s[i], n);
+		at[i] = buf + used;
+		used += n;
+	}
+	uint32_t *g = G2H(gpw);
+	g[0] = at[0]; g[1] = at[1]; g[2] = p->pw_uid; g[3] = p->pw_gid; g[4] = (uint32_t)p->pw_change;
+	g[5] = at[2]; g[6] = at[3]; g[7] = at[4]; g[8] = at[5]; g[9] = (uint32_t)p->pw_expire;
+	return 0;
+}
+static void pw_r(struct passwd *p, int rc, uint32_t *args, struct hres *r)
+{
+	*(g32 *)G2H(A(4)) = 0;
+	if (rc || !p) { RET(rc); return; }
+	rc = pw_put(p, A(1), A(2), A(3));
+	if (!rc) *(g32 *)G2H(A(4)) = A(1);
+	RET(rc);
+}
+static void t_getpwnam_r(uint32_t *args, struct hres *r)
+{
+	struct passwd pw, *p = NULL;
+	char tmp[4096];
+	int rc = getpwnam_r(G2H(A(0)), &pw, tmp, sizeof tmp, &p);
+	pw_r(p, rc, args, r);
+}
+static void t_getpwuid_r(uint32_t *args, struct hres *r)
+{
+	struct passwd pw, *p = NULL;
+	char tmp[4096];
+	int rc = getpwuid_r(A(0), &pw, tmp, sizeof tmp, &p);
+	pw_r(p, rc, args, r);
+}
+
 // ---- time and process info ---------------------------------------------------
 static void t_getrusage(uint32_t *args, struct hres *r)
 {
@@ -586,7 +636,8 @@ static struct hfn libc3[] = {
 	G("_inet_addr", inet_addr, "u:p"), R("_inet_ntoa", t_inet_ntoa),
 	G("_htonl", w_htonl, "u:u"), G("_ntohl", w_ntohl, "u:u"),
 	R("_gethostbyname", t_gethostbyname), G("_gethostname", gethostname, "i:pu"),
-	R("_getpwuid", t_getpwuid),
+	R("_getpwuid", t_getpwuid), R("_getpwnam", t_getpwnam), R("_getpwnam_r", t_getpwnam_r), R("_getpwuid_r", t_getpwuid_r),
+	G("_setpwent", setpwent, "v:"), G("_endpwent", endpwent, "v:"),
 	R("_getrusage", t_getrusage), R("_futimes", t_futimes), R("_ctime", t_ctime), R("_ctime_r", t_ctime_r), R("_mstats", t_mstats),
 	G("_tzset", tzset, "v:"), G("_setlocale", setlocale, "S:ip"),
 	G("_uuid_generate", uuid_generate, "v:p"), G("_flock", flock, "i:ii"),

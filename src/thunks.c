@@ -322,4 +322,5 @@ void thunks_init(void)
 	thunks_cg_init();
 	thunks_cf_init();
 	thunks_carbon_init();
+	thunks_qd_init();
 }

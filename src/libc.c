@@ -542,6 +542,10 @@ static void t_bsearch(uint32_t *args, struct hres *r)
 	RET(0);
 }
 
+// valloc is page-aligned by definition (GLib's slice allocator checks)
+static g32 w_valloc(uint32_t n) { return gmemalign(4096, n); }
+static g32 w_memalign(uint32_t a, uint32_t n) { return gmemalign(a, n); }
+
 static struct hfn libc[] = {
 	// memory
 	G("_malloc", gmalloc, "p:u"),
@@ -549,7 +553,7 @@ static struct hfn libc[] = {
 	G("_realloc", grealloc, "p:pu"),
 	G("_free", gfree, "v:p"),
 	G("_malloc_size", w_malloc_size, "u:p"),
-	G("_valloc", gmalloc, "p:u"),
+	G("_valloc", w_valloc, "p:u"), G("_memalign", w_memalign, "p:uu"),
 	// strings
 	G("_memcpy", memcpy, "p:ppu"),
 	G("_memmove", memmove, "p:ppu"),

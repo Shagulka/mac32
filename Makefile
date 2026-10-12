@@ -6,7 +6,7 @@ LDFLAGS = -arch x86_64 -liconv -lz -framework Foundation -framework AppKit -fram
           -framework IOKit -framework OpenGL -framework ApplicationServices -framework ImageIO -framework CFNetwork -framework SystemConfiguration -framework CoreText -framework AudioToolbox -framework CoreAudio -framework OpenAL -framework CoreVideo -framework UniformTypeIdentifiers -framework Carbon -framework Security -framework QuartzCore -framework CoreMIDI -framework AudioUnit -Wl,-pagezero_size,0x1000 -Wl,-no_pie -Wl,-image_base,0x200000000 \
           -Wl,-segaddr,__RESERVE,0x1000 -Wl,-segprot,__RESERVE,rwx,---
 SRC = src/main.c src/lowmem.c src/cpu.c src/thunks.c src/libc.c src/format.c \
-      src/pthread.c src/cxx.c src/libc2.c src/objc.m src/apple.m src/apple2.m src/legacy.m src/cg_thunks.c src/cf_thunks.c src/carbon_thunks.c src/patches.c src/srcfont.m src/launcher.m src/gl_thunks.c src/gl_special.c src/libc3.c src/ats.m src/steam.c src/steam_ifaces.c src/zlib.c src/audio.c src/sndmgr.c src/openal.c src/macho.c $(wildcard patches/*.c) src/tramp.s src/invoke.s src/reserve.s
+      src/pthread.c src/cxx.c src/libc2.c src/objc.m src/apple.m src/apple2.m src/legacy.m src/cg_thunks.c src/cf_thunks.c src/carbon_thunks.c src/patches.c src/srcfont.m src/quickdraw.m src/launcher.m src/gl_thunks.c src/gl_special.c src/libc3.c src/ats.m src/steam.c src/steam_ifaces.c src/zlib.c src/audio.c src/sndmgr.c src/openal.c src/macho.c $(wildcard patches/*.c) src/tramp.s src/invoke.s src/reserve.s
 OBJ = $(patsubst patches/%,build/patches/%.o,$(patsubst src/%,build/%.o,$(SRC)))
 
 all: mac32 guest app
