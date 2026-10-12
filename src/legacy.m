@@ -191,6 +191,35 @@ static int w_FSCompareFSRefs(const FSRef *a, const FSRef *b) { return FSCompareF
 static CGImageRef w_CGBitmapContextCreateImage(CGContextRef c) { return CGBitmapContextCreateImage(c); }
 static void w_CGImageRelease(CGImageRef i) { CGImageRelease(i); }
 static void w_CGContextSetInterpolationQuality(CGContextRef c, int q) { CGContextSetInterpolationQuality(c, q); }
+// CGDataProviderCreateWithData(info, data, size, release): the data is the
+// program's own memory; its release callback runs when the provider goes
+struct gprov { g32 info, data, release; };
+static void prov_release(void *ud, const void *data, size_t size)
+{
+	(void)data;
+	struct gprov *p = ud;
+	if (p->release) gcall(p->release, 3, p->info, p->data, (uint32_t)size);
+	free(p);
+}
+static void t_CGDataProviderCreateWithData(uint32_t *args, struct hres *r)
+{
+	struct gprov *p = malloc(sizeof *p);
+	*p = (struct gprov){ A(0), A(1), A(3) };
+	RET(hobj_wrap(CGDataProviderCreateWithData(p, G2H(A(1)), A(2), prov_release)));
+}
+
+// (provider, const CGFloat decode[], interpolate, intent): the decode array
+// holds i386 floats, two per colour component (at most four components)
+typedef CGImageRef (*image_from_provider)(CGDataProviderRef, const CGFloat *, bool, CGColorRenderingIntent);
+static void image_from(image_from_provider f, uint32_t *args, struct hres *r)
+{
+	CGFloat dec[8];
+	if (A(1)) for (int i = 0; i < 8; i++) dec[i] = ((const float *)G2H(A(1)))[i];
+	RET(hobj_wrap(f(hobj_unwrap(A(0)), A(1) ? dec : NULL, (A(2) & 0xff) != 0, (CGColorRenderingIntent)A(3))));
+}
+static void t_CGImageCreateWithJPEGDataProvider(uint32_t *args, struct hres *r) { image_from(CGImageCreateWithJPEGDataProvider, args, r); }
+static void t_CGImageCreateWithPNGDataProvider(uint32_t *args, struct hres *r) { image_from(CGImageCreateWithPNGDataProvider, args, r); }
+
 // Window contexts. Old programs (SDL 1.2) paint a frame by drawing an image
 // into [NSGraphicsContext graphicsContextWithWindow:] outside drawRect:.
 // Layer-backed windows never show that, so such a draw goes to a layer laid
@@ -587,6 +616,9 @@ static struct hfn legacy_fns[] = {
 	G("_FSCompareFSRefs", w_FSCompareFSRefs, "i:pp"),
 	G("_CGBitmapContextCreateImage", w_CGBitmapContextCreateImage, "o:o"), G("_CGImageRelease", w_CGImageRelease, "v:o"),
 	G("_CGContextSetInterpolationQuality", w_CGContextSetInterpolationQuality, "v:oi"),
+	R("_CGDataProviderCreateWithData", t_CGDataProviderCreateWithData),
+	R("_CGImageCreateWithJPEGDataProvider", t_CGImageCreateWithJPEGDataProvider),
+	R("_CGImageCreateWithPNGDataProvider", t_CGImageCreateWithPNGDataProvider),
 	R("_CGContextDrawImage", t_CGContextDrawImage), R("_CGImageCreateWithImageInRect", t_CGImageCreateWithImageInRect),
 	R("_CMGetSystemProfile", t_CMGetSystemProfile), R("_CMCloseProfile", t_zero),
 	R("_CGDisplayRestoreColorSyncSettings", t_nothing),

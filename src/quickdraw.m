@@ -282,6 +282,19 @@ static void t_NSAllocateMemoryPages(uint32_t *args, struct hres *r)
 static void t_NSDeallocateMemoryPages(uint32_t *args, struct hres *r) { (void)r; if (A(0)) low_free(A(0)); }
 static void t_NSCopyMemoryPages(uint32_t *args, struct hres *r) { (void)r; memmove(G2H(A(1)), G2H(A(0)), A(2)); }
 
+// ---- Mach VM: zeroed pages below 4 GB (the task argument is always this task) ---------------
+static void t_vm_allocate(uint32_t *args, struct hres *r)
+{
+	// (task, vm_address_t *addr, size, flags); VM_FLAGS_FIXED asks for *addr exactly
+	if (!(A(3) & 1)) { RET(3); return; }		// KERN_NO_SPACE: only VM_FLAGS_ANYWHERE
+	g32 p = low_pages(A(2) ? A(2) : 1, PROT_READ | PROT_WRITE);
+	if (!p) { RET(3); return; }
+	memset(G2H(p), 0, A(2));
+	*(g32 *)G2H(A(1)) = p;
+	RET(0);
+}
+static void t_vm_deallocate(uint32_t *args, struct hres *r) { if (A(1)) low_free(A(1)); RET(0); }
+
 static struct hfn qd[] = {
 	R("_LockPortBits", t_LockPortBits), R("_UnlockPortBits", t_UnlockPortBits),
 	R("_GetPortPixMap", t_GetPortPixMap), R("_GetPixBaseAddr", t_GetPixBaseAddr),
@@ -295,6 +308,7 @@ static struct hfn qd[] = {
 	R("_NewHandle", t_NewHandle), R("_NewHandleClear", t_NewHandle), R("_DisposeHandle", t_DisposeHandle),
 	R("_NSAllocateMemoryPages", t_NSAllocateMemoryPages), R("_NSDeallocateMemoryPages", t_NSDeallocateMemoryPages),
 	R("_NSCopyMemoryPages", t_NSCopyMemoryPages),
+	R("_vm_allocate", t_vm_allocate), R("_vm_deallocate", t_vm_deallocate),
 	R("_HLock", t_UnlockPortBits), R("_HUnlock", t_UnlockPortBits), R("_GetHandleSize", t_GetHandleSize),
 };
 

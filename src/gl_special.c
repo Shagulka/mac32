@@ -1,6 +1,8 @@
 // OpenGL calls that cannot be plain signature thunks: arrays of pointers,
 // pointer results, and mapped buffers (legacy GL 2.1 context only) (host mappings sit above 4 GB, so the
 // guest writes into a low shadow copy that we push back on flush/unmap).
+#include <OpenGL/glu.h>
+#include <OpenGL/OpenGL.h>
 #include <OpenGL/gl.h>
 #include <OpenGL/glext.h>
 #include <string.h>
@@ -188,6 +190,15 @@ static void t_glGetBufferPointerv(uint32_t *args, struct hres *r)
 }
 
 static struct hfn gls[] = {
+	// GLU (still in OpenGL.framework): numbers and pointers to plain arrays
+	G("_gluBuild1DMipmaps", gluBuild1DMipmaps, "i:uiiuup"),
+	G("_gluBuild2DMipmaps", gluBuild2DMipmaps, "i:uiiiuup"),
+	G("_gluScaleImage", gluScaleImage, "i:uiiupiiup"),
+	G("_gluLookAt", gluLookAt, "v:ddddddddd"),
+	G("_gluOrtho2D", gluOrtho2D, "v:dddd"), G("_gluPerspective", gluPerspective, "v:dddd"),
+	G("_gluProject", gluProject, "i:dddpppppp"), G("_gluUnProject", gluUnProject, "i:dddpppppp"),
+	G("_gluPickMatrix", gluPickMatrix, "v:ddddp"),
+	G("_gluErrorString", gluErrorString, "S:u"), G("_gluGetString", gluGetString, "S:u"),
 	R("_glShaderSource", t_glShaderSource), R("_glShaderSourceARB", t_glShaderSourceARB),
 	R("_glMultiDrawElements", t_glMultiDrawElements), R("_glMultiDrawElementsEXT", t_glMultiDrawElements),
 	R("_glTransformFeedbackVaryingsEXT", t_glTransformFeedbackVaryingsEXT),

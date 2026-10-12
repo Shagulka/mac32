@@ -10,6 +10,7 @@
 // Return codes: v, i, u, p, l, d, f (d and f come back in st(0)).
 #include "mac32.h"
 #include "thunks.h"
+#include <OpenGL/OpenGL.h>
 #include <string.h>
 #include <stdarg.h>
 #include <pthread.h>
@@ -50,6 +51,7 @@ void thunk_register(struct hfn *list, size_t n)
 {
 	for (size_t i = 0; i < n; i++) {
 		if (hfind(list[i].name)) die("duplicate host symbol %s", list[i].name);
+		list[i].gl = !strncmp(list[i].name, "_gl", 3);
 		hadd(&list[i]);
 	}
 }
@@ -287,9 +289,22 @@ void print_recent_calls(void)
 	fprintf(stderr, "\n");
 }
 
+// OpenGL with no context current on this thread. Old NSOpenGLView made its
+// context current whenever it drew, and it stayed current, so programs (Celestia)
+// make it current on one thread and draw from another. Stand in with the
+// context the program last made current.
+void *gl_last_context;
+static void gl_adopt_context(const char *name)
+{
+	static int said;
+	if (!said++) LOG("%s with no current OpenGL context: using the last one made current\n", name);
+	CGLSetCurrentContext(gl_last_context);
+}
+
 void hostcall_dispatch(uint32_t idx, uint32_t *args, struct hres *r)
 {
 	struct hfn *h = table[idx];
+	if (h->gl && gl_last_context && !CGLGetCurrentContext()) gl_adopt_context(h->name);
 	ring[ring_n++ % RING] = idx;
 	if (trace_calls && trace_match(h->name)) fprintf(stderr, "[call] %s\n", h->name);
 	switch (h->kind) {

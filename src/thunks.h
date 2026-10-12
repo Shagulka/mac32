@@ -13,6 +13,7 @@ struct hfn {
 	const void *ctx;	// C: closure data for fn(h, args, r)
 	g32 addr;		// stub or data address once bound
 	uint32_t idx;
+	uint8_t gl;		// an OpenGL/GLU call: needs a current context
 };
 
 #define G(n, f, s) { .name = n, .kind = 'G', .fn = (void *)(f), .sig = s }
@@ -20,6 +21,7 @@ struct hfn {
 #define D(n, sz, i) { .name = n, .kind = 'D', .size = sz, .init = i }
 
 void thunk_register(struct hfn *list, size_t n);
+extern void *gl_last_context;			// the CGL context the program last made current
 g32 hfn_stub(struct hfn *f);				// a stub for a dynamically made entry
 #define REGISTER(list) thunk_register(list, sizeof list / sizeof list[0])
 

@@ -342,6 +342,8 @@ KEY(kCFProxyPortNumberKey) KEY(kCFProxyTypeAutoConfigurationURL) KEY(kCFProxyTyp
 KEY(kCFProxyTypeKey) KEY(kCFProxyTypeNone) KEY(kCFProxyUsernameKey)
 #define DKEY(sym) D("_" #sym, 4, init_##sym)
 
+static int w_CGLSetCurrentContext(CGLContextObj c) { if (c) gl_last_context = c; return CGLSetCurrentContext(c); }
+
 static struct hfn apple[] = {
 	// CoreFoundation
 	G("_CFArrayGetCount", w_CFArrayGetCount, "i:o"),
@@ -481,7 +483,7 @@ static struct hfn apple[] = {
 	G("_CGLDestroyContext", CGLDestroyContext, "i:o"),
 	G("_CGLDestroyPixelFormat", CGLDestroyPixelFormat, "i:o"),
 	G("_CGLDestroyRendererInfo", CGLDestroyRendererInfo, "i:o"),
-	G("_CGLSetCurrentContext", CGLSetCurrentContext, "i:o"),
+	G("_CGLSetCurrentContext", w_CGLSetCurrentContext, "i:o"),
 	G("_CGLGetCurrentContext", CGLGetCurrentContext, "o:"),
 	G("_CGLEnable", CGLEnable, "i:ou"),
 	G("_CGLDisable", CGLDisable, "i:ou"),

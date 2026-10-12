@@ -10,6 +10,7 @@
 // NSInteger was int, BOOL was char, NSRect returns through a hidden pointer).
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
+#import <OpenGL/OpenGL.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <objc/objc-exception.h>
@@ -207,11 +208,17 @@ void objc_image_loaded(struct image *img)
 	if (macho_section(img, "__OBJC", "__message_refs", &a, &sz))
 		for (uint32_t i = 0; i < sz; i += 4) U32(a + i) = canon_sel(G2H(U32(a + i)), U32(a + i));
 	if (macho_section(img, "__OBJC", "__module_info", &a, &sz)) {
+		// all classes first: a category's module can come before its class's
+		for (uint32_t m = 0; m < sz; m += 16) {
+			g32 st = U32(a + m + 12);
+			if (!st) continue;
+			uint16_t ncls = *(uint16_t *)G2H(st + 8);
+			for (int i = 0; i < ncls; i++) register_class(U32(st + 12 + (g32)i * 4));
+		}
 		for (uint32_t m = 0; m < sz; m += 16) {
 			g32 st = U32(a + m + 12);
 			if (!st) continue;
 			uint16_t ncls = *(uint16_t *)G2H(st + 8), ncat = *(uint16_t *)G2H(st + 10);
-			for (int i = 0; i < ncls; i++) register_class(U32(st + 12 + (g32)i * 4));
 			for (int i = 0; i < ncat; i++) {
 				g32 c = U32(st + 12 + (g32)(ncls + i) * 4);
 				const char *cn = G2H(U32(c + 4));
@@ -521,9 +528,40 @@ static void sync_nsapp(void)
 
 enum { K_NORMAL, K_STRET, K_FPRET, K_SUPER, K_SUPER_STRET };
 
+// Old programs drew from background threads (Celestia's loader updates its
+// splash window); AppKit now crashes on that. Messages from another thread
+// that draw or change a window or view run on the main thread instead.
+static int ui_on_main(id target, const char *sel)
+{
+	if ([NSThread isMainThread] || object_isClass(target)) return 0;
+	if (![target isKindOfClass:[NSView class]] && ![target isKindOfClass:[NSWindow class]]) return 0;
+	static const char *const pre[] = { "display", "set", "order", "make", "close", "start", "stop",
+					   "increment", "scroll", "lockFocus", "unlockFocus", "center", NULL };
+	for (int i = 0; pre[i]; i++)
+		if (!strncmp(sel, pre[i], strlen(pre[i]))) return 1;
+	return 0;
+}
+
 static void call_host(id target, Class super_cls, SEL hsel, const char *selname,
 		      const uint32_t *ga, struct hres *r, g32 sret)
 {
+	if (!strcmp(selname, "makeCurrentContext") && [target isKindOfClass:[NSOpenGLContext class]]) {
+		[(NSOpenGLContext *)target makeCurrentContext];
+		gl_last_context = CGLGetCurrentContext();
+		return;
+	}
+	if (ui_on_main(target, selname)) {
+		// the drawing may be OpenGL done with this thread's context (the
+		// caller waits meanwhile, so the context is used by one thread)
+		CGLContextObj gl = CGLGetCurrentContext();
+		dispatch_sync(dispatch_get_main_queue(), ^{
+			CGLContextObj was = CGLGetCurrentContext();
+			if (gl) CGLSetCurrentContext(gl);
+			call_host(target, super_cls, hsel, selname, ga, r, sret);
+			if (gl) CGLSetCurrentContext(was);
+		});
+		return;
+	}
 	NSMethodSignature *sig;
 	if (super_cls) {
 		Method m = object_isClass(target) ? class_getClassMethod(super_cls, hsel)
@@ -836,7 +874,13 @@ static void msgsend(uint32_t *a, struct hres *r, int kind)
 	const char *sel = G2H(gsel);
 	extern int trace_calls;
 	extern int trace_match(const char *);
-	if (trace_calls && trace_match(sel)) fprintf(stderr, "[objc] %s%#x %s\n", supcls ? "super " : "", self, sel);
+	if (trace_calls && trace_match(sel)) {
+		fprintf(stderr, "[objc] %s%#x %s", supcls ? "super " : "", self, sel);
+		// C-string arguments say what the program is doing ("...WithUTF8String: \"x\"")
+		if ((strstr(sel, "CString") || strstr(sel, "UTF8String")) && strchr(sel, ':') && a[2] < 0x10000000u - 4096 && a[2] > 0x1000)
+			fprintf(stderr, " \"%.200s\"", (const char *)G2H(a[2]));
+		fputc('\n', stderr);
+	}
 	const uint32_t *ga = a + 2;
 
 	// a guest method?
@@ -1098,6 +1142,106 @@ static void install(Class cls, Class lookup, struct gmeth *m, int n, int meta)
 	}
 }
 
+// Nib outlets: AppKit sets them with key-value coding. The program's ivars
+// live in its i386 copy of the object, not in the host class, so KVC ends
+// up here; find the ivar in the i386 ivar lists (name or _name) and use it.
+enum { C_IVARS = 24 };
+static int guest_ivar(id self, NSString *key, g32 *at, const char **type)
+{
+	struct gclass *gc = gclass_of_host(object_getClass(self));
+	const char *k = key.UTF8String;
+	for (; gc; gc = gc->super) {
+		g32 list = U32(gc->cls + C_IVARS);
+		if (!list) continue;
+		int n = (int)U32(list);
+		for (int i = 0; i < n; i++) {
+			g32 iv = list + 4 + (g32)i * 12;
+			const char *name = G2H(U32(iv));
+			if (strcmp(name, k) && !(name[0] == '_' && !strcmp(name + 1, k))) continue;
+			*at = objc_wrap(self) + U32(iv + 8);
+			*type = G2H(U32(iv + 4));
+			return 1;
+		}
+	}
+	return 0;
+}
+static void kvc_set_undefined(id self, SEL _cmd, id value, NSString *key)
+{
+	g32 at;
+	const char *t;
+	if (!guest_ivar(self, key, &at, &t)) {
+		struct objc_super sup = { self, class_getSuperclass(object_getClass(self)) };
+		((void (*)(struct objc_super *, SEL, id, NSString *))objc_msgSendSuper)(&sup, _cmd, value, key);
+		return;
+	}
+	LOG("objc: outlet %s.%s = %s\n", object_getClassName(self), key.UTF8String, object_getClassName(value));
+	switch (t[0]) {
+	case '@': case '#': U32(at) = objc_wrap(value); break;
+	case 'c': case 'C': case 'B': *(uint8_t *)G2H(at) = (uint8_t)[value intValue]; break;
+	case 's': case 'S': *(uint16_t *)G2H(at) = (uint16_t)[value intValue]; break;
+	case 'i': case 'I': case 'l': case 'L': U32(at) = (uint32_t)[value intValue]; break;
+	case 'f': *(float *)G2H(at) = [value floatValue]; break;
+	case 'd': *(double *)G2H(at) = [value doubleValue]; break;
+	default: LOG("objc: outlet %s has type %s; not set\n", key.UTF8String, t);
+	}
+}
+static id kvc_get_undefined(id self, SEL _cmd, NSString *key)
+{
+	g32 at;
+	const char *t;
+	if (!guest_ivar(self, key, &at, &t)) {
+		struct objc_super sup = { self, class_getSuperclass(object_getClass(self)) };
+		return ((id (*)(struct objc_super *, SEL, NSString *))objc_msgSendSuper)(&sup, _cmd, key);
+	}
+	switch (t[0]) {
+	case '@': case '#': return objc_unwrap(U32(at));
+	case 'c': case 'C': case 'B': return @(*(int8_t *)G2H(at));
+	case 'i': case 'l': return @((int32_t)U32(at));
+	case 'I': case 'L': return @(U32(at));
+	case 'f': return @(*(float *)G2H(at));
+	case 'd': return @(*(double *)G2H(at));
+	default: return nil;
+	}
+}
+
+// AppKit's nib loader connects an outlet by calling set<Outlet>: if the
+// object responds to it, else by writing a host ivar of that name; it never
+// falls back to KVC. The ivars live in the i386 copy, so give each object
+// ivar the program did not write a setter for a setter that stores it there.
+static void outlet_setter(id self, SEL _cmd, id value)
+{
+	const char *s = sel_getName(_cmd);	// "setFoo:" -> "foo"
+	char name[256];
+	snprintf(name, sizeof name, "%c%s", tolower((unsigned char)s[3]), s + 4);
+	name[strlen(name) - 1] = 0;
+	g32 at;
+	const char *t;
+	NSString *key = [NSString stringWithUTF8String:name];
+	if (!guest_ivar(self, key, &at, &t)) {
+		name[0] = (char)toupper((unsigned char)name[0]);	// an ivar that starts with a capital
+		key = [NSString stringWithUTF8String:name];
+		if (!guest_ivar(self, key, &at, &t)) return;
+	}
+	LOG("objc: outlet %s.%s = %s\n", object_getClassName(self), name, object_getClassName(value));
+	U32(at) = objc_wrap(value);
+}
+static void add_outlet_setters(Class c, struct gclass *gc)
+{
+	g32 list = U32(gc->cls + C_IVARS);
+	if (!list) return;
+	int n = (int)U32(list);
+	for (int i = 0; i < n; i++) {
+		g32 iv = list + 4 + (g32)i * 12;
+		const char *name = G2H(U32(iv)), *type = G2H(U32(iv + 4));
+		if (type[0] != '@' || !name[0] || name[0] == '_') continue;
+		char sel[256];
+		snprintf(sel, sizeof sel, "set%c%s:", toupper((unsigned char)name[0]), name + 1);
+		SEL s = sel_registerName(sel);
+		if (class_getInstanceMethod(c, s) || find_imp(gc, sel, 0, NULL)) continue;
+		class_addMethod(c, s, (IMP)outlet_setter, "v@:@");
+	}
+}
+
 static Class ensure_host_class(struct gclass *gc)
 {
 	if (gc->host) return gc->host;
@@ -1112,6 +1256,9 @@ static Class ensure_host_class(struct gclass *gc)
 		install(object_getClass(c), parent, gc->cm, gc->ncm, 1);
 		class_addMethod(c, @selector(forwardInvocation:), (IMP)forward_to_guest, "v@:@");
 		class_addMethod(object_getClass(c), @selector(forwardInvocation:), (IMP)forward_to_guest, "v@:@");
+		class_addMethod(c, @selector(setValue:forUndefinedKey:), (IMP)kvc_set_undefined, "v@:@@");
+		add_outlet_setters(c, gc);
+		class_addMethod(c, @selector(valueForUndefinedKey:), (IMP)kvc_get_undefined, "@@:@");
 		objc_registerClassPair(c);
 		map_put(&gcls_by_host, (uint64_t)(uintptr_t)c, (uint64_t)(uintptr_t)gc);
 		gc->host = c;

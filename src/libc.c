@@ -81,7 +81,12 @@ static void init_sF(g32 a)
 	gfile_bind(a + 2 * GFILE_SIZE, stderr);
 }
 
-static void t_fopen(uint32_t *args, struct hres *r) { RET(gfile_new(fopen(G2H(A(0)), G2H(A(1))))); }
+static void t_fopen(uint32_t *args, struct hres *r)
+{
+	FILE *f = fopen(G2H(A(0)), G2H(A(1)));
+	if (!f) LOG("fopen(%s, %s): %s\n", (char *)G2H(A(0)), (char *)G2H(A(1)), strerror(errno));	// with -v
+	RET(gfile_new(f));
+}
 static void t_fdopen(uint32_t *args, struct hres *r) { RET(gfile_new(fdopen((int)A(0), G2H(A(1))))); }
 static void t_setbuf(uint32_t *args, struct hres *r) { (void)r; setbuf(gfile_host(A(0)), A(1) ? G2H(A(1)) : NULL); }
 static void t_fclose(uint32_t *args, struct hres *r) { FILE *f = gfile_host(A(0)); RET(fclose(f)); gfile_close(A(0)); }
@@ -546,6 +551,25 @@ static void t_bsearch(uint32_t *args, struct hres *r)
 static g32 w_valloc(uint32_t n) { return gmemalign(4096, n); }
 static g32 w_memalign(uint32_t a, uint32_t n) { return gmemalign(a, n); }
 
+// the old dyld image API: NSAddImage is dlopen; NSLookupSymbolInImage takes
+// the C name (with its underscore) and returns the address as the "symbol"
+static void t_NSAddImage(uint32_t *args, struct hres *r)
+{
+	uint32_t a[2] = { A(0), 0 };
+	t_dlopen(a, r);
+}
+static void t_NSLookupSymbolInImage(uint32_t *args, struct hres *r)
+{
+	const char *n = G2H(A(1));
+	uint32_t a[2] = { A(0), A(1) + (n[0] == '_') };
+	t_dlsym(a, r);
+}
+static void t_NSIsSymbolNameDefinedInImage(uint32_t *args, struct hres *r)
+{
+	t_NSLookupSymbolInImage(args, r);
+	RET(r->rax != 0);
+}
+
 static struct hfn libc[] = {
 	// memory
 	G("_malloc", gmalloc, "p:u"),
@@ -653,6 +677,8 @@ static struct hfn libc[] = {
 	// sysctl
 	R("_sysctl", t_sysctl), R("_sysctlbyname", t_sysctlbyname),
 	// dl
+	R("_NSAddImage", t_NSAddImage), R("_NSLookupSymbolInImage", t_NSLookupSymbolInImage),
+	R("_NSIsSymbolNameDefinedInImage", t_NSIsSymbolNameDefinedInImage),
 	R("_dlopen", t_dlopen), R("_dlsym", t_dlsym), R("_dlclose", t_dlclose), R("_dlerror", t_dlerror),
 	// libgcc
 	G("___udivdi3", udivdi3, "l:ll"), G("___umoddi3", umoddi3, "l:ll"),

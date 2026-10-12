@@ -39,6 +39,10 @@ else:
     hdrs = [h for h in hdrs if '/CoreGraphics.framework/' not in h and '/CoreFoundation.framework/' not in h]
     hdrs.append('tools/carbon_protos.h')
     wanted = set(open('tools/wanted.txt').read().split())
+    # wanted.txt lists only what is not covered yet: keep what this table
+    # already has, or a run would drop functions generated before
+    if os.path.exists(fw['out']):
+        wanted |= set(re.findall(r'\bG\("_(\w+)"', open(fw['out']).read()))
 wanted_rx = re.compile(r'\b(' + '|'.join(sorted(wanted, key=len, reverse=True)) + r')\s*\(') if wanted else None
 
 # names that already have a thunk somewhere in src/ (hand-written wins)
@@ -135,6 +139,8 @@ def code(t, ret=False):
             if base in ('HIRect', 'CGRect'): return 'r'
             if base in ('ItemCount', 'ByteCount', 'Size', 'UniCharCount', 'CFIndex', 'unsigned long', 'long',
                         'UniCharArrayOffset'): return 'W'
+            # FSRef and the like are structs that happen to end in "Ref"
+            if base in SAME_LAYOUT_PTR or base in FIXED: return 'p'
             if not t.startswith('const') and (base.endswith('Ref') or (which == 'carbon' and base in OPAQUE)):
                 return 'O'
             if base in ('FSSpec', 'Str255', 'Str63', 'Str31', 'Str15'): return 'p'

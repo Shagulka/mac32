@@ -265,6 +265,7 @@ static struct hfn cg[] = {
 	G("_CGEventKeyboardSetUnicodeString", CGEventKeyboardSetUnicodeString, "v:oup"),
 	G("_CGEventPost", CGEventPost, "v:uo"),
 	G("_CGEventPostToPSN", CGEventPostToPSN, "v:po"),
+	G("_CGEventPostToPid", CGEventPostToPid, "v:io"),
 	G("_CGEventSetDoubleValueField", CGEventSetDoubleValueField, "v:oud"),
 	G("_CGEventSetFlags", CGEventSetFlags, "v:ou"),
 	G("_CGEventSetIntegerValueField", CGEventSetIntegerValueField, "v:oul"),
