@@ -2,6 +2,8 @@
 /mac32
 /Mac32.app/
 /build/
+/dist/
+/.deps/
 guest/*.dylib
 guest/cxxrt/obj/
 tools/winid

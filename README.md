@@ -34,10 +34,16 @@ support yet.
 <img src="docs/images/dosbox-0.74.jpg" width="49%" alt="DOSBox 0.74 under mac32">
 </p>
 
-## Get it running
+## Download
 
-You need an Apple Silicon Mac with Rosetta 2 (or an Intel Mac) and the Xcode
-command line tools.
+Get `Mac32.app` from the [releases page](https://github.com/Shagulka/mac32/releases),
+unzip it and move it to Applications. It is not notarized, so the first time,
+right-click it and choose Open. You need an Apple Silicon Mac with Rosetta 2, or
+an Intel Mac.
+
+## Build from source
+
+You need the Xcode command line tools.
 
 ```bash
 git clone https://github.com/Shagulka/mac32.git
@@ -50,6 +56,10 @@ make install          # optional: links the mac32 command into ~/.local/bin
 `make` builds the `mac32` engine, the 32-bit runtime libraries in `guest/`, and
 `Mac32.app`, a bundle so macOS treats each program as a normal app. Check it with
 `mac32 selftest`.
+
+`make dist VERSION=x.y` packages a release zip in `dist/`. Pushing a tag such as
+`v0.2` makes GitHub Actions build, test and publish release 0.2
+(`.github/workflows/release.yml`).
 
 ## Use it
 

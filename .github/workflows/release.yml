@@ -1,0 +1,102 @@
+# Build Mac32.app and publish it as a GitHub release.
+#
+# Push a tag like v0.2 to build and publish release 0.2:
+#   git tag v0.2 && git push origin v0.2
+# Run it by hand (Actions > Release > Run workflow) to build without
+# publishing; the zip is kept as a workflow artifact for a week.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    env:
+      LLVM: ${{ github.workspace }}/.deps/llvm-project
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick the version
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v=${GITHUB_REF_NAME#v}
+          else v=0.0.0-dev.$(git rev-parse --short HEAD); fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Building mac32 $v"
+
+      - name: Cache the LLVM sources
+        uses: actions/cache@v4
+        with:
+          path: .deps/llvm-project
+          key: llvm-17.0.6-runtimes-${{ hashFiles('tools/get-llvm.sh') }}
+
+      - name: Fetch the LLVM sources
+        run: tools/get-llvm.sh
+
+      - name: Build
+        run: make -j"$(sysctl -n hw.ncpu)" VERSION=${{ steps.version.outputs.version }}
+
+      # mac32 is x86_64 code; arm64 runners need Rosetta 2 to run it
+      - name: Install Rosetta 2
+        run: arch -x86_64 /usr/bin/true 2>/dev/null || softwareupdate --install-rosetta --agree-to-license
+
+      - name: Self-test
+        run: Mac32.app/Contents/Resources/mac32 selftest
+
+      - name: Package
+        run: make dist VERSION=${{ steps.version.outputs.version }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac32-${{ steps.version.outputs.version }}-macos
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac32-${{ needs.build.outputs.version }}-macos
+          path: dist
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          cat > notes.md <<EOF
+          ## Install
+
+          1. Download \`mac32-$VERSION-macos.zip\` and unzip it.
+          2. Move \`Mac32.app\` to Applications.
+          3. The app is not notarized, so macOS blocks it the first time. Right-click
+             \`Mac32.app\` and choose Open, or run:
+             \`xattr -dr com.apple.quarantine /Applications/Mac32.app\`
+          4. Open \`Mac32.app\` and pick a 32-bit app, or put the \`mac32\` command on
+             your PATH:
+             \`ln -s /Applications/Mac32.app/Contents/Resources/mac32 /usr/local/bin/mac32\`
+
+          Needs an Apple Silicon Mac with Rosetta 2, or an Intel Mac. See the
+          [README](https://github.com/$GITHUB_REPOSITORY#readme) for which apps run.
+
+          EOF
+          prerelease=
+          case "$VERSION" in *-*) prerelease=--prerelease ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag $prerelease \
+            --title "mac32 $VERSION" --notes "$(cat notes.md)" --generate-notes

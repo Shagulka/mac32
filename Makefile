@@ -14,8 +14,10 @@ all: mac32 guest app
 guest:
 	$(MAKE) -C guest
 
+# (the linker warns that -no_pie is deprecated; hide that, keep its exit status)
 mac32: $(OBJ)
-	$(CC) $(LDFLAGS) $(OBJ) -o $@ 2>&1 | grep -v 'no_pie.*deprecated' || true
+	@echo "$(CC) ... -o $@"
+	@$(CC) $(LDFLAGS) $(OBJ) -o $@ 2> build/link.log; rc=$$?; grep -v 'no_pie.*deprecated' build/link.log >&2; exit $$rc
 
 build/%.o: src/% src/mac32.h src/thunks.h | build
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -28,7 +30,7 @@ build:
 	mkdir -p build build/patches
 
 clean:
-	rm -rf build mac32
+	rm -rf build mac32 $(APP) dist
 	$(MAKE) -C guest clean
 
 .PHONY: all guest clean
@@ -36,6 +38,7 @@ clean:
 # An app bundle around the same binary, so the game window has an app identity
 # (Dock, window tools). Launch through Mac32.app/Contents/MacOS/mac32.
 APP = Mac32.app
+VERSION ?= 0.1
 app: mac32 guest
 	mkdir -p $(APP)/Contents/MacOS/guest
 	cp mac32 $(APP)/Contents/MacOS/mac32
@@ -51,7 +54,8 @@ app: mac32 guest
 	  '<key>CFBundlePackageType</key><string>APPL</string>' \
 	  '<key>NSHighResolutionCapable</key><false/>' \
 	  '<key>CFBundleDisplayName</key><string>mac32</string>' \
-	  '<key>CFBundleShortVersionString</key><string>0.1</string>' \
+	  '<key>CFBundleShortVersionString</key><string>$(VERSION)</string>' \
+	  '<key>CFBundleVersion</key><string>$(VERSION)</string>' \
 	  '<key>CFBundleDocumentTypes</key><array><dict>' \
 	  '<key>CFBundleTypeName</key><string>32-bit Mac app</string>' \
 	  '<key>CFBundleTypeRole</key><string>Viewer</string>' \
@@ -69,3 +73,17 @@ install: app
 	ln -sf $(CURDIR)/bin/mac32 $(PREFIX)/bin/mac32
 	@echo "installed $(PREFIX)/bin/mac32 (make sure $(PREFIX)/bin is on your PATH)"
 .PHONY: install
+
+# A release: Mac32.app with the license and README, zipped, plus its SHA-256.
+#   make dist VERSION=0.2
+DIST = dist/mac32-$(VERSION)
+dist: app
+	rm -rf $(DIST) $(DIST)-macos.zip
+	mkdir -p $(DIST)
+	ditto $(APP) $(DIST)/Mac32.app
+	cp README.md COPYING NOTICE $(DIST)/
+	codesign -s - --force --deep $(DIST)/Mac32.app
+	cd dist && ditto -c -k --norsrc --noextattr --noqtn --keepParent mac32-$(VERSION) mac32-$(VERSION)-macos.zip
+	cd dist && shasum -a 256 mac32-$(VERSION)-macos.zip > mac32-$(VERSION)-macos.zip.sha256
+	@echo "built $(DIST)-macos.zip"
+.PHONY: dist
