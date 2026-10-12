@@ -348,13 +348,126 @@ static uint32_t slot_of(const char *sig, int n)
 	return s;
 }
 
+// ---- server browser (ISteamMatchmakingServers) ---------------------------------
+// The game passes its own response objects (C++ objects with i386 vtables)
+// that Steam calls back as servers answer. Steam gets a host stand-in per
+// object whose methods call the game's vtable slots.
+enum { LIST_RESP, PING_RESP, PLAYERS_RESP, RULES_RESP };
+struct rproxy { void **vtbl; g32 guest; };
+#define GSLOT(p, k) (*(g32 *)G2H(*(g32 *)G2H((p)->guest) + 4 * (k)))
+
+// gameserveritem_t: the same on both sides up to m_szGameTags; m_steamID
+// (uint64) is 4-aligned on i386 (offset 364) and 8-aligned here (368)
+enum { GSI_HEAD = 364, GSI_SIZE32 = 372 };
+static g32 gsi_to_guest(const void *host)
+{
+	static g32 ring[64];
+	static unsigned next;
+	if (!host) return 0;
+	g32 *slot = &ring[next++ % 64];
+	if (!*slot) *slot = gcalloc(1, GSI_SIZE32);
+	memcpy(G2H(*slot), host, GSI_HEAD);
+	memcpy(G2H(*slot + GSI_HEAD), (const char *)host + 368, 8);
+	return *slot;
+}
+static g32 gstr_tmp(const char *s)
+{
+	static __thread g32 buf[2];
+	static __thread uint32_t cap[2];
+	static __thread int which;
+	int w = which++ & 1;
+	uint32_t n = (uint32_t)strlen(s ? s : "") + 1;
+	if (n > cap[w]) { gfree(buf[w]); cap[w] = n + 64; buf[w] = gmalloc(cap[w]); }
+	memcpy(G2H(buf[w]), s ? s : "", n);
+	return buf[w];
+}
+static void lr_responded(struct rproxy *p, void *req, int i) { gcall(GSLOT(p, 0), 3, p->guest, hobj_wrap(req), (uint32_t)i); }
+static void lr_failed(struct rproxy *p, void *req, int i) { gcall(GSLOT(p, 1), 3, p->guest, hobj_wrap(req), (uint32_t)i); }
+static void lr_complete(struct rproxy *p, void *req, int resp) { gcall(GSLOT(p, 2), 3, p->guest, hobj_wrap(req), (uint32_t)resp); }
+static void pr_responded(struct rproxy *p, const void *item) { gcall(GSLOT(p, 0), 2, p->guest, gsi_to_guest(item)); }
+static void pr_failed(struct rproxy *p) { gcall(GSLOT(p, 1), 1, p->guest); }
+static void pl_add(struct rproxy *p, const char *name, int score, float played)
+{
+	uint32_t f;
+	memcpy(&f, &played, 4);
+	gcall(GSLOT(p, 0), 4, p->guest, gstr_tmp(name), (uint32_t)score, f);
+}
+static void pl_failed(struct rproxy *p) { gcall(GSLOT(p, 1), 1, p->guest); }
+static void pl_complete(struct rproxy *p) { gcall(GSLOT(p, 2), 1, p->guest); }
+static void ru_responded(struct rproxy *p, const char *k, const char *v)
+{
+	g32 gk = gstr_tmp(k), gv = gstr_tmp(v);
+	gcall(GSLOT(p, 0), 3, p->guest, gk, gv);
+}
+static void ru_failed(struct rproxy *p) { gcall(GSLOT(p, 1), 1, p->guest); }
+static void ru_complete(struct rproxy *p) { gcall(GSLOT(p, 2), 1, p->guest); }
+static void *resp_vtables[4][3] = {
+	{ (void *)lr_responded, (void *)lr_failed, (void *)lr_complete },
+	{ (void *)pr_responded, (void *)pr_failed, NULL },
+	{ (void *)pl_add, (void *)pl_failed, (void *)pl_complete },
+	{ (void *)ru_responded, (void *)ru_failed, (void *)ru_complete },
+};
+static void *resp_proxy(g32 guest, int kind)
+{
+	if (!guest) return NULL;
+	static struct { g32 guest; int kind; struct rproxy *p; } made[256];
+	static int n;
+	pthread_mutex_lock(&lk);
+	for (int i = 0; i < n; i++)
+		if (made[i].guest == guest && made[i].kind == kind) { pthread_mutex_unlock(&lk); return made[i].p; }
+	struct rproxy *p = calloc(1, sizeof *p);
+	p->vtbl = resp_vtables[kind];
+	p->guest = guest;
+	if (n < 256) made[n++] = (typeof(made[0])){ guest, kind, p };
+	pthread_mutex_unlock(&lk);
+	return p;
+}
+
+// returns 1 when it handled the call
+static int server_browser(const struct smethod *m, void *fn, void *self, uint32_t *args, struct hres *r)
+{
+	const char *n = m->name;
+	if (!strncmp(n, "Request", 7) && strstr(n, "ServerList")) {
+		void *req;
+		if (!strcmp(n, "RequestLANServerList")) {
+			req = ((void *(*)(void *, uint32_t, void *))fn)(self, args[1], resp_proxy(args[2], LIST_RESP));
+		} else {
+			// (app, MatchMakingKeyValuePair_t **filters, count, response): the
+			// pairs (two char[256]) are the same on both sides, the array is not
+			uint32_t cnt = args[3];
+			void **filters = cnt ? calloc(cnt, sizeof *filters) : NULL;
+			for (uint32_t i = 0; i < cnt; i++) filters[i] = G2H(((g32 *)G2H(args[2]))[i]);
+			req = ((void *(*)(void *, uint32_t, void **, uint32_t, void *))fn)(self, args[1], filters, cnt,
+										 resp_proxy(args[4], LIST_RESP));
+			free(filters);
+		}
+		r->rax = req ? hobj_wrap(req) : 0;
+		return 1;
+	}
+	if (!strcmp(n, "GetServerDetails")) {
+		void *item = ((void *(*)(void *, void *, int))fn)(self, hobj_unwrap(args[1]), (int)args[2]);
+		r->rax = gsi_to_guest(item);
+		return 1;
+	}
+	int kind = !strcmp(n, "PingServer") ? PING_RESP : !strcmp(n, "PlayerDetails") ? PLAYERS_RESP :
+		   !strcmp(n, "ServerRules") ? RULES_RESP : -1;
+	if (kind >= 0) {	// (ip, port, response) -> HServerQuery
+		r->rax = (uint32_t)((int (*)(void *, uint32_t, uint16_t, void *))fn)(self, args[1], (uint16_t)args[2],
+										      resp_proxy(args[3], kind));
+		return 1;
+	}
+	return 0;
+}
+
 static void steam_method(struct hfn *h, uint32_t *args, struct hres *r)
 {
 	const struct smethod *m = h->ctx;
-	if (strchr(m->sig, 'X'))
+	if (strchr(m->sig, 'X') && !strstr(h->name, "SteamMatchMakingServers"))
 		die("Steam method %s is not bridged yet (signature %s)", h->name, m->sig);
 	void *self = hobj_unwrap(args[0]);
 	void *fn = (*(void ***)self)[h->size];
+	if (strstr(h->name, "SteamMatchMakingServers") && server_browser(m, fn, self, args, r)) return;
+	if (strchr(m->sig, 'X')) die("Steam method %s is not bridged yet (signature %s)", h->name, m->sig);
 	if (getenv("MAC32_STEAMARGS") && strstr(m->name, getenv("MAC32_STEAMARGS")))
 		fprintf(stderr, "[steamargs] %s: %08x %08x %08x %08x %08x %08x\n", m->name, args[1], args[2], args[3], args[4], args[5], args[6]);
 	if (m->sig[0] == 'I') {
